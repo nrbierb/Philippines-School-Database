@@ -1,0 +1,52 @@
+{% extends 'forms_base.html' %}
+{{% block local_javascript_code %}
+{{block.super}}
+$(function() {
+	$("#dialog_display_button").click(function() {
+			displayHelpDialog($("#id_content").val());
+	});
+	$("#insert_end_dialog_button").click(function() {
+		var markerText = "\n<!--<<       End of dialog text.      >>\n    << Insert balloon help text here. >> {\n\n}-->";
+		$("#id_content").val($("#id_content").val() + markerText);
+		});
+});
+{% endblock local_javascript_code %}
+{% block extended %}
+<p>Name:<span class="view-field">{{name}}</span>Title:<span class="view-field">{{title}}</span></p>
+<fieldset class="std-block">
+<legend>Text Page Information</legend>
+<table class="unbordered">
+	<tr><td>{{form.author_name.label}}:</td><td>{{form.author_name}}</td></tr>
+	<tr><td>{{form.revision_number.label}}:</td><td>{{form.revision_number}}</td></tr>
+	<tr><td>{{form.last_edit_date.label}}:</td><td>{{form.last_edit_date}}</td></tr>
+	<tr><td>{{form.comment.label}}:</td><td>{{form.comment}}</td></tr>
+</table>
+<p>Page Text</p>
+{{form.content}}
+</fieldset>
+<div>
+<input type="button" id="insert_end_dialog_button" 
+				class="btn blue menu-button" value="Add End Dialog Mkr" ></input>
+<input type="button" id="page_display_button" 
+				class="btn blue menu-button not-ready" value="View in Webpage" ></input>
+<input type="button" id="dialog_display_button" 
+				class="btn blue menu-button" value="View in Dialog Window" ></input>
+{{form.author}}
+</div>
+<!--					
+<fieldset class="major">
+<legend>Action</legend>
+<table id="text_actions_table" class="action-btn" >
+  <tbody>
+    <tr>
+      <td class="buttons" ><input value="Cancel" id="close_button" title="" class="btn tb action"/></td>
+      <td class="buttons" ><input value="Clear" id="clear_button" title="Remove all text in page. Use before paste of edited copy." class="btn tb action"/></td>
+      <td class="buttons" ><input value="Update" id="save_button" title="Quick update of current version in place." class="btn tb action"/></td>
+      <td class="buttons" ><input value="New Version" id="new_version_button" title="Save text with new version number" class="btn tb action"/></td>
+    </tr>
+  </tbody>
+</table>
+</fieldset>
+-->
+{%endblock extended%}
+

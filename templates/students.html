@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block content %}
+<p class="form-title">Work with Students</p>
+<fieldset class="major">
+<legend class="major">Choose Your Task</legend>
+<table class="lg-btn" >
+  <tbody>
+    <tr>
+      <td ><a name="new_button" class="btn blue tb" href="student">New Student Record</a></td>
+      <td><a name="edit_button" class="btn blue tb" href="../select/student">Edit Student Record</a></td>
+
+    </tr>
+    <tr>
+		<td><a name="view_button"  class="btn blue tb" href="../select/student">View Student Record</a></td>
+      <td><a name="return_button"  class="btn green tb" href="index">Return to Main Page</a></td>
+    </tr>
+  </tbody>
+</table>
+</fieldset>
+{% endblock %}

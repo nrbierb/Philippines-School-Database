@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block content %}
+<p class="form-title centered-object">Choose a Custom Report</p>
+<fieldset id="school-fieldset" class="major">
+<legend class="major">People</legend>
+<table class="lg-btn" >
+  <tbody>
+    <tr>
+      	<td class="width200" ><a id="student" class="btn blue tb" href="/custom_report/student">Student</a></td>
+	  	<td class="width200"><a id="parent_or_guardian"  class="btn blue tb" href="/custom_report/parent_or_guardian">Parent / Guardian</a></td>
+   </tr>
+	<tr>
+ 	  	<td class="width200"><a id="teacher"  class="btn blue tb" href="/custom_report/teacher">Teacher</a></td>
+	  	<td class="width200"><a id="administrator"  class="btn blue tb" href="/custom_report/administrator">Administrator</a></td>
+	</tr>
+ </tbody>
+</table>
+</fieldset>
+
+<br/>
+<fieldset id="school-fieldset" class="major">
+<legend class="major">Classes and Schdules</legend>
+<table class="lg-btn" >
+	<tr>
+      	<td class="width200" ><a id="class_session" class="btn blue tb" href="/custom_report/class_session">Class</a></td>
+		<td class="width200"><a id="grading_period"  class="btn blue tb" href="/custom_report/grading_period">Grading Period Dates</a></td>
+	</tr>
+	<tr>
+ 	  	<td class="width200"><a id="section"  class="btn blue tb" href="/custom_report/section">Section</a></td>
+		<td class="width200"><a id="class_period"  class="btn blue tb" href="/custom_report/class_period">Class Period Times</a></td>
+	</tr>
+ </tbody>
+</table>
+</fieldset>
+<br/>
+<fieldset id="organization-fieldset" class="major">
+<legend class="major">Organizations</legend>
+<table class="lg-btn" >
+  <tbody>
+    <tr>
+      <td class="width200"><a id="school" class="btn blue tb" href="/custom_report/school">School</a></td>
+	  <td class="width200"><a id="community"  class="btn blue tb" href="/custom_report/community">Barangay</a></td>
+   </tr>
+    <tr>
+   	  <td class="width200"><a id="division" class="btn blue tb" href="/custom_report/division">Division</a></td>
+      <td class="width200" ><a id="municipality" class="btn blue tb" href="/custom_report/municipality">Municipality</a></td>
+    </tr>
+  </tbody>
+</table>
+</fieldset>
+
+<fieldset class="major one-col-buttons" >
+<legend class="major">Action</legend>
+<table class="action-btn"  width="100%">
+  <tbody>
+    <tr>
+      <td class="buttons" >
+      	<a name="return_button"  class="btn green tb" href="index.html">Return Home</a>
+      </td>
+    </tr>
+  </tbody>
+</table>
+</fieldset>
+
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends 'forms_base_generic.html' %}
+{% block local_javascript_code %}
+<script type='text/javascript' src='http://www.google.com/jsapi'></script>
+<script type='text/javascript' src='../static/jscript/json_sans_eval.js'></script>
+<script type="text/javascript">
+google.load('visualization', '1', {packages:['table']});
+  
+$(function(){
+var view;
+var data;	
+var selectionTable = new google.visualization.Table(document.getElementById('table_div'));
+
+function selectHandler(e) {
+    var selection = selectionTable.getSelection();
+    for (var i = 0; i < selection.length; i++) {
+      var item = selection[i];
+      if (item.row != null) {
+        var str = data.getFormattedValue(item.row, 0);
+        message += '{row:' + item.row + ', column:none}; value (col 0) = ' + str + '\n';
+    }
+    if (message == '') {
+      message = 'nothing';
+    } }
+    alert('You selected ' + message);
+  }
+
+// Add our selection handler.
+//google.visualization.events.addListener(selectionTable, 'select', selectHandler);
+		
+function createWidgetTable(responseData, preprocessingFunction) {
+	var table_descriptor = preprocessingFunction? preprocessingFunction(responseData) :
+		responseData;
+	data = new google.visualization.DataTable(table_descriptor, 0.6);
+	view = new google.visualization.DataView(data);
+	view.hideColumns([0]);
+	selectionTable.draw(view,{ height: 500});  
+}
+
+function loadClassTable(theClass, extraFields) {
+$.ajax( {
+    url: "ajax/select_table/",
+    data: {"class":theClass,
+         "extra_fields":extraFields },
+    dataType: "json",
+    success: function(returnData) {
+            createWidgetTable(returnData);
+            }
+    });
+}
+
+function processAutocompleteResponse(returnData) {
+	extracted = eval('(' + returnData + ')');	
+	return extracted;
+}
+
+function noParse(input){
+	return input;
+}
+
+function getSelectedRowIndexes() {
+    var selection = selectionTable.getSelection();
+	var selectedRows = [];
+	var selectedKeys = [];
+    for (var i = 0; i < selection.length; i++) {
+		row = selection[i].row;
+ 	  selectedRows[i] = row;
+	  selectedKeys[i] = data.getValue(row,0);	  
+	}
+	return selectedKeys;
+}
+
+var targetClass = "community";
+var extraFields  = "municipality";
+var filterSchool = "false";
+var leadingValueField = "name";
+
+targetClass = "student";
+extraFields = "class_year|section|student_status|school";
+filterSchool = "true";
+leadingValueField = "last_name";
+
+	$("#load_table_btn").click(function(){
+		//loadClassTable("student", "class_year|section|student_status|school");
+		//loadClassTable("community", "municipality");
+		getSelectedRowIndexes();
+	});
+	
+  $("#id_selection").autocomplete("../ajax/select_table/", {
+  	showFunction: createWidgetTable,
+	preprocessingFunction: processAutocompleteResponse,
+	parse: noParse,
+	cacheLength: 0,
+    extraParams:{
+    'class': targetClass,
+	'extra_fields': extraFields,
+	"filter_school": filterSchool,
+	"leading_value_field": leadingValueField,
+    'mustMatch': true,
+    'minChars': 0}});
+	
+});
+
+	
+</script>
+{% endblock local_javascript_code %}
+{% block extended %}
+<fieldset class="std-block">
+	<legend>Start Selection</legend>
+	<table>
+		<tbody>
+		{{form}}
+		<tr><th><label for="id_section" id="id_selection_label"></label></th>
+		<td><input id="id_section" type="text" class="autofill" name="section" 
+			id="id_selection"/></td></tr>	
+		</tbody>
+	</table>
+	<input type="button" id="load_table_btn" value="Load Table" class="btn tb inside">
+</fieldset>
+<fieldset class="std-block">
+	<legend>Selection List</legend>
+	<div id="table_div"></div>
+</fieldset>
+{% endblock extended%}

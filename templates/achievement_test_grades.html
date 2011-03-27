@@ -1,0 +1,37 @@
+{% extends 'grading_base.html' %}
+{% block local_javascript_code %}
+{{ block.super }}
+$(function() {
+	$("#get_grades_btn").click(function(){
+		loadAchievementTestGrades();
+		});
+});	
+$(function() {
+	$("#grades_div").hide();
+	$("#save_grades_btn").click(function(){
+		returnResults("section", $("#id_section").val(),"achievement_test", 
+			$("#id_achievement_test").val());
+		});
+});	
+{% endblock local_javascript_code %}
+{% block extended %}
+<fieldset>
+<legend>Selection Information</legend>
+<table class="unbordered"> 
+	<tr>
+	<td>{{form.class_year.label}}:</td><td>{{form.class_year}}</td>
+	</tr><tr>
+	<td>{{form.section_name.label}}:</td><td>{{form.section_name}}</td>
+	</tr><tr>
+	<td>{{form.achievement_test_name.label}}</td><td>{{form.achievement_test_name}}</td>
+	</tr>
+</table>
+</fieldset>
+{% endblock extended %}
+{% block hidden_fields %}
+{{form.achievement_test}}
+{{form.section}}
+{{form.users_section}}
+{{form.users_class_session}}
+{% endblock hidden_fields %}
+

@@ -1,0 +1,48 @@
+{% extends 'grading_base.html' %}
+{% block local_javascript_code %}
+{{ block.super }}
+
+function getCheckedGradingPeriods(classname) {
+	var checkedPeriods = [];
+	var checkBoxes = $(classname);
+	for (i = 0; i < checkBoxes.length; i++) {
+		if (checkBoxes[i].checked) {
+			checkedPeriods.push(checkBoxes[i].value);
+		}
+	}
+	return checkedPeriods;
+}
+
+$(function() {
+	$("#get_grades_btn").click(function(){
+		var editGradingPeriods = getCheckedGradingPeriods(".period-edit");
+		var viewGradingPeriods = getCheckedGradingPeriods(".period-view");
+		if ((editGradingPeriods.length > 0) || (viewGradingPeriods.length > 0)) {
+			loadGradingPeriodGrades(editGradingPeriods, viewGradingPeriods);
+		} else {
+			$("#dialog_none_checked").dialog("open");
+		}
+		});
+});	
+
+$(function() {
+	$("#grades_div").hide();
+	$("#save_grades_btn").click(function(){
+		saveGradingPeriodGrades("class_session", $("#id_class_session").val());
+		});
+});
+	
+{% endblock local_javascript_code %}
+{% block extended %}
+<fieldset>
+<legend>Choose Grading Periods</legend>
+{{period_checkboxes|safe}}
+</fieldset>
+{% endblock extended %}
+</fieldset>
+{% block hidden_fields %}
+{{form.class_session}}
+{{form.requested_action}}
+<div id="dialog_none_checked" title="No Boxes Checked" class="hidden">
+	Please check one or more Grading Periods to edit or view.</div> 
+{% endblock hidden_fields %}

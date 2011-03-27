@@ -1,0 +1,19 @@
+{% extends 'organization.html' %}
+{% block extended %}
+{{ block.super }}
+<fieldset class="std-block">
+<legend>Division Information</legend>
+<table class="unbordered"> 
+<tr><td><label for="id_region_name">DepEd Region*:</label></td>
+<td colspan="3"><div class="fieldWrapper">
+        {{form.region_name.errors}}{{form.region_name}}
+	</div></td></tr>
+<tr><td><label for="id_province_name">Province:</label></td>
+<td colspan="3"><div class="fieldWrapper">
+        {{form.province_name.errors}}{{form.province_name}}
+	</div></td></tr>
+</table>
+</fieldset>
+{{form.province}}
+{{form.region}}
+{% endblock extended %}

@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block local_javascript_code %}
+$.cookie("return_to_page", "/index");
+{% endblock local_javascript_code %}
+{% block content %}
+<p class="form-title centered-object">{{school_name}}</p>
+<h2 class="centered-object">School Database Administrator</h2>
+<table id="school-home" class="centered-object">
+<tbody>
+	<tr><td colspan="3">
+	<fieldset  class="major one-col-buttons">	
+		<legend class="major">Personal Responsibilities</legend>	
+		<a id="mywork_button" class="btn blue big-centered-button"  href="my_work"
+			title="The personal page to work with your own sections and classes">My Work</a>		
+	</fieldset>
+	</td></tr>
+<tr><td>
+<fieldset class="major one-col-buttons">
+	<legend class="major">Create, Edit, View</legend>
+	<table class="lg-btn" >
+		<tbody>
+			<tr>
+				<td class="width200" ><a id="student_button" class="btn blue tb" href="/select/student"
+				title="Work with student records at the school">Students</a></td>
+			</tr>
+			<tr>
+				<td class="width200" ><a id="gi_button" class="btn blue tb not-ready" 
+				//href="initialselect/class_session/select-grading_instance/Select-a-Class-to-Work-With-Grading-Instances"
+				title="Work with gradebook items from a calendar">
+					Gradebook Items</a></td>
+			</tr>
+			<tr>
+				<td class="width200" ><a id="other_button" class="btn blue tb" href="/schooladmin_maint"
+				title="Work with all types of information except students, grades, and attendance">
+					Maintenance</a></td>
+			</tr>
+		</tbody>
+	</table>
+</fieldset>
+</td>
+<td id="schoolhome-filler"></td>
+<td>
+<fieldset class="major one-col-buttons">
+	<legend class="major">Perform Tasks</legend>
+  	<table class="lg-btn" >
+	  <tbody>
+		  <tr>
+			  <td class="width200"><a id="attendance_button"  class="btn blue tb" 
+			  	href="/initialselect/section/attendance/Select-a-Section-for-Attendance"
+				title="Record or view student attendance.">Attendance</a></td>
+		  </tr>
+		  <tr>
+			  <td class="width200" ><a id="grades_button" class="btn blue tb not-ready" 
+			  href="/initialselect/class_session/initialselect-grading_instance-grades/Select-a-Class-to-Work-With-Grades"
+			  "Record or view grades for a class.">Grades</a></td>
+		  </tr>
+		  <tr>
+			  <td class="width200" ><a id="reports_button"  class="btn blue tb" href="/choose_report"
+			  title="Create a variety of reports.">Reports</a></td>
+		  </tr>
+  		</tbody>
+	</table>
+</fieldset>
+</td></tr>
+<tr><td colspan="3">
+<fieldset  class="major one-col-buttons">
+	<legend class="major">Other</legend>		
+	<table class="lg-btn" >
+	  <tbody>
+	  <tr>
+		  <td class="width200"><a id="emergency_button"  class="btn important tb not-ready"
+		  	title="View critical information about a student to aid in finding the student, contacting the parents, and finding the students siblings at school. Not yet ready.">Student Emergency</a></td>
+		  <!--
+		  <td class="width200"><a id="emergency_button"  class="btn important tb not-ready" href="select/student/initial_select/studentemergency/Student_With_Emergency">Student Emergency</a></td>
+		  -->
+	  </tr>
+		</tbody>
+</table>
+</fieldset></td>
+</tr>
+</tbody>
+</table>
+{% include 'logout_button.html' %}
+{% endblock %}

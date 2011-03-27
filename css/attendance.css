@@ -1,0 +1,199 @@
+
+table.attendTop {
+	min-width:850px;
+	padding:0px 0px;
+	margin:0px 0px;
+	border:0px hidden
+
+}
+
+table.attMainTableWrapper {
+	padding:0px 0px;
+	margin:0px 0px;
+	border: 2px groove #8b6914;
+	background:#e9e9f8;
+	width:986px;
+}
+
+tr.attMainTableWrapper {
+	padding:0px 0px;
+	margin:0px 0px;
+	width:986px;
+}
+
+td.attMainTableWrapper {
+	padding:0px;
+	margin:0px;
+}
+
+th.attTblHeaderDate {
+	text-align: center;
+    font-variant: small-caps;
+    font-weight: bold;
+	padding:0px 0px
+}
+
+th.attTblHeaderBase {
+    width: 52px;
+    text-align: center;
+    font-variant: small-caps;
+    font-weight: bold;
+    border-left:2px solid  #ffffff;
+    border-right: 2px solid  #ffffff;
+    border-top: 2px groove  #8b6914;
+    border-bottom: 2px groove  #8b6914;
+    padding:0px;
+	margin:0px;
+}
+
+th.attTblHeaderName {
+    width: 204px;
+	padding: 0px;
+	border-right: 2px groove #cccccc;
+	border-left: 0px;
+	
+}
+
+th.attTblHeaderDateFill {
+	border-right: 0px;
+}
+
+th.attTblHeaderRight {
+	border-right:0px;
+}
+
+th.attTblHeader {
+    font-size:1.2em;
+}
+
+th.attTblStdHeader {
+    color:#000000;
+}
+
+th.attTblStdHeaderHighlight {
+    background:#B3B3EE;
+}
+
+th.attTblHeaderActive {
+    border-left: 2px solid  #ff0000;
+    border-right: 2px solid  #ff0000;
+}
+
+th.attTblHeaderActiveHighlight {
+    background:#B3B3EE;
+}
+
+th.attTblNsdHeader {
+    background:#BFBFBF;
+    color:#0000FF;
+}
+
+th.attTblNsdHeaderHighlight {
+    background:#AAAAAA;
+}
+
+th.attTblNoeditHeader {
+    background:#BFBFBF;
+    color:#AAAAAA;
+    border-left:2px solid  #CCCCCC;
+    border-right:2px solid  #CCCCCC;
+}
+
+td.attTblRecordBase {
+    height: 25px;
+    width: 26px;
+    margin: 0px 0px 0px 0px ;
+    padding:0px 0px;
+   	border-left: 0 px;
+	border-right: 0 px;
+    border-bottom: 1px #000000;
+    border-bottom-style: dashed;
+}
+
+td.attTblStudentName{
+    width: 210px;
+    font-weight: bold;
+	text-align: left;
+    border-right:2px groove  #cccccc;
+}
+
+td.attTblNameHighlighted {
+    background: #BABAF8;
+}
+
+td.attTblStdRecord {
+    background:#f8fcff;
+}
+
+td.attTblMornNormal {
+    border-left:2px solid  #dddddd;
+}
+
+td.attTblMornNormalHighlight {
+    background:#CCE9FF;
+}
+
+td.attTblMornActive {
+    border-left: 2px solid  #ff0000;
+}
+
+td.attTblMornActiveHighlight {
+    background:#CCE9FF;
+}
+
+td.attTblAftNormal {
+    border-right:2px solid  #dddddd;
+}
+
+td.attTblAftNormalHighlight {
+    background:#CCE9FF;
+}
+
+td.attTblAftActive {
+    border-right: 2px solid  #ff0000;
+}
+
+td.attTblAftActiveHighlight {
+    background:#CCE9FF;
+}
+
+td.attTblNsdRecord {
+    background:#E6E6E6;
+}
+
+td.attTblNsdMornNormal {
+}
+
+td.attTblNsdMornNormalHighlight {
+    background:#CCE9FF;
+}
+
+td.attTblNsdAftNormal {
+    border-right:2px solid  #ffffff;
+}
+
+td.attTblNsdAftNormalHighlight {
+    background:#CCE9FF;
+}
+
+td.attTblNedRecord {
+    background:#E6E6E6;
+}
+
+td.attTblNedMornNormal {
+}
+
+td.attTblNedMornNormalHighlight {
+}
+
+td.attTblNedAftNormal {
+    border-right:1px solid  #ffffff;
+}
+
+td.attTblNedAftNormalHighlight {
+}
+
+td.attTblEvenRow {
+	background-color: #f5f9fa;
+}
+

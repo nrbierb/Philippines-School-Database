@@ -1,0 +1,22 @@
+{% extends 'forms_base.html' %}
+{% block script %}
+{{ block.super }}
+<script type='text/javascript' src='/js/tables.js'></script>
+<script type="text/javascript" src="/js/grades.js"></script>
+{% endblock script %}
+{% block local_javascript_code %}
+{% endblock local_javascript_code %}
+{% block extended %}
+{{ block.super }}
+<fieldset class="std-block">
+<legend>Grading Instances</legend>
+<div id="id_grading_instances"></div>
+</fieldset>
+<fieldset class="std-block">
+<legend>Set the Grades</legend>
+<div id="id_grades_table"></div>
+</fieldset>
+{{form.class_session}}
+{{form.class_session_name}}
+{% endblock extended %}
+

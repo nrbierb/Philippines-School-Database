@@ -1,0 +1,29 @@
+{% extends 'organization.html' %}
+{% block extended %}
+{{ block.super }}
+<fieldset class="std-block">
+<legend>Municipality Information</legend>
+<!--
+{{province_name_field_label}} {{form.province_name}}
+{{division_name_field_label}} {{form.division_name}}
+{{type_field_label}} {{form.type}}
+-->
+<table class="unbordered"> 
+<tr><td><label for="id_province_name">Province:</label></td>
+<td colspan="3"><div class="fieldWrapper">
+        {{form.province_name.errors}}{{form.province_name}}
+	</div></td></tr>
+<tr><td><label for="id_division_name">DepEd Divsion:</label></td>
+<td colspan="3"><div class="fieldWrapper">
+        {{form.division_name.errors}}{{form.division_name}}
+	</div></td></tr>
+<tr><td><label for="id_type">Class:</label></td>
+<td colspan="3"><div class="fieldWrapper">
+        {{form.type.errors}}{{form.type}}
+	</div></td></tr>
+</table>
+
+</fieldset>
+{{form.province}}
+{{form.division}}
+{% endblock extended %}

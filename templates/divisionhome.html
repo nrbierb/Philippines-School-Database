@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+<p class="form-title centered-object">Welcome to the DepEd <br/>
+Student Database<br/> Division Staff Main Page</p>
+<fieldset id="admin-fieldset" class="major">
+<legend class="major">Choose Your Task</legend>
+<table class="lg-btn" >
+  <tbody>
+    <tr>
+      <td class="width200" ><a id="test_information_button" class="btn blue tb  not-ready" href="/select/student">Testing Results</a></td>
+    </tr>
+    <tr>
+      <td><a id="student_button" class="btn blue tb not-ready" href="/othertypes">Student Information</a></td>
+    </tr>
+	<tr>
+		<td><a id="teacher_button"  class="btn blue tb not-ready" href="/otherwork">Teacher Information</a></td>
+	</tr>
+	<tr>
+		<td><a id="other_button"  class="btn blue tb" href="/school_maint">Other Information</a></td>
+	</tr>
+  </tbody>
+</table>
+</fieldset>
+{% include 'logout_button.html' %}
+{% endblock %}

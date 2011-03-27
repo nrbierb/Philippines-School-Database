@@ -1,0 +1,14 @@
+body {
+font-family:  Arial, Helvetica, sans-serif;
+}
+
+h2 {font-size:1.15em; margin-top:0pt; margin-bottom:0pt;}
+h3 {font-size:1.05em; margin-top:3pt; margin-bottom:0pt;}
+.block_name {
+	color:#000080;
+	font-weight:800;
+}
+.field_name {
+	color:#8000ff;
+	font-weight:300;
+}

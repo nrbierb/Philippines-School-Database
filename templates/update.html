@@ -1,0 +1,23 @@
+{% extends 'forms_base.html' %}
+{% block title %}Update {{title_name}}
+{% endblock %}
+{% block extended %}
+<table class="fields-enclose"><td>
+<fieldset>
+<legend>Update Value</legend>
+<table class="unbordered"> 
+{{form}}
+</table>
+</fieldset>
+</td>
+</table>
+{{form.object_instance}}
+{{form.state}}
+{{form.attribute_name}}
+{{form.fields_to_report}}
+<input type="Button" id="tst_btn" value="Test"
+onclick="load_formvalues_into_XML('id_fields_to_report','update');"/>
+{% include 'bottom_buttons.html' %}
+</form>
+</div>
+{% endblock extended %}

@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block content %}
+<p class="form-title centered-object">Database Administrator Manage Special Information</p>
+<fieldset id="school-fieldset" class="major">
+<legend class="major">Classes and People</legend>
+<table class="lg-btn" >
+  <tbody>
+    <tr>
+      	<td class="width200" ><a id="class_session" class="btn blue tb" href="/select/class_session">Class</a></td>
+	  	<td class="width200"><a id="teacher"  class="btn blue tb" href="/select/teacher">Teacher</a></td>
+   </tr>
+	<tr>
+ 	  	<td class="width200"><a id="section"  class="btn blue tb" href="/select/section">Section</a></td>
+	  	<td class="width200"><a id="administrator"  class="btn blue tb" href="/select/administrator">Administrator</a></td>
+	</tr>
+ </tbody>
+</table>
+</fieldset>
+<br/>
+<fieldset id="school-fieldset" class="major">
+<legend class="major">Calendars and Schedules</legend>
+<table class="lg-btn" >
+	<tr>
+      	<td class="width200"><a id="school_calendar" class="btn blue tb" href="/calendar">School Calendar</a></td>
+		<td class="width200"><a id="school_year"  class="btn blue tb" href="/select/school_year">School Year Dates</a></td>
+	</tr>
+	<tr>
+		<td class="width200"><a id="grading_period"  class="btn blue tb" href="/select/grading_period">Grading Period Dates</a></td>
+		<td class="width200"><a id="class_period"  class="btn blue tb" href="/select/class_period">Class Period Times</a></td>
+	</tr>
+ </tbody>
+</table>
+</fieldset>
+<br/>
+<fieldset id="organization-fieldset" class="major">
+<legend class="major">Organizations</legend>
+<table class="lg-btn" >
+  <tbody>
+    <tr>
+      <td class="width200"><a id="school" class="btn blue tb" href="/select/school">School</a></td>
+	  <td class="width200"><a id="community"  class="btn blue tb" href="/select/community">Barangay</a></td>
+   </tr>
+    <tr>
+   	  <td class="width200"><a id="division" class="btn blue tb" href="/select/division">Division</a></td>
+      <td class="width200" ><a id="municipality" class="btn blue tb" href="/select/municipality">Municipality</a></td>
+    </tr>
+    <tr>
+      <td><a id="division" class="btn blue tb" href="/select/region">DepEd Region</a></td>
+      <td><a id="province" class="btn blue tb" href="/select/province">Province</a></td>
+    </tr>
+  </tbody>
+</table>
+</fieldset>
+<br/>
+<fieldset id="organization-fieldset" class="major">
+<legend class="major">Choice Definitions</legend>
+<table class="lg-btn" >
+  <tbody>
+    <tr>
+      <td class="width200"><a id="subject"  class="btn blue tb" href="/select/subject">Subject Name</a></td>
+		<td class="width200"><a id="status"  class="btn blue tb" href="/select/student_status">Student Status Type</a></td>
+    </tr>
+	<tr>
+		<td class="width200"><a id="section_type"  class="btn blue tb" href="/select/section_type">Section Type</a></td>
+		<td class="width200"><a id="special_designation"  class="btn blue tb" href="/select/special_designation">Student Designation</a></td>
+	</tr>
+  </tbody>
+</table>
+</fieldset>
+<br/>
+<fieldset id="organization-fieldset" class="major">
+<legend class="major">Database Administration</legend>
+<table class="lg-btn" >
+  <tbody>
+    <tr>
+      <td class="width200"><a id="subject"  class="btn blue tb" href="/select/database_user">Manage School Db Users</a></td>
+	  <td class="width200"><a id="achievement_test"  class="btn blue tb" href="/select/achievement_test">Achievement Test</a></td>
+   </tr>
+  </tbody>
+</table>
+</fieldset>
+<br/>
+
+<fieldset class="major one-col-buttons" >
+<legend class="major">Action</legend>
+<table class="action-btn"  width="100%">
+  <tbody>
+    <tr>
+      <td class="buttons" >
+      	<a name="return_button"  class="btn green tb" href="index.html">Return Home</a>
+      </td>
+    </tr>
+  </tbody>
+</table>
+</fieldset>
+
+{% endblock %}

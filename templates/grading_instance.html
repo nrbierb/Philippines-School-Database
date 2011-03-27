@@ -1,0 +1,61 @@
+{% extends 'forms_base.html' %}
+{% block local_javascript_code %}
+{% endblock local_javascript_code %}
+{% block extended %}
+<table class="fields-enclose"><tr><td>
+<fieldset>
+<legend>Grading Instance Information</legend>
+<table class="unbordered"> 
+	<tr>
+		<td><label for="id_name">Name*:</label></td>
+		<td colspan="3"><div class="fieldWrapper">
+				{{ form.name }} {{ form.name.errors }} 
+			</div></td>
+	</tr>
+	<tr>
+		<td><label for="id_planned_date">Date:</label></td>
+		<td colspan="3"><div class="fieldWrapper">
+			{{ form.planned_date }} {{ form.planned_date.errors }} 
+			</div></td>
+	</tr>
+	<tr>
+		<td><label for="id_grading_type">Grading Type:</label></td>
+		<td colspan="3"><div class="fieldWrapper">
+				{{ form.grading_type }} {{ form.grading_type.errors }} 
+			</div></td>
+	</tr>
+	<tr>
+		<td><label for="id_percent_grade">Grade %:</label></td>
+		<td colspan="3"><div class="fieldWrapper">
+				{{ form.percent_grade }} {{ form.percent_grade.errors }} 
+			</div></td>
+	</tr>
+	<tr>
+		<td><label for="id_multiple">Multiple Grades:</label></td>
+		<td colspan="3"><div class="fieldWrapper">
+				{{ form.multiple }} {{ form.multiple.errors }} 
+			</div></td>
+	</tr>
+	<tr>
+		<td><label for="id_extra_credit">Extra Credit:</label></td>
+		<td colspan="3"><div class="fieldWrapper">
+				{{ form.extra_credit }}
+			</div></td>
+	</tr>
+	<tr>
+		<td><label for="id_other_information">Other Information:</label></td>
+		<td colspan="3"><div class="fieldWrapper">
+			{{ form.other_information }} 
+			</div></td>
+	</tr>
+</table>	
+</fieldset>
+{{form.class_session}}
+{{form.class_session_name}}
+{% endblock extended %}
+	
+	
+	
+	
+	
+	

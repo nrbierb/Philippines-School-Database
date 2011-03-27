@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block local_javascript_code %} 	
+$.cookie("return_to_page", "/schoolhome");
+{% endblock local_javascript_code %}
+{% block content %}
+<p class="form-title centered-object">{{school_name}}</p>
+<table id="school-home" class="centered-object">
+<tbody>
+	<tr><td colspan="3">
+	<fieldset  class="major one-col-buttons">	
+		<legend class="major">Personal Responsibilities</legend>	
+		<a id="mywork_button" class="btn blue big-centered-button"  href="my_work">My Work</a>		
+	</fieldset>
+	</td></tr>
+<tr><td>
+<fieldset class="major one-col-buttons">
+	<legend class="major">Create, Edit, View</legend>
+	<table class="lg-btn" >
+		<tbody>
+			<tr>
+				<td class="width200" ><a id="student_button" class="btn blue tb menu-button" href="/select/student">Students</a></td>
+			</tr>
+			<tr>
+				<td class="width200" ><a id="gi_button" class="btn blue tb menu-button not-ready" >Gradebook Items</a></td>
+				<!--href="initialselect/class_session/select-grading_instance/Select-a-Class-to-Work-With-Grading-Instances"-->
+			</tr>
+			<tr>
+				<td class="width200" ><a id="other_button" class="btn blue tb menu-button" href="/school_maint">Maintenance</a></td>
+			</tr>
+		</tbody>
+	</table>
+</fieldset>
+</td>
+<td id="schoolhome-filler"></td>
+<td>
+<fieldset class="major one-col-buttons">
+	<legend class="major">Perform Tasks</legend>
+  	<table class="lg-btn" >
+	  <tbody>
+		  <tr>
+			  <td class="width200"><a id="attendance_button"  class="btn blue tb menu-button" 
+			  	href="/initialselect/section/attendance/Select-a-Section-for-Attendance">Attendance</a></td>
+		  </tr>
+		  <tr>
+			  <td class="width200" ><a id="grades_button" class="btn blue tb menu-button" 
+			  href="/initialselect/class_session/initialselect-grading_instance-grades/Select-a-Class-to-Work-With-Grades">Grades</a></td>
+		  </tr>
+		  <tr>
+			  <td class="width200" ><a id="reports_button"  class="btn blue tb menu-button" href="/choose_report">Reports</a></td>
+		  </tr>
+  		</tbody>
+	</table>
+</fieldset>
+</td></tr>
+<tr><td colspan="3">
+<fieldset  class="major one-col-buttons">
+	<legend class="major">Other</legend>		
+	<table class="lg-btn" >
+	  <tbody>
+	  <tr>
+		  <td class="width200"><a id="emergency_button"  class="btn important tb menu-button not-ready">Student Emergency</a></td>
+		  <!--
+		  <td class="width200"><a id="emergency_button"  class="btn important tb not-ready" href="select/student/initial_select/studentemergency/Student_With_Emergency">Student Emergency</a></td>
+		  -->
+	  </tr>
+		</tbody>
+</table>
+</fieldset></td>
+</tr>
+</tbody>
+</table>
+{% include 'logout_button.html' %}
+<div id="help_pagename_div" class="hidden">SchoolHomePageHelp</div>
+{% endblock %}

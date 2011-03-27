@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block script %}
+{{ block.super }}
+<script type='text/javascript' src='/js/tables.js'></script>
+<script type='text/javascript' src='/js/select.js'></script>
+{% endblock script %}
+{% block local_javascript_code %}
+var params = {
+	"class":localParams.object_class,
+	"key":localParams.key,
+	"function":localParams.ajax_function_name
+};
+
+if (localParams.ajax_function_name == "create_section_students_table") {
+	params.special_field = "records_check"
+}	
+	
+var requestedAction = localParams.requested_action;
+selectionTable.initializeTableParams();
+
+$(function() {
+	$.loadanim.start({
+		message: "Creating Selection Table"
+	});
+	requestTable("/ajax/calculated_table", params, selectionTable);
+});
+
+{% endblock local_javascript_code %}
+{% block content %}
+<form id="form2" action="{{submit_action}}" method="post" >
+<div id="title_div" class="form-title centered-object">{{title_suffix}}</div>
+<div id="select_div">
+<fieldset class="std-block" id="id_table_fieldset">
+	<legend>{{select_fieldset_header}}</legend>
+	<div id="table_div"></div>
+</fieldset>
+<fieldset class="major one-col-buttons" >
+<legend class="major">Action</legend>
+<table class="action-btn" >
+  <tbody>
+    <tr>
+      <td class="buttons" ><input value="Cancel" id="select_cancel_button" 
+	  	name="action" class="btn tb action"></input></td>
+	  <td class="buttons" ><input value="Select" id="select_select_button" type="submit"
+	  	name="action" class="btn tb action"></input></td>
+    </tr>
+  </tbody>
+</table>
+</fieldset>
+</div>
+<!-- Select form standard hidden values -->
+<div>
+<input type="hidden" name="object_instance" value="NOTSET" id="id_object_instance" ></input>
+<input type="hidden" name="state" value="Select" id="id_state" ></input>
+<input type="hidden" name="requested_action" value="{{template_requested_action}}" id="id_requested_action" ></input>
+<input type="hidden" name="selection_key" value="" id="id_selection_key" ></input>
+<input type="hidden" name="prior_selection" value="" id="id_prior_selection"></input>
+</div>
+<!-- End select form standard hidden values -->
+
+</form>
+<div id="dialog_no_table" title="No Table For Selection">Please open the list of <span id="no_table_fill"></span> 
+	and then select from the list.</div>
+<div id="dialog_no_selection" title="Nothing Selected">Please select a <span id="no_selection_fill"></span> from the list.</div>
+<div id="dialog_multiple_selection" title="Too Many Selected">Please select only one <span id="multiple_selection_fill"></span>.</div>
+
+
+{% endblock content%}

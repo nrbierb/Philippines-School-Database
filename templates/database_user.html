@@ -1,0 +1,12 @@
+{% extends 'forms_base.html' %}
+{% block extended %}
+<fieldset class="std-block">
+	<legend>Database User Information</legend>
+<table class="unbordered"> 
+{{form}}
+</table>
+</fieldset>
+{{user_type}}
+{{organization}}
+{{person}}
+{% endblock extended%}

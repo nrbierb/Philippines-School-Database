@@ -1,0 +1,46 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+	<meta http-equiv="Content-type" content="text/html;charset=UTF-8" ></meta>
+		<title>Invalid User</title>
+	  <style type="text/css">
+		  body {background-color: #fcedb9;
+		  font-family:  Arial, Helvetica, sans-serif;
+		  }
+		  .title {font-weight:bold; font-style:italic;
+		  font-size:1.6em; text-align: center; color:#194BB0}
+		  .info-text {font-weight:bold; font-size:1.35em;}
+		  .textblock {max-width: 700px; margin:1em 1em 1em 1em; 
+		  	text-align:justify; margin-left:auto; margin-right:auto;}
+		  .highlight {color: #ff0000}
+		  .btn1 {display: block; position: relative; background: #aaa; padding: 5px; color: #fff; 
+				text-decoration: none; cursor: pointer;
+			    -moz-border-radius:8px;
+			    -webkit-border-radius:8px;
+			    -opera-border-radius:8px;
+			    -khtml-border-radius:8px;
+			    border-radius:8px;
+				width:150px;
+				font-weight:bold;
+				text-align: center;
+				margin-left:auto;
+				margin-right:auto;
+				background-color:#0000aa
+		 }
+  		</style>
+	</head>
+	<body>
+		<p class="title">
+			Not a Valid User
+		</p>
+		<div class="textblock info-text">
+			Sorry. The account: <p class="highlight">{{ account_name }}</p>is not a valid user account 
+			for the {{ database_name }}.
+			Please click the "Retry Login" button to return to the login page. 
+			Then login again with a registered account name. 
+			Contact your local database administrator
+			if you believe that you should not have seen this message.
+		</div>
+		<a class="btn1" id="retry_button" href="{{ retry_url }}">Retry Login</a>
+	</body>
+</html>

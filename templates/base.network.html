@@ -1,0 +1,80 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!--<html xmlns="http://www.w3.org/1999/xhtml" lang="{{ LANGUAGE_CODE }}" xml:lang="{{ LANGUAGE_CODE }}" {% if LANGUAGE_BIDI %}dir="rtl"{% endif %}> -->
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+	<meta http-equiv="Content-type" content="text/html;charset=UTF-8" ></meta>
+	<meta name="robots" content="none" ></meta>
+	<title>{% block title %}{{title_prefix}} {{title_suffix}}{% endblock %}</title>
+	<link rel="icon" href="/media/favicon.ico" type="image/x-icon"></link> 
+    <link rel="shortcut icon" href="/media/favicon.ico" type="image/x-icon"></link> 
+
+<style type="text/css">
+{% block style %}
+	@import url("/css/site_css.css");
+	@import url("/css/custom-theme/jquery-ui-1.8.2.custom.css");
+{% endblock style %}
+</style>
+{% block script %}
+<script type='text/javascript' src='http://www.google.com/jsapi'></script>
+<!--
+google.load("jquery","1.4");
+google.load("jqueryui","1.8");
+-->
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.js"></script>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.2/jquery-ui.min.js"></script>
+<!--
+<script type="text/javascript" src="/js/jquery-1.4.4.min.js"></script>
+<script type="text/javascript" src="/js/jquery-ui-1.8.9.custom.min.js"></script>
+
+<script type="text/javascript" src="/js/jquery.tools.min.js"></script>
+<script type="text/javascript" src="/js/jquery.cookie.js"></script>
+<script type="text/javascript" src="/js/jquery.maskedinput-1.2.2.js"></script>
+<script type="text/javascript" src="/js/jquery.inputFilters.js"></script>
+<script type="text/javascript" src="/js/jquery.windowmsg-1.0.js"></script>
+<script type="text/javascript" src="/js/jquery.timer.js"></script>
+<script type="text/javascript" src="/js/jquery.validate.js"></script>
+<script type="text/javascript" src="/js/jquery.loadanim.js"></script>
+<script type="text/javascript" src="/js/json_parse.min.js"></script>
+<script type="text/javascript" src="/js/json2.js"></script>
+-->
+<script type="text/javascript" src="/js/compiled.js"></script>
+<script type="text/javascript" src="/js/site_jq.js"></script>
+
+{% endblock script %}
+<script type="text/javascript">
+{% block generated_javascript_code %}
+{{ javascript_code|safe }}
+{% endblock generated_javascript_code %}
+{% block local_javascript_code %}{% endblock local_javascript_code %}
+</script>
+{% block extrahead %}{% endblock extrahead%}
+</head>
+<body id="{% block bodyid %}page{% endblock %}">
+<div id="header"><a href="{{ root_url }}">{% block databrowse_title %}{% endblock %}</a></div>
+<div id="content">
+{% include 'header.html' %}
+{{ breadcrumbs|safe }}
+<div class = "print-hidden"><input type="button" id="help_button" value="Help" title="Click for help on this page or to view the users manual." class="btn help same-in-view"></input></div>
+<div class = "print-hidden">
+	<span title="Your account type controls what you can do in the School Database." class="usertype">Account Type: {{usertype}}  </span>
+	<span title="This is who you are signed in as. If this is not you, logout and then login with your own gmail user name." class="username">{{ username }}</span>
+</div>
+<br/>
+<noscript>
+<p></p>
+<div  class="javascript_warning"><hr/>
+<h1>Warning: Javascript <i>must</i> be turned on to use the Student Database.</h1>
+<a href="http://www.tranexp.com/win/JavaScript-enabling.htm">Click here to learn how to turn on javascript.</a>
+<hr/></div>
+<p></p>
+</noscript>
+{% block content %}
+<input class="hidden" name="return_page" value="NOTSET" id="id_return_page" type="text"/>
+{% endblock %}
+</div>
+<div id="help_div" class="hidden"></div>
+<div id="server_error_div"></div>
+<div id="local_error_div"></div>
+{% block final %} {% endblock final %}
+</body>
+</html>

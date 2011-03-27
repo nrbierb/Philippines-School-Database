@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block script %}
+{{ block.super }}
+<script type="text/javascript" src="/js/grades.js"></script>
+{% endblock script %}
+{% block local_javascript_code %}
+$(function() {
+	$("#get_grades_btn").click(function(){
+		loadAchievementTestGrades();
+		});
+});	
+$(function() {
+	$("#grades_div").hide();
+	$("#save_grades_btn").click(function(){
+		returnResults("section", $("#id_section").val(),"achievement_test", 
+			$("#id_achievement_test").val());
+		});
+});	
+{% endblock local_javascript_code %}
+{% block content %}
+{{ block.super }}
+<form id="form1" action="{{submit_action}}" method="post" >
+<div id="initial_div">
+<p id="initial_title" class="form-title print-hidden">
+Select Section and Achievement Test To Grade</p>
+<fieldset>
+<legend>Selection Information</legend>
+<table class="unbordered"> 
+	<tr>
+	<td>{{form.class_year.label}}</td><td>{{form.class_year}}</td>
+	</tr><tr>
+	<td>{{form.section_name.label}}</td><td>{{form.section_name}}</td>
+	</tr><tr>
+	<td>{{form.achievement_test_name.label}}</td><td>{{form.achievement_test_name}}</td>
+	</tr>
+</table>
+</fieldset>
+{% include 'get_grades_buttons.html' %}
+</div>
+<div id="grades_div">
+<p id="grades_title" class="form_title"></p>
+<div id="id_grades_table"></div>
+{% include 'bottom_buttons.html' %}
+</div>
+{{form.achievement_test}}
+{{form.section}}
+{{form.users_section}}
+{{form.users_class_session}}
+</form>
+{% endblock content %}
+

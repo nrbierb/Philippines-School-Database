@@ -1,0 +1,110 @@
+{% extends 'forms_base.html' %}
+{% block script %}
+{{ block.super }}
+<script type='text/javascript' src='/js/tables.js'></script>
+{% endblock script %}
+{% block local_javascript_code %}
+{{ block.super }}
+function setParametersForRequest(action, objectClass, extraFields, changeValue) {
+	var param_dict = {
+		"class":"database_user",
+		"key":localParams.database_user,
+		"secondary_class":objectClass,
+		"secondary_key":changeValue,
+		"function":"update_object_list",
+		"action":action,
+		"list_name":"interesting_instances",
+		"extra_fields":extraFields
+		};
+	return param_dict;
+}	
+
+function initializeTable(targetTable, objectClass, extraFields) {
+	var params = setParametersForRequest("get", objectClass, extraFields, "");
+	requestTable("ajax/generated_table", params, targetTable);
+	}
+	
+//redefine the save action to change the requested action.
+//this is a quick hack to allow going back to my_work page. Please fix me!!
+function saveAnnounce() {
+	// perform special actions here
+	$("#id_requested_action").val("Edit");
+	$("#save_button").val("Saving");
+	$("save_button").attr("title","Performing the save now. Please wait.");
+	$("#save_button").attr("disable","disable");
+}
+
+$(function() {
+	var sectionTable = new StandardTable();
+	sectionTable.initializeTableParams();	
+	sectionTable.setDom(document.getElementById('section_table'));
+	sectionTable.setWidth(300);
+	sectionTable.extraParams = "class_year";
+
+	var classSessionTable = new StandardTable();
+	classSessionTable.initializeTableParams();
+	classSessionTable.setDom(document.getElementById('class_session_table'));	
+	classSessionTable.setWidth(300);
+	classSessionTable.extraParams = "teacher|class_period";
+
+
+	
+	initializeTable(sectionTable, "section", sectionTable.extraParams);
+	initializeTable(classSessionTable, "class_session", classSessionTable.extraParams);
+	
+	$('.linked_table_btn').click(function() {
+		var request = this.id.split("-");
+		var object_class = request[1];
+		var targetTable = (object_class == "section")?sectionTable:classSessionTable;
+		var action = request[0];
+		var changeValue = $('#id_' + object_class).val();
+		if (action == "remove") {
+			changeValue = targetTable.getSingleSelectedKey();
+			}
+		var params = setParametersForRequest(action, object_class, targetTable.extraParams, changeValue);
+		requestTable("/ajax/generated_table", params, targetTable);
+		});
+	
+ });	
+	
+{% endblock local_javascript_code %}
+{% block extended %}
+{{ block.super }}
+<fieldset class="std-block" style="width:800px">
+<legend>My Sections</legend>
+<table>
+<tr><td>
+<div id="section_table" class="blockFrame"></div>
+</td><td class="top_align">
+	<div>
+	<p>
+		<input id="id_section_name" type="text" class="autofill entry-field" name="section_name"></input>
+		<input type="button" id="add-section" value="Add Section" class="btn tb inside linked_table_btn"/>
+	</p> </div>
+	<div><p>
+		<input type="button" id="remove-section" value="Remove Section" class="btn tb inside linked_table_btn"/>
+	</p></div>
+</td></tr>
+</table>
+</fieldset>
+<fieldset class="std-block" style="width:800px">
+<legend>My Classes</legend>
+<table>
+<tr><td>
+<div id="class_session_table" class="blockFrame"></div>
+</td><td class="top_align">
+	<div>
+	<p>
+	<input id="id_class_session_name" type="text" class="autofill entry-field" 
+			name="class_session_name"></input>
+	<input type="button" id="add-class_session" value="Add Class" class="btn tb inside linked_table_btn"/></p> </div>
+	<div><p><input type="button" id="remove-class_session" value="Remove Class" class="btn tb inside linked_table_btn"/></p></div>
+</td></tr>
+</table>
+</fieldset>
+<input type="hidden" name="section" id="id_section"></input> 
+<input type="hidden" name="class_session" id="id_class_session"></input> 
+<input type="hidden" name="object_instance" value="NOTSET" id="id_object_instance"></input> 
+<input type="hidden" name="state" value="New" id="id_state"></input>
+<input type="hidden" name="requested_action" value="Save" id="id_requested_action"></input>
+{% endblock extended %}

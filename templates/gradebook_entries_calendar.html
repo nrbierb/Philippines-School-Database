@@ -1,0 +1,141 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!--<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="" > -->
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+	<meta http-equiv="Content-type" content="text/html;charset=UTF-8" ></meta>
+	<meta name="robots" content="none" ></meta>
+	<title> Gradebook Items Calendar</title>
+	<link rel="icon" href="/media/favicon.ico" type="image/x-icon"></link> 
+    <link rel="shortcut icon" href="/media/favicon.ico" type="image/x-icon"></link> 
+
+<style type="text/css">
+
+
+	@import url("/css/site_css.css");
+	@import url("/css/custom-theme/jquery-ui-1.8.2.custom.css");
+	@import url("/css/fullcalendar.css");
+
+</style>
+
+
+<script type='text/javascript' src='http://www.google.com/jsapi'></script>
+<!--
+google.load("jquery","1.4");
+google.load("jqueryui","1.8");
+-->
+<!--
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.js"></script>
+-->
+<script type="text/javascript" src="/js/jquery-1.4.2.js"></script>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.2/jquery-ui.min.js"></script>
+
+<script type="text/javascript" src="/js/jquery.tools.min.js"></script>
+<script type="text/javascript" src="/js/jquery.cookie.js"></script>
+<script type="text/javascript" src="/js/jquery.maskedinput-1.2.2.js"></script>
+<script type="text/javascript" src="/js/jquery.inputFilters.js"></script>
+<script type="text/javascript" src="/js/jquery.windowmsg-1.0.js"></script>
+<script type="text/javascript" src="/js/jquery.timer.js"></script>
+<script type="text/javascript" src="/js/jquery.validate.js"></script>
+<script type="text/javascript" src="/js/jquery.loadanim.js"></script>
+<script type="text/javascript" src="/js/json_parse.min.js"></script>
+<script type="text/javascript" src="/js/json2.js"></script>
+<!--
+<script type="text/javascript" src="/js/compiled.js"></script>
+-->
+<script type="text/javascript" src="/js/site_jq.js"></script>
+
+
+	<script type='text/javascript' src='/js/fullcalendar.js'></script>
+	<script type='text/javascript' src='/js/gradebook_entries_calendar.js'></script>
+
+<script type="text/javascript">
+
+</script>
+
+</head>
+<body id="page">
+<div id="header"><a href=""></a></div>
+<div id="content">
+<div class="hdr-group  print-hidden">
+<table width="100%"><tr><td class="minpad width-onethird">
+<img src="/media/DepEdLogoMed.png" alt="Dep Ed Logo" class="padded"></img>
+</td><td class="hdr-text minpad width-onethird"> 
+Practice High School
+</td><td class="revision-text minpad width-onethird">Version: 1--0-8 08/12/2010 10:00PM</td></tr>
+</table>
+</div>
+
+
+<div class="breadcrumb print-hidden"><a class="initial_breadcrumb print-hidden" href="/index">Main Menu</a> &raquo; <a class="initial_breadcrumb print-hidden" href="/othertypes">Special Information</a> &raquo; School Calendar</div>
+<div class = "print-hidden"><input type="button" id="help_button" value="Help" title="Click for help on this page or to view the users manual." class="btn help same-in-view"></input></div>
+<div class = "print-hidden">
+	<span title="Your account type controls what you can do in the School Database." class="usertype">Account Type: Master  </span>
+	<span title="This is the person you are signed in as. If this is not you, choose logout and login with your own gmail user name." class="username">Bierbaum, Neal</span>
+</div>
+<br/>
+<noscript>
+<p></p>
+<div  class="javascript_warning"><hr/>
+<h1>Warning: Javascript <i>must</i> be turned on to use the Student Database.</h1>
+<a href="http://www.tranexp.com/win/JavaScript-enabling.htm">Click here to learn how to turn on javascript.</a>
+<hr/></div>
+<p></p>
+</noscript>
+
+<div id='calendar'></div>
+<form id="form2" action="grading_event" method="post" >
+<div>
+<input type="hidden" name="date" id="id_date"/>
+<input type="hidden" name="class_session" id="id_class_session"/>
+<input type="hidden" name="object_instance" value="NOTSET" id="id_object_instance" /> 
+<input type="hidden" name="state" value="Exists" id="id_state"/>
+<input type="hidden" name="requested_action" value="Edit" id="id_requested_action"/>
+<input type="hidden" name="selection_key" value="" id="id_selection_key"/>
+</div>
+</form>
+<div id="create_day_dialog" title="Create New Gradebook Entries" class="hidden">
+	Do you want to create a new Gradebook Item?</div>
+<fieldset class="major print-hidden">
+<legend>Action</legend>
+<table id="bottom-buttons-table" class="action-btn" >
+  <tbody>
+    <tr>
+      <td class="buttons centered width120">
+      	<a  href="/index" id="finish_button" name="action" 
+		title='Return to the Main Menu.' class="btn tb action">Finished</a>
+    </td>
+    <td class="buttons centered width120">
+      	<input id="new_button" name="action" value = "New"
+		title='Create a new Gradebook Item.' class="btn tb action"></a>
+    </td>
+      <td class="buttons centered width120">
+      	<input id="cut_button" name="action" value = "Cut"
+		title='Remove a gradebook item so that you can move it to a different date. You can just drag the item if it is in the same month.' 
+			class="btn tb action"></input>
+    </td>
+      <td class="buttons centered width120">
+      	<input id="copy_button" name="action" value = "Copy"
+		title='Copy a gradebook item so that you can add a new copy at a different date.' 
+		class="btn tb action"></input>
+    </td>
+      <td class="buttons centered width120">
+      	<input id="paste_button" name="action" value = "Paste"
+		title='Put the gradebook item previously copied or cut at the selected date. You can do this several times if you want more than one copy of the gradebook item.' 
+		class="btn tb action"></input>
+    </td>
+      <td class="buttons centered width120">
+      	<input id="delete_button" name="action" value = "Delete"
+		title='Remove a gradebook item completely.' class="btn tb action"></input>
+    </td>
+	</tr>
+  </tbody>
+</table>
+</fieldset>
+
+</div>
+<div id="help_div"></div>
+<div id="server_error_div"></div>
+<div id="local_error_div"></div>
+ 
+</body>
+</html>

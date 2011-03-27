@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block script %}
+{{ block.super }}
+<script type='text/javascript' src='/js/my_work.js'></script>
+{% endblock script %}
+{% block content %}
+<form id="form2" action="/my_work" method="post" >
+<p class="form-title centered-object">{{personname}}'s Personal Work Page</p>
+<table id="mywork" class="centered-object">
+<tbody>
+<tr><td>
+<fieldset class="major one-col-buttons">
+	<legend class="major">My Section</legend>
+	<table class="lg-btn" >
+		<tbody>
+			<tr><td title="The section that you will work with for all of your section activities."><input id="id_users_section_name" type="text" class="autofill entry-field" 
+			name="users_section_name"></input></td></tr>
+			<tr>
+				<td class="width200"><input type="button" id="attendance_button" 
+				class="btn blue tb menu-button" value="Attendance"></input></td>
+			</tr>
+			<tr>
+				<td class="width200" ><input type="button" id="sect_report_button" 
+				class="btn blue tb menu-button" value="Reports" ></input></td>
+			</tr>
+			<tr>
+				<td class="width200"><input type="button" id="sect_classes_button" 
+				class="btn blue tb menu-button" value="Class Schedule" ></input></td>
+			</tr>
+			<tr>
+				<td class="width200"><input type="button" id="sect_students_button" 
+				class="btn blue tb menu-button" value="Edit Students" ></input></td>
+			</tr>
+			<tr>
+				<td class="width200"><input type="button" id="sect_expand_button" 
+				class="btn blue tb menu-button" value="Show Other Tasks" ></input></td>
+			</tr>
+			<tr class="hidden" id="section_task1">
+				<td class="width200" ><input type="button" id="sect_tests_button" 
+				class="btn blue tb menu-button" value="Achievement Tests" ></input></td>
+			</tr>
+			<tr class="hidden" id="section_task2">
+				<td class="width200"><input type="button" id="sect_details_button" 
+				class="btn blue tb menu-button" value="View Details" ></input></td>
+			</tr>
+		</tbody>
+	</table>
+</fieldset>
+</td>
+<td id="schoolhome-filler"></td>
+<td>
+<fieldset class="major one-col-buttons">
+	<legend class="major">My Classes</legend>
+  	<table class="lg-btn" >
+	  <tbody>
+		<tr><td title="The class that you will work with for all of your class activities."><input id="id_users_class_session_name" type="text" class="autofill entry-field" 
+			name="users_class_session_name" ></input></td></tr>
+		  <tr>
+			  <td class="width200"><input type="button" id="class_grades_button"  
+			  class="btn blue tb menu-button" value="Grades" title="Enter end grades for the grading period."></input></td>
+		  </tr>
+		  <tr>
+			  <td class="width200" ><input type="button" id="class_reports_button" 
+			  class="btn blue tb menu-button not-ready" value="Reports" 
+			  title="Not yet ready. Create reports about the class."></input></td>
+		  </tr>
+		  <tr>
+			  <td class="width200" ><input type="button" id="class_grading_button"  
+			  class="btn blue tb menu-button not-ready" value="Gradebook Calendar " 
+			  title="Not yet ready. Use a calendar to create and edit gradebook items."></input></td>
+		  </tr>
+		  <tr>
+			  <td class="width200" ><input type="button" id="class_students_button" 
+			   class="btn blue tb menu-button" value="View Students" 
+			   title="View the student records for students in the class."></input></td>
+		  </tr>
+		  <tr>
+			  <td class="width200" ><input type="button" id="class_expand_button"  
+			  class="btn blue tb menu-button" value="Show Other Tasks" 
+			  title="Expand the list for other class tasks."></input></td>
+		  </tr>
+		  <tr class=" hidden" id="class_task1">
+			  <td class="width200"><input type="button" id="class_assign_students_button"  
+			  class="btn blue tb menu-button" value="Assign Students" 
+			  title="Assign students to the class. If this is a class taught to an entire section then the section assignment form will be shown. If this is a class such as TLE that has students from different sections then the individual assignment form will be shown."></input></td>
+		  </tr>
+		  <tr class="hidden" id="class_task2">
+			  <td class="width200"><input type="button" id="class_details_button"  
+			  class="btn blue tb menu-button" value="View Details" 
+			  title="View details of the class."></input></td>
+		  </tr>
+  		</tbody>
+	</table>
+</fieldset>
+</td></tr>
+<tr><td colspan="3">
+<fieldset  class="major one-col-buttons">
+	<legend class="major">My Info</legend>		
+	<table class="lg-btn" >
+	  <tbody>
+	  <tr>
+			<td class="width200" ><input type="button" id="my_choices_button"  
+			class="btn blue tb menu-button" value="My Choices"
+			title="Choose the sections and classes you wish to work with."">
+			</input></td>
+	  </tr>
+	  <tr>
+			<td class="width200" ><input type="button" id="my_info_button"  
+			class="btn blue tb menu-button" value="Edit My Info"
+			title="Edit your personal record."">
+			</input></td>
+	  </tr>
+	  <tr>
+			<td class="width200" ><input type="button" id="my_school_button"  
+			class="btn blue tb menu-button" value="View My School"
+			title="View information about your school."></input></td>
+	  </tr>
+		</tbody>
+</table>
+</fieldset></td>
+</tr>
+</tbody>
+</table>
+<p></p>
+<!-- Select form standard hidden values used here for the select actions
+-->
+<div>
+<input type="hidden" name="users_section" id="id_users_section" /> 
+<input type="hidden" name="users_class_session" id="id_users_class_session" /> 
+<input type="hidden" name="object_instance" value="NOTSET" id="id_object_instance" /> 
+<input type="hidden" name="state" value="New" id="id_state"/>
+<input type="hidden" name="requested_action" value="View" id="id_requested_action"/>
+<input type="hidden" name="next_url" id="next_url"/>
+<input type="hidden" name="selection_key" value="" id="id_selection_key"/>
+<input type="hidden" name="prior_selection" value="" id="id_prior_selection"/>
+<!-- End select form standard hidden values -->
+</div>
+</form>
+<fieldset class="major single-button">
+<legend>Action</legend>
+<table id="bottom-buttons-table" class="action-btn" >
+  <tbody>
+    <tr>
+      <td class="buttons centered">
+      	<a  href="/index" id="finish_button" name="action" 
+		title='Click to return to the Main Menu.' class="btn tb action">Finished</a>
+    </td>
+	</tr>
+  </tbody>
+</table>
+</fieldset>
+<div id="help_pagename_div" class="hidden">MyWorkPageHelp</div>
+{% endblock %}

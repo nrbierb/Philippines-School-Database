@@ -1,0 +1,111 @@
+{% extends 'forms_base.html' %}
+{% block script %}
+{{ block.super }}
+<script type='text/javascript' src='/js/tables.js'></script>
+{% endblock script %}
+{% block local_javascript_code %}
+var classRosterTable = new StandardTable();
+classRosterTable.maxHeight = 400;
+classRosterTable.sortColumns = 0;
+classRosterTable.initializeTableParams();
+
+var eligibleStudentsTable = new StandardTable();
+eligibleStudentsTable.maxHeight = 400;
+eligibleStudentsTable.sortColumns = 0;
+eligibleStudentsTable.initializeTableParams();
+
+var assigned_students_params = {
+	"class":"class_session",
+	"key":localParams.class_session_key,
+	"include_section_column":true,
+	"function":"create_class_session_students_table"
+};
+
+var eligible_students_params = {
+	"class":"student_major",
+	"key":localParams.student_major_key,
+	"function":"create_students_eligible_for_class_table",
+	"class_year":localParams.class_year
+};
+
+function updateRosterFormField() {
+	var key_list ="";
+	for (var i = 0; i < classRosterTable.keysArray.length; i++) {
+		if (i > 0) {
+			key_list += ",";
+		}
+		key_list += classRosterTable.keysArray[i];
+	}
+	$('#id_assigned_students').val(key_list);
+}
+
+var classRosterTableFillFunctions = {};
+function addStudent() {
+	// Simple move of selected students from eligible table to class roster.
+	var selectedRowsData = eligibleStudentsTable.removeSelectedRows();
+	classRosterTable.putRows(selectedRowsData, classRosterTableFillFunctions);
+	updateRosterFormField();		
+}
+	
+var eligibleStudentsTableFillFunctions = {};
+function removeStudent() {
+	/*
+	 * Remove the student from the class roster and return to the eligibles list
+	 * If just student just added, action is simple. But if student has already been
+	 * assigned further checks and action are necessary
+	 */
+	var selectedRowsData = classRosterTable.removeSelectedRows();
+	eligibleStudentsTable.putRows(selectedRowsData, eligibleStudentsTableFillFunctions);
+	updateRosterFormField();		
+}
+
+$(function(){
+	eligibleStudentsTable.setDom(document.getElementById('eligible_students_div'));
+	classRosterTable.setDom(document.getElementById('class_roster_div'));
+	$.loadanim.start({
+		message: "Loading Tables"
+	});
+	requestTable("/ajax/calculated_table", assigned_students_params, classRosterTable);
+	$.loadanim.start({
+		message: "Loading Tables"
+	});
+	requestTable("/ajax/calculated_table", eligible_students_params, eligibleStudentsTable);
+	$("#add_btn").click(function() {
+		addStudent();
+	});
+	$("#remove_btn").click(function() {
+		removeStudent();
+	});
+});
+
+{% endblock local_javascript_code %}
+{% block extended %}
+<fieldset>
+<legend>Key Values</legend>
+<table class="unbordered"> 
+	<tr>
+		<td><label for="id_class_year">Class Year:</label></td>
+		<td>{{ form.class_year }}</td>
+	</tr>
+	<tr>
+		<td><label for="id_assignment_date">Assigned Student Start Date:</label></td>
+		<td>{{ form.assignment_date }}</td>
+	</tr>
+</table>
+</fieldset>
+<fieldset>
+<legend>Assign Students</legend>
+<table class="unbordered"> 
+	<tr><th>Class Roster</th><th>Action</th><th>Eligible Students</th></tr>
+        <tr>
+        <td class="minpad top_align"><div id="class_roster_div" class="blockFrame top_align"></div></td>
+		<td><table><tr>
+			<td><input type="button" id="add_btn" value="< Add" class="btn tb inside"></td>
+		</tr><tr>
+			<td><input type="button" id="remove_btn" value="Remove >" class="btn tb inside"></td>
+		</tr></table></td>
+		<td class="minpad top_align"><div id="eligible_students_div" class="blockFrame top_align"></div></td>
+</table>
+</fieldset>
+{{ form.assigned_students }}
+{% endblock extended %}

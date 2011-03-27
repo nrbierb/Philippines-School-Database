@@ -1,0 +1,51 @@
+{% extends 'reports_base.html' %}
+{% block script %} {{ block.super }}
+<script type="text/javascript">
+var sectionField = {"id":"id_section","name":"Section","required":true};
+var genderField = {"id":"id_gender","name":"Gender","required":true};
+
+function setParametersForRequest(class_year, section) {
+	var param_dict = {
+		"class":"section",
+		"key":$('#id_section').val(),
+		"gender":$("#id_gender").val(),
+		"function":"create_student_register_report_table"
+		};
+	return param_dict;
+}	
+
+$(function() {
+	var reportTable = new StandardTable();
+	reportTable.setDom(document.getElementById('report_table'));
+	$('#generate_report_button').click(function(){
+		if (minimumRequiredFieldsSet([sectionField, genderField], 2)) {
+			$.loadanim.start({
+				message: "Creating School Register"
+			});
+			var params = setParametersForRequest();
+			var titleString = '<p class="report-title">School Register for Section '+ 
+				$('#id_section_name').val() +'</p>';
+			$('#report_title').html(titleString);
+			var headerString = '<p class="report-subtitle">Gender: ' + $("#id_gender").val() +'</p>'
+			$('#report_header').html(headerString);
+			requestTable("/ajax/calculated_table", params, reportTable);
+		}		
+	});	
+	setActiveSectionIfCookieAvailable();
+});
+</script>
+{% endblock script%}
+{% block report_top %}
+<fieldset class="std-block" id="id_table_fieldset">
+	<legend>Setup Report</legend>
+	<table id="setup_table" class="centered-object">
+	<tr>
+		<td>{{form.section_name.label}}</td><td>{{form.section_name}}</td>
+		<td>{{form.gender.label}}</td><td>{{form.gender}}</td>
+	</tr>
+	{{form.section}}
+	<tr><td colspan='7'><input type="button" id="generate_report_button" value="Create Report" 
+		class="btn inside centered-object"></input></td></tr>
+	</table>
+</fieldset>
+{% endblock report_top%}

@@ -1,0 +1,23 @@
+{% extends 'forms_base_generic.html' %}
+{% block local_javascript_code %}
+$(function() {
+    $.initWindowMsg();
+    loadParentWindowKey("id_object_instance","id_parent_key");
+    $("#cancel_btn").click(function(e){
+        close();
+		});
+});
+
+//	$("#submit_btn").click(function(){
+//		$.triggerParentEvent("child_closing");
+//		});
+				
+{% endblock local_javascript_code %}
+{% block extended %}
+<fieldset class="std-block">
+	<legend>{{title_name}} Information</legend>
+<table class="unbordered"> 
+{{form}}
+</table>
+</fieldset>
+{% endblock extended%}

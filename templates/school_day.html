@@ -1,0 +1,59 @@
+{% extends 'forms_base.html' %}
+{% block local_javascript_code %}
+$(function() {
+	function setName() {
+		var name = $("#id_date").val() + "-" + $('#id_organization :selected').text();
+		$("#id_name").val(name);
+		return name;
+		}
+	$("#save_button").focus(setName);
+	function setNewSchoolDayDate() {
+		var selectedDate = $.cookie("calendar_selected_date");
+		var val = $("#id_date").val();
+		if ($("#id_date").val() == "") {
+			$("#id_date").val(selectedDate);
+			};
+		}
+	setNewSchoolDayDate();
+});
+{% endblock local_javascript_code %}
+{% block extended %}
+<fieldset>
+<legend>School Day Information</legend>
+<table class="unbordered"> 
+	<tr>
+		<td><label for="id_date" title= "Date of the School Day. The day name comes from the date so the name is not entered. The date is required.">Date*:</label></td>
+			<td>{{ form.date }}</td>
+	</tr>
+	<tr>
+		<td><label for="id_organization" title="The organization that defines this School Day.">Organization:</label></td>
+			<td>{{ form.organization }}</td>
+	</tr>
+	<tr>
+		<td><label for="id_other_information" title="The reason for the day. If this is just a normal day such as a weekday schoolday, weekend, or break, leave blank. If holiday, the name of the holiday.">Reason:</label></td>
+		<td> {{ form.other_information }} </td>
+	</tr>
+	<tr>
+		<td><label for="id_day_type" title="The type of school day.">School Day Type:</label></td>
+		<td>{{ form.day_type }}</td>
+	</tr>
+	<tr></tr>
+<tr><td colspan=2>
+<fieldset>
+<legend title="These should be changed only for makeup days or a time that is different for different class years.">Class Years for Makeup Days Only</legend>
+<table class="unbordered">
+	<tr><td><label for="id_first_year" title="Check if First Year students should attend makeup session">First Year:</label></td> 
+	<td>{{form.first_year}}</td></tr>
+	<tr><td><label for="id_second_year" title="Check if Second Year students should attend makeup session">Second Year:</label></td> 
+	<td>{{form.second_year}}</td></tr>
+	<tr><td><label for="id_third_year" title="Check if Third Year students should attend makeup session">Third Year:</label></td> 
+	<td>{{form.third_year}}</td></tr>
+	<tr><td><label for="id_fourth_year" title="Check if Fourth Year students should attend makeup session">Fourth Year:</label></td> 
+	<td>{{form.fourth_year}}</td></tr>
+</table>
+</fieldset>
+</td></tr>
+</table>
+</fieldset>
+<input type="hidden" name="name" value="" id="id_name" /> 
+{% endblock extended %}

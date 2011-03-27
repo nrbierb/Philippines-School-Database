@@ -1,0 +1,19 @@
+{% extends 'person.html' %}
+{% block extended %}
+{{ block.super }}
+<fieldset class="std-block">
+<legend>Teacher Information</legend>
+<table class="unbordered"> 
+<tr><td><label for="id_primary_subject_name">Primary Subject:</label></td>
+<td>{{form.primary_subject_name}}</td></tr>
+<tr><td><label for="id_secondary_subject_name">Secondary Subject:</label></td>
+<td>{{form.secondary_subject_name}}</td></tr>
+<tr><td><label for="id_paygrade">Pay Grade:</label></td>
+<td>{{form.paygrade}}</td></tr>
+<tr><td><label for="id_other_information">Other Information:</label></td>
+<td>{{form.other_information}}</td></tr>
+</table>
+</fieldset>
+{{form.primary_subject}}
+{{form.secondary_subject}}
+{% endblock extended %}

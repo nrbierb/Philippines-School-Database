@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block script %}
+{{ block.super }}
+<script type='text/javascript' src='/js/tables.js'></script>
+<script type="text/javascript" src="/js/grades.js"></script>
+{% endblock script %}
+{% block local_javascript_code %}
+{% endblock local_javascript_code %}
+{% block content %}
+{{ block.super }}
+<form id="form" action="{{submit_action}}" method="post" >
+<div id="initial_div">
+<p id="initial_title" class="form-title print-hidden">
+{{initial_title}}</p>
+{% block extended %}
+{% endblock extended %}
+{% include 'get_grades_buttons.html' %}
+</div>
+<div id="grades_div">
+<p id="grades_title" class="form_title"></p>
+<div id="id_grades_table"></div>
+{% include 'bottom_buttons.html' %}
+</div>
+{% block hidden_fields %}
+{% endblock hidden_fields %}
+</form>
+{% endblock content %}

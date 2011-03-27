@@ -1,0 +1,37 @@
+{% extends 'forms_base.html' %}
+{% block extended %}
+<table class="fields-enclose"><tr><td>
+<fieldset>
+<legend>Subject Information</legend>
+<table class="unbordered"> 
+        <tr>
+          <td>
+            <label for="id_name">Name:</label>
+          </td>
+          <td colspan="3">
+            <div class="fieldWrapper">
+               {{ form.name.errors }} {{ form.name }} 
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <label for="id_general_info">General Info:</label>
+          </td>
+          <td colspan="3">
+             {{form.general_info}} 
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <label for="id_all_schools">Common Subject for All Schools:</label>
+          </td>
+          <td colspan="3">
+             {{form.all_schools}}
+          </td>
+        </tr>
+</table>
+</fieldset>
+</td></tr>
+</table>
+{% endblock extended%}

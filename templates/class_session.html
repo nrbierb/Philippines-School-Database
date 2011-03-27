@@ -1,0 +1,76 @@
+{% extends 'forms_base.html' %}
+{% block local_javascript_code %}
+{% endblock local_javascript_code %}
+{% block extended %}
+<table class="fields-enclose"><tr><td>
+<fieldset>
+<legend>Class Information</legend>
+<table class="unbordered"> 
+	<tr>
+		<td><label for="id_name">Name*:</label></td>
+				<td>{{ form.name }}</td>
+	</tr>
+	<tr>
+		<td><label for="id_subject">Subject:</label></td>
+		<td>{{ form.subject_name }}</td>
+	</tr>
+	<tr>
+		<td><label for="id_student_major">Student Major:</label></td>
+		<td>{{ form.student_major_name }}</td>
+	</tr>
+	<tr>
+		<td><label for="id_level">Level:</label></td>
+		<td>{{ form.level }}</td>
+	</tr>
+	<tr>
+		<td><label for="id_class_year">Class Year:</label></td>
+		<td>{{ form.class_year }}</td>
+	</tr>
+	<tr>
+		<td><label for="id_students_assigned_by_section">Students Assigned By Section:</label></td>
+		<td>{{ form.students_assigned_by_section }}</td>
+	</tr>
+	<tr>
+		<td><label for="id_section_name">Section:</label></td>
+		<td>{{ form.section_name }}</td>
+	</tr>
+	<tr>
+		<td><label for="id_class_period_name">Period:</label></td>
+		<td>{{ form.class_period_name }}</td>
+	</tr>
+	<tr>
+		<td><label for="id_classroom">Classroom:</label></td>
+		<td>{{ form.classroom }}</td>
+	</tr>
+	<tr>
+		<td><label for="id_school_year_name">School Year*:</label></td>
+		<td>{{ form.school_year_name }}</td>
+	</tr>
+	<tr>
+		<td><label for="id_school_year_name">Start Date*:</label></td>
+		<td>{{ form.start_date }}</td>
+	</tr>
+	<tr>
+		<td><label for="id_school_year_name">End Date*:</label></td>
+		<td>{{ form.end_date }}</td>
+	</tr>
+<!-- teacher history -->
+{{teacher_change_warning|safe}}
+{{teacher_field_label|safe}}
+{{form.teacher_name}}
+{{teacher_date_label|safe}}
+{{form.teacher_change_date.errors}}
+{{form.teacher_change_date|safe}}
+{{teacher_button|safe}}
+</table>
+</fieldset>
+</td></tr>
+</table>
+{{form.subject}}
+{{form.student_major}}
+{{form.section}}
+{{form.class_period}}
+{{form.school_year}}
+{{form.teacher}}
+{{form.teacher_history}}
+{% endblock extended %}

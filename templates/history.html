@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block local_javascript_code %}
+$(function(){
+    makePageReadOnly();
+});
+{% endblock local_javascript_code %}
+{% block content %}
+<form id="form1" action="{{submit_action}}" method="post" >
+<p id="form_title" class="form-title print-hidden">{{title_suffix}}</p>    
+<div>
+	{{help.a}}{{help.c}}
+{% for entry in history_entries %}
+<fieldset>
+	<legend># {{ forloop.counter }}</legend>
+	<table class = "unbordered">
+		<tr>
+		<td><label>Start Date: </label>{{ entry.start_date }}</td>
+		<td><label>End Date: </label>{{ entry.end_date }}</td>
+		</tr>
+		<tr>
+			<td span=2><label>Value: </label>{{entry.value}}</td>
+		</tr>
+	</table>
+</fieldset>
+</div>
+{% endfor %}
+<!-- standard form hidden values -->
+<div>
+{{form.object_instance}}
+{{form.state}}
+{{form.requested_action}}
+</div>
+<!-- end standard form hidden values -->
+</form>
+{% include 'close_button.html' %}
+{% endblock %}

@@ -1,0 +1,177 @@
+{% extends 'forms_base.html' %}
+{% block local_javascript_code %}
+var atYearNames = [];
+var atSubjectNames = [];
+var atTestingInfo = [];
+
+function atBuildSubjectsTable(class_year) {
+	var subjectName, subjectNameCol;
+	var subjectNameCols = [];
+	var subjectsTh = '';
+	var subjectsTable;
+	var subjectTr = [];
+	var subjectsRows = '';
+	var id, x, y;
+	var numColumns = 2;
+	var numRowsFirst = Math.floor(atSubjectNames.length / numColumns)  + 
+		(atSubjectNames.length % numColumns);
+	var numRowsOther = Math.floor(atSubjectNames.length / numColumns);
+	var index = 0;
+	for (x = 0; x <numColumns; x++) {
+		var rowCount = (x === 0) ? numRowsFirst : numRowsOther;
+		subjectNameCols[x] = atSubjectNames.slice(index, index+rowCount);
+		index += rowCount;
+		}
+	for (y=0; y< subjectNameCols[0].length; y++){
+		for (x=0; x<numColumns; x++) {
+			subjectNameCol=subjectNameCols[x];
+			if (y < subjectNameCols[x].length) {
+				subjectName=subjectNameCol[y];
+				id = class_year + "-" + subjectName;
+				subjectTr[x] = '<td>' + subjectName + '</td>' + 
+				'<td><input type="checkbox" class="subject-checkbox active-checkbox" id="subject-checkbox-' + id + '"></td>' +
+				'<td><input type="text" class="small-numeric-field integer-mask hidden" id="subject-numfield-' + id + '"></td>';
+			} else {
+				subjectTr[x] = "<td></td><td></td><td></td>";
+			}
+		}
+		subjectsRows += '<tr class="subject-row">' + subjectTr[0]+ subjectTr[1] + '</tr>';
+	}
+	subjectsTh = '<tr><th class="width75">Name</th><th></th><th class="width120"># Questions</th> ' +
+		'<th class="width75">Name</th><th></th><th style="width=120"># Questions</th></tr>';
+	subjectsTable = '<table class="at-subjects thin-border hidden" id="subject-table-' + class_year +
+		 '"><tbody>' + subjectsTh + subjectsRows + '</tbody></table>';
+	return subjectsTable;	
+}
+
+function atBuildYearsTable() {
+	var yearTr, yearIndex, yearName;
+	for (yearIndex = 0; yearIndex < atYearNames.length; yearIndex++) {
+		yearName = atYearNames[yearIndex];
+		yearTr = '<tr class="at-year"><td>' + yearName +
+		'</td><td><input type="checkbox" class="year-checkbox active-checkbox" id="year-' + yearIndex +
+		 '"> </td><td >' +
+		atBuildSubjectsTable(yearIndex) + '</td></tr>';
+		$(yearTr).appendTo("#years_table");
+	}
+}	
+
+function atLoadTestingInfo() {
+	var entry, entryIndex;
+	var idYearCheckbox, idSubjectsTable, idSubjectCheckbox, idNumField;
+	for (entryIndex=0; entryIndex<atTestingInfo.length; entryIndex++) {
+		entry = atTestingInfo[entryIndex];
+		idYearCheckbox = "#year-" + entry[0];
+		idSubjectsTable = "#subject-table-" + entry[0];
+		idSubjectCheckbox = "#subject-checkbox-" + entry[0] + "-" + atSubjectNames[entry[1]];
+		idNumField  = "#subject-numfield-" + entry[0] + "-" + atSubjectNames[entry[1]];
+		$(idYearCheckbox).attr("checked",true);
+		$(idSubjectCheckbox).attr("checked",true);
+		$(idNumField).val(entry[2]);
+		$(idSubjectsTable).removeClass("hidden");
+		$(idNumField).removeClass("hidden");
+	}
+}
+
+function atGatherTestingInfo(){
+	//report only those subjects active for the year
+	var testingInfo = [];
+	var yearIndex, subjectIndex;
+	var idYearCheckbox, idSubjectCheckbox, idNumField;
+	var numQuestions;
+	for (yearIndex = 0; yearIndex < atYearNames.length; yearIndex++) {
+		idYearCheckbox = "#year-" + yearIndex;
+		if ($(idYearCheckbox).attr("checked")) {
+			for (subjectIndex = 0; subjectIndex < atSubjectNames.length; subjectIndex++) {
+				idSubjectCheckbox = "#subject-checkbox-" + 
+					yearIndex + "-" + atSubjectNames[subjectIndex];
+				if ($(idSubjectCheckbox).attr("checked")) {
+					idNumField  = "#subject-numfield-" +
+						yearIndex + "-" + atSubjectNames[subjectIndex];
+					numQuestions = $(idNumField).val();
+					var singleTestSubject = [];
+					singleTestSubject[0] = yearIndex;
+					singleTestSubject[1] = subjectIndex;
+					singleTestSubject[2] = numQuestions;
+					testingInfo.push(singleTestSubject);
+				}
+			}
+		}
+	}
+	$("#id_json_testing_info").val(JSON.stringify(testingInfo));
+	$("#id_json_subject_names").val(localParams.json_subject_names);
+	$("#id_json_classyear_names").val(localParams.json_classyear_names);
+}
+
+function atParseTestingInfo(){
+	if (localParams.json_classyear_names !== null) {
+		atYearNames = json_parse(localParams.json_classyear_names);
+	}
+	if (localParams.json_subject_names !== null) {
+		atSubjectNames = json_parse(localParams.json_subject_names);
+	}
+	if (localParams.json_testing_info !== null) {
+		atTestingInfo = json_parse(localParams.json_testing_info);
+	}
+}
+
+$(function() {
+	atParseTestingInfo();
+	atBuildYearsTable();
+	atLoadTestingInfo();
+	$(".active-checkbox").click(function(){
+		checkboxHideContents($(this));});
+	$("#save_button").unbind("click");
+	$("#save_button").click(function(){
+		atGatherTestingInfo();
+		if (validator.form() ){
+			$("#save_button").unbind('click');
+			saveAnnounce();		
+			$("#form1").submit();		
+		}
+	});	
+});
+{% endblock local_javascript_code %}
+{% block extended %}
+<table class="fields-enclose"><tr><td>
+<fieldset>
+<legend>Achievement Test Description</legend>
+<table class="unbordered"> 
+	<tr>
+		<td>{{ form.name.label }}</td><td>{{ form.name }}</td>
+	</tr>
+	<tr>
+		<td>{{ form.date.label }}</td><td>{{ form.date }}</td>
+	</tr>
+	<tr>
+		<td>{{ form.grading_type.label }}</td><td>{{ form.grading_type }}</td>
+	</tr>
+	<tr>
+		<td>{{form.percent_grade.label }}</td><td>{{form.percent_grade }}</td>
+	</tr>
+</table>	
+</fieldset>
+<fieldset>
+<legend>Class Years Taking Test</legend>
+<div id="year_and_subjects">
+	<table class="unbordered" id="years_table"></table>
+</div>
+</fieldset>
+<fieldset>
+<legend>Other Information</legend>
+<table class="unbordered"> 
+	<tr>
+	<td>{{ form.other_information.label }}</td><td>{{ form.other_information }}</td>
+	</tr> 
+</table>	
+</fieldset>
+{{form.json_subject_names}}
+{{form.json_classyear_names}}
+{{form.json_testing_info}}
+{% endblock extended %}
+	
+	
+	
+	
+	
+	

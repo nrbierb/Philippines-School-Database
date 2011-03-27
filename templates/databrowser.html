@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% block script %}
+{{ block.super }}
+<script type='text/javascript' src='/js/tables.js'></script>
+<script type='text/javascript' src='/js/select.js'></script>
+{% endblock script %}
+{% block local_javascript_code %}
+
+var selectedFieldsTable = new StandardTable();
+selectedFieldsTable.initializeTableParams();
+
+var fieldChoicesTable = new StandardTable();
+fieldChoicesTable.initializeTableParams();
+
+//modify select table parameters
+requestedAction = "View";
+selectionTable.maxHeight = 0;
+
+function getSelectedFields() {
+	var selectedFields = [];
+	for (var i = 0; i < selectedFieldsTable.dataTable.getNumberOfRows(); i++) {
+		selectedFields[i] = selectedFieldsTable.dataTable.getValue(i, 0);
+	}
+	return selectedFields;
+}
+
+function updateDisplayFields() {
+	var displayFieldsList = getSelectedFields();
+	var fieldsString = displayFieldsList[0];
+	for (var i=1; i < displayFieldsList.length; i++) {
+		fieldsString += "|";
+		fieldsString += displayFieldsList[i];
+	}
+	displayFields = fieldsString;
+	return displayFields;
+}
+	
+function addToSelectedFieldsTable(rowValue, rowFormattedValue) {
+	var newRowIndex = selectedFieldsTable.dataTable.addRow();
+	selectedFieldsTable.dataTable.setCell(newRowIndex,0,rowValue,rowFormattedValue);
+	}
+	
+function removeFromSelectedFieldsTable() {
+	var selection = selectedFieldsTable.theTable.getSelection();
+	if (selection.length !== 0) {
+		for (var i = 0; i < selection.length; i++) {
+			var selectedRow = selection[i];
+			selectedFieldsTable.dataTable.removeRow(selectedRow.row);
+			}
+	}
+	selectedFieldsTable.draw();
+	updateDisplayFields();
+}
+
+$(function(){
+	selectedFieldsTable.tableParameters.width = 200;
+	selectedFieldsTable.setHeight(5);
+	selectedFieldsTable.setDom(document.getElementById('selected_fields_table'));
+	selectedFieldsTable.tableDescriptor = eval(localParams.selected_fields_table);
+	selectedFieldsTable.finalizeTable();
+	
+	fieldChoicesTable.tableParameters.width = 200;
+	fieldChoicesTable.setHeight(5);
+	fieldChoicesTable.setDom(document.getElementById('field_choices_table'));
+	fieldChoicesTable.tableDescriptor = eval(localParams.field_choices_table);
+	fieldChoicesTable.finalizeTable();
+	
+	$("#add_field_button").click(function() {
+		var selection = fieldChoicesTable.theTable.getSelection();
+		if (selection.length !== 0) {
+			for (var i = 0; i < selection.length; i++) {
+				var selectedRow = selection[i];
+				var rowValue = fieldChoicesTable.dataTable.getValue(selectedRow.row,0);
+				var rowFormattedValue = fieldChoicesTable.dataTable.getFormattedValue(
+					selectedRow.row,0);
+				addToSelectedFieldsTable(rowValue, rowFormattedValue);
+			}
+		selectedFieldsTable.draw();
+		updateDisplayFields();
+		}
+	});
+	
+	$("#remove_field_button").click(function() {
+		removeFromSelectedFieldsTable();
+	});
+});
+
+{% endblock local_javascript_code %}
+{% block content %}
+<form id="form2" action="{{submit_action}}" method="post" >
+<div id="title_div" class="form-title centered-object print-hidden"></div>
+<div id="setup_div" class="print-hidden">
+<table>
+<tr><td class="minpad width-onethird">		
+<fieldset id="select_filters" class="min-block">
+	<legend>Select</legend>
+		<div id="generated_input_fields_div"></div>
+</fieldset>
+</td><td class="minpad width-twothirds">
+<fieldset id="fields_select" class="min-block">
+	<legend>Choose Fields to Show</legend>
+<table id="fields_table">
+	<tr>
+		<td id="selected_fields" class="nopad">
+			<div id="selected_fields_table" class="blockFrame">				
+			</div>
+		</td>
+		<td id="field_selections" class="nopad">
+			<div id="field_choices_table" class="blockFrame">
+			</div>
+		</td>
+		<td id="action_buttons" class="nopad width150">
+			<table id="action_buttons_table">
+				<tr id="add_button"><td>
+					<input type="button" id="add_field_button" value="Add Field" class="btn tb inside linked_table_btn"></input>	
+				</td></tr>
+				<tr id="remove_button"><td>
+						<input type="button" id="remove_field_button" value="Remove Field" class="btn tb inside linked_table_btn"></input>
+				</td></tr>
+			</table>
+		</td>
+	</tr>
+</table>
+</fieldset>
+</td></tr>
+</table>
+</div>
+<fieldset class="min-block" id="id_table_fieldset">
+	<legend class="print-hidden">Data View</legend>
+	<div id="table_div" class="blockFrame"></div>
+</fieldset>
+<fieldset class="major one-col-buttons print-hidden">
+<legend class="major">Action</legend>
+<table class="action-btn" >
+  <tbody>
+    <tr>
+      <td class="buttons" ><input value="Finished" id="select_cancel_button" 
+	  	name="action" class="btn tb action" href="/choose_report" 
+		title='Click to return to the "Choose a Report Type" page.' ></input></td>
+	  <td class="buttons" ><input value="View Record" id="select_select_button"
+	  	name="action" class="btn tb action"></input></td>
+    </tr>
+  </tbody>
+</table>
+</fieldset>
+<div>
+<!-- Select form standard hidden values -->
+<input type="hidden" name="object_instance" value="NOTSET" id="id_object_instance" /> 
+<input type="hidden" name="state" value="New" id="id_state"/>
+<input type="hidden" name="requested_action" value="View" id="id_requested_action"/>
+<input type="hidden" name="selection_key" value="" id="id_selection_key"/>
+<!-- End select form standard hidden values -->
+</div>
+</form>
+
+
+{% endblock content%}

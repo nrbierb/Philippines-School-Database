@@ -1,0 +1,45 @@
+{% extends 'forms_base.html' %}
+{% block script %}
+{{ block.super }}
+<script type='text/javascript' src='/js/tables.js'></script>
+{% endblock script %}{% block local_javascript_code %}
+var classRosterTable = new StandardTable();
+classRosterTable.maxHeight = 400;
+classRosterTable.sortColumns = 0;
+classRosterTable.initializeTableParams();
+
+var assigned_students_params = {
+	"class":"section",
+	"key":localParams.section_key,
+	"special_field":"assignment_status",
+	"class_session":localParams.class_session_key,
+	"function":"create_section_students_table"
+};
+
+$(function(){
+	//if no class session defined then do nothing at all
+	if (localParams.class_session_key.length > 4) {
+		classRosterTable.setDom(document.getElementById('class_roster_div'));
+		$.loadanim.start({
+			message: "Loading Tables"
+		});
+		requestTable("/ajax/calculated_table", assigned_students_params, classRosterTable);
+		$("#assign_button").click(function(){
+			var keyList = JSON.stringify(classRosterTable.keysArray);
+			$("#id_section_students").val(keyList);
+			$("#id_class_session").val(localParams.class_session_key);
+			$("#assign_button").unbind('click');
+			$("#form1").submit();			
+		});
+	}
+});
+
+{% endblock local_javascript_code %}
+{% block extended %}
+<fieldset>
+<legend>Section {{section}} Students</legend>
+<div id="class_roster_div"></div>
+</fieldset>
+{{ form.section_students }}
+{{ form.class_session }}
+{% endblock extended %}

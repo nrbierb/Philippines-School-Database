@@ -1,0 +1,15 @@
+{% extends 'organization.html' %}
+{% block extended %}
+{{ block.super }}
+<fieldset class="std-block">
+    <legend>Barangay Information</legend>
+    <table class="unbordered">
+        <tr><td><label for="id_municipality">Municipality:</label></td>
+        <td colspan="3"><div class="fieldWrapper">
+                        {{form.municipality.errors}}{{form.municipality_name}}
+                </div>
+        </td></tr>
+    </table>
+</fieldset>
+{{form.municipality}}
+{% endblock extended %}

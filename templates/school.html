@@ -1,0 +1,38 @@
+{% extends 'organization.html' %}
+{% block local_javascript_code %}
+{{ block.super }}
+/*
+$(function() {
+	$('#id_school_creation_date').datepicker({changeMonth: true, changeYear: true});
+});	
+*/
+{% endblock local_javascript_code %}
+{% block extended %}
+{{ block.super }}
+<fieldset class="std-block">
+<legend>School Information</legend>
+<table class="unbordered">
+	<tr><td><label for="id_division_name">Division*:</label></td>
+		<td><div class="fieldWrapper">
+		{{form.division_name.errors}}{{form.division_name}}
+		</div></td></tr>
+	<tr><td><label for="id_municipality_name">Municipality:</label></td>
+		<td><div class="fieldWrapper">
+		{{form.municipality_name.errors}}{{form.municipality_name}}
+		</div></td></tr>
+	<tr><td><label for="id_principal_name">School Principal:</label></td>
+		<td><div class="fieldWrapper">
+		{{form.principal_name.errors}}{{form.principal_name}}
+		</div></td></tr>
+	<tr><td><label for="id_creation_date">School Creation Date:</label></td>
+	    <td><div class="fieldWrapper">
+		{{form.school_creation_date.errors}}{{form.school_creation_date}}</div></td></tr>
+</table>
+</fieldset>
+{{form.division}}
+{{form.municipality}}
+{{form.principal}}
+{{form.municipality_choice}}
+{{form.students_municipalities}}
+
+{% endblock extended %}

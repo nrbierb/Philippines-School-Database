@@ -1,0 +1,14 @@
+{% extends 'person.html' %}
+{% block extended %}
+{{ block.super }}
+<fieldset class="std-block">
+<legend>Administrator Information</legend>
+<table class="unbordered"> 
+<tr><td>{{form.organization_name.label}}</td>
+<td>{{form.organization_name}}</td></tr>
+<tr><td><label for="id_position">Position:</label></td>
+<td>{{form.position}}</td></tr>
+</table>
+</fieldset>
+{{form.organization}}
+{% endblock extended %}

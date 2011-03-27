@@ -1,0 +1,35 @@
+{% extends 'person.html' %}
+{% block local_javascript_code %}
+$(function() {
+    $.initWindowMsg();
+	
+    loadParentWindowKey("id_family","id_family");
+	
+    $("#cancel_button").click(function(){
+        close();
+    });
+	
+//	$("#save_button").click(function(){
+//		close();
+//	});
+
+});
+{% endblock local_javascript_code %}
+{% block extended %}
+{{ block.super }}
+<table class="fields-enclose"><tr><td>
+<fieldset>
+<legend>Parent Information</legend>
+<table class="unbordered"> 
+<tr><td><label for="id_relationship">Relationship:</label></td>
+<td>{{form.relationship}}</td></tr>
+<tr><td><label for="id_contact_order">Order to Contact:</label></td>
+<td>{{form.contact_order}}</td></tr>
+<tr><td><label for="id_occupation">Occupation:</label></td>
+<td>{{form.occupation}}</td></tr>
+</table>
+</fieldset>
+</td></tr>
+</table>
+{{form.family}}
+{% endblock extended %}

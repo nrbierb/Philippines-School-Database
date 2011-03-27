@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}{{title_name}}
+{% endblock %}
+{% block style %}
+{{ block.super }}
+	@import url("../css/attendance.css");
+{% endblock %}
+{%block script%}
+{{ block.super }}
+<script type='text/javascript' src='/js/tables.js'></script>
+<script type="text/javascript" src="/js/date.js"></script>
+<script type="text/javascript" src="/js/attendance.js"></script>
+{% endblock %}
+{% block content %}
+<p class="form-title">Update Student Attendance - Section {{section}}</p>
+<form id="form2" action="{{url_name}}" method="post" >
+<fieldset class="floatLeft">
+<legend>Student Daily Attendance</legend>
+Choose a Start Date:
+<input type="text" id="date_select" class="hidden">
+<table id="main_table" class="attMainTableWrapper">
+<thead>
+<tr class="attMainTableWrapper"><td id="table_header_div" class="attMainTableWrapper"></td>
+</tr>
+</thead>
+<tbody>
+<tr class="attMainTableWrapper"><td id="table_div" class="attMainTableWrapper"></td>
+</tr>
+</tbody></table>
+</fieldset>
+<!-- hidden values -->
+<div>
+{{form.section}}
+{{form.section_name}}
+{{form.state}}
+{{form.requested_action}}
+{{form.redirect_page}}
+</div>
+{% include 'bottom_buttons.html' %}
+</form>
+{% endblock %}

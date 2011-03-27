@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+<form id="form1" action="{{url_name}}" method="get" >
+<p class="form-title">Run Utility</p><br/>
+<fieldset id="school-fieldset" class="major">
+<legend class="major">Run Utilty Command Line Program</legend>
+<table class="lg-btn" >
+  <tbody>
+    <tr>
+	<td><label class= "float-left">Command:</label></td>
+		<td><input type="text" name="util" style="width:500px"></input></td>
+	<tr>
+		<td><label class= "float-left">Command Arguments:</label>
+		<td><input type="text" name="args" style="width:500px"></input></td>	
+		</td>
+	</tbody>
+</table>
+</fieldset>
+{% include 'bottom_buttons.html' %}
+</div>
+</form>
+{% endblock %}

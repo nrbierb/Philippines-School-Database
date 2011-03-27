@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}{{title_name}}
+{% endblock %}
+{% block style %}
+<style type="text/css">
+@import url("static/layout.css");
+@import url("static/forms.css");
+@import url("static/std.css");
+@import url("static/buttons.css");
+</style>
+<script type="text/javascript" src="static/btn.js"></script>
+<script type="text/javascript" src="static/student_form.js"></script>
+{% endblock %}
+{% block content %}
+{% include 'header.html' %}
+<p class="form-title">Create or Edit a {{title_name}}</p>
+<form id="form1" name="form1" action="{{url_name}}" method="post" >
+{% block extended %}
+{% endblock extended %}
+<!-- hidden values -->
+{{form.object_instance}}
+{{form.state}}
+{{form.form_info}}
+{% include 'bottom_buttons.html' %}
+</form>
+</div>
+{% endblock %}

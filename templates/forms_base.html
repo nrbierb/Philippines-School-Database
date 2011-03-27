@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block content %}
+<form id="form1" action="{{submit_action}}" method="post" >
+<p id="form_title" class="form-title print-hidden">
+	{{title_prefix}}{{title_bridge}}{{title_suffix}}{{title_details|safe}}</p>    
+<div class="error" style="display:none;"> 
+    <img src="/media/warning.gif" alt="Warning!" width="24" height="24" style="float:left; clear:both; margin: -5px 10px 0px 0px; " />
+      <span></span>.
+</div> 
+
+<div>
+{% block extended %}
+{% endblock extended %}
+</div>
+<!-- standard form hidden values -->
+<div>
+{{form.object_instance}}
+{{form.state}}
+{{form.requested_action}}
+{{form.users_section}}
+{{form.users_class_session}}
+{{form.selection_key}}
+</div>
+<!-- end standard form hidden values -->
+{% include 'bottom_buttons.html' %}
+</form>
+{% endblock %}

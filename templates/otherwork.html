@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block content %}
+<p class="form-title">Perform Other Work</p>
+<fieldset class="major one-col-buttons">
+<legend class="major">Choose Your Task</legend>
+<table class="lg-btn" >
+  <tbody>
+	  <tr>
+      <td class="width200"><a id="datebase_user" class="btn blue tb" 
+	  	href="/select/database_user">Database User</a></td>
+	  </tr>
+	  <tr>
+      <td class="width200"><a id="user_type" class="btn blue tb not-ready"
+	  	title="Use the utility function update_database_user_types. Edit changes into that file." 
+	  	href="/select/user_type">User Type</a></td>
+	  </tr>
+	  <tr>
+      <td class="width200"><a id="user_type" class="btn blue tb"
+	   href="/select/versioned_text_manager">Text Pages Manager</a></td>
+	  </tr>
+  </tbody>
+</table>
+</fieldset>
+<br/>
+<fieldset class="major one-col-buttons" >
+<legend class="major">Action</legend>
+<table class="action-btn"  width="100%">
+  <tbody>
+    <tr>
+      <td class="buttons" >
+      	<a name="return_button"  class="btn green tb" href="index.html">Return Home</a>
+      </td>
+    </tr>
+  </tbody>
+</table>
+</fieldset>
+{% endblock %}

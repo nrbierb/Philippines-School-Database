@@ -1,0 +1,66 @@
+{% extends 'reports_base.html' %}
+{% block script %} {{ block.super }}
+<script type="text/javascript">
+var sectionField = {"id":"id_section","name":"Section","required":false};
+var yearField = {"id":"id_class_year","name":"Class Year","required":false};
+
+function setParametersForRequest(class_year, section) {
+	var param_dict = {
+		"class":"section",
+		"key":$('#id_section').val(),
+		"class_year":$("#id_class_year").val(),
+		"reference_date":$('#id_reference_date').val(),
+		"max_age":$('#id_max_age').val(),
+		"min_age":$('#id_min_age').val(),
+		"trim_years":$('#id_trim_years').val(),
+		"restrict_years":$('#id_restrict_years').val(),
+		"age_calc_type":$('#id_age_calc_type').val(),
+		"function":"create_student_age_report_table"
+		};
+	return param_dict;
+}	
+
+$(function() {
+	var reportTable = new StandardTable();
+	reportTable.setDom(document.getElementById('report_table'));
+	reportTable.initializeTableParams();
+	$('#generate_report_button').click(function(){
+		if (minimumRequiredFieldsSet([yearField, sectionField], 1)) {
+			$.loadanim.start({
+				message: "Creating Student Age Table"
+			});
+			var params = setParametersForRequest();
+			var titleString = '<p class="report-title"> Student Age Distribution</p>';
+			$('#report_title').html(titleString);
+			var headerString = '<p class="report-subtitle">Class Year: ' + $("#id_class_year").val() +
+				' -- Section: ' + $('#id_section_name').val() + '</p>';
+			$('#report_header').html(headerString);
+			requestTable("/ajax/calculated_table", params, reportTable);
+		}		
+	});
+});
+</script>
+{% endblock script%}
+{% block report_top %}
+<fieldset class="std-block" id="id_table_fieldset">
+	<legend>Setup Report</legend>
+	<table id="setup_table" class="centered-object">
+	<tr><th>Class Year</th><th>Section</th><th>Date</th>
+	<th>Min Age</th><th>Max Age</th><th>Trim Years</th>
+	<th>Restrict Years</th><th>Age Type</th>
+	<tr>
+		<td>{{form.class_year}}</td>
+		<td>{{form.section_name}}</td>
+		<td>{{form.reference_date}}</td>
+		<td><center>{{form.min_age}}</center></td>
+		<td><center>{{form.max_age}}</center></td>
+		<td><center>{{form.trim_years}}</center></td>
+		<td><center>{{form.restrict_years}}</center></td>
+		<td>{{form.age_calc_type}}</td>
+	</tr>
+	{{ form.section }}
+	<tr><td colspan='7'><input type="button" id="generate_report_button" value="Create Report" 
+		class="btn inside centered-object"></input></td></tr>
+	</table>
+</fieldset>
+{% endblock report_top%}

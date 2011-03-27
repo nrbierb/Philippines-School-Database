@@ -1,0 +1,82 @@
+{% extends 'forms_base.html' %}
+{% block script %} {{ block.super }}
+{% endblock %}
+{% block extended %}
+<fieldset class="std-block">
+<legend>Name</legend>
+<table class="unbordered">
+<tr>
+	<td><label for="id_first_name" title="The first name. This must be entered before you can save this page. Please use correct capitalization.">First:*</label></td>
+	<td><label for="id_middle_name" title="The middle name. This is not required if there is no middle name. Please use correct capitalization.">Middle:</label></td>
+	<td><label for="id_last_name" title="The family name. This must be entered before you can save this page. Please use correct capitalization.">Family:*</label></td>
+</tr>
+<tr>
+	<td><div class="fieldWrapper">
+		{{ form.first_name.errors }}
+	{{ form.first_name }}
+	</div></td>
+	<td><div class="fieldWrapper">
+		{{ form.middle_name.errors }}
+	{{ form.middle_name }}
+	</div>
+	</td>
+	<td><div class="fieldWrapper">
+		{{ form.last_name.errors }}
+	{{ form.last_name }}
+	</div>
+	</td>
+</tr>
+</table>
+</fieldset>
+<fieldset class="std-block">
+<legend>Personal Information</legend>
+<table class="unbordered">
+	{% if show_gender %}
+	<tr>
+		<td><label for="id_gender" title="By default the gender is set female. This should be always be changed if the person is male.">Gender:</label></td>
+	<td>
+	{{ form.gender }}
+	</td>
+	</tr>
+	{% endif %}
+	{% if show_title %}
+	<tr><td><label for="id_title" title="Special formal title such as Dr., Eng., Mayor, etc. that should always be used with the person's name. A teacher's position/title is entered elsewhere. Do not enter Mr., Mrs., etc.">Title: </label></td>
+	<td>{{form.title}}</td></tr>
+	{% endif %}
+	{% if show_municipality %}
+	<tr><td><label for="id_municipality_name" title="The municipality where the person currenty lives.">Municipality:</label></td>
+	<td><div class="fieldWrapper">
+			{{form.municipality.name.errors}}{{form.municipality_name}}
+		</div></td></tr>
+	{% endif %}
+	{% if show_community %}
+	<tr><td><label for="id_community_name" title="The barangay where the person currenty lives.">Barangay:</label></td>
+	<td><div class="fieldWrapper">
+			{{form.community_name.errors}}{{form.community_name}}
+		</div></td></tr>
+	{% endif %}
+	<tr><td><label for="id_address" title="Further details of the address. Do not include the municipality or the barangay. You may enter as many lines as you need.">Address:</label></td>
+	<td>{{form.address}}</td></tr>
+	{% block personal %}
+	{% endblock personal %}
+</table>
+</fieldset>
+<fieldset class="std-block">
+<legend>Contact Information</legend>
+<table class="unbordered">
+<tr><td><label for="id_cell_phone" title="The complete 9 digit cell phone number.">Cell phone:</label></td>
+<td>{{form.cell_phone}}</td></tr>
+<tr><td><label for="id_landline_phone" title="The complete landline telephone number.">Landline phone:</label></td>
+<td>{{form.landline_phone}}</td></tr>
+<tr><td><label for="id_email" title="The email address that the person will use for contact.">Email:</label></td><td>
+<div class="fieldWrapper">
+	{{ form.email.errors }}
+	{{ form.email }}
+	</div></td></tr>
+<tr><td><label for="id_other_contact_info" title="Other general contact information. This could include a neighbor to call or some other means of contacting the person.  You may enter as many lines as you need.">Other Contact <br/>info:</label></td>
+<td>{{form.other_contact_info}}</td></tr>
+</table>
+</fieldset>
+{{ form.municipality }}
+{{ form.community }}
+{% endblock extended %}

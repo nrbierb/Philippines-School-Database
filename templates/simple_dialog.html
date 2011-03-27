@@ -1,0 +1,59 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+	<style type="text/css">
+		body {
+			font-family:  Arial, Helvetica, sans-serif;
+			}
+		h2 {font-size:1.15em; margin-top:0pt; margin-bottom:0pt;}
+		h3 {font-size:1.05em; margin-top:3pt; margin-bottom:0pt;}
+		div.version-info {
+			color:#196128;	
+			font-size: 0.8em;
+			margin-top:8px;
+			}
+			
+		
+		.float-left {
+			float: left;
+			}		
+
+		.float-right {
+			float: right;
+			}		
+
+		.title {
+			font-size:1.15em;
+			font-weight:bolder; 
+			margin-bottom:5px;
+			text-align: center;
+			}
+
+		.centered-object {
+			margin-left:auto;
+			margin-right:auto;
+			}
+			
+		.help-text {
+			background-color:white;
+		}
+		.block_name {
+			color:#000080;
+			font-weight:800;
+		}
+		.field_name {
+			color:#8000ff;
+			font-weight:400;
+		}			
+	</style>
+	</head>
+	<body>
+		<div class="title centered-object">{{title}}</div>
+		<div class="help-text">{{content|safe}}</div>
+		<div id="id-version-info" class="version-info">
+			<div class="float-left">Version: {{version}}</div>
+			<div class="version-date float-right">Date:{{text_date}}</div>
+		</div>
+	</body>
+</html>

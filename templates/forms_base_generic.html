@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block content %}
+<p class="form-title">{{title_prefix}}{{title_bridge}}{{title_suffix}}</p>
+<form id="form1" action="{{url_name}}" method="post" >
+<div>
+{% block extended %}
+{% endblock extended %}
+<!-- hidden values -->
+{{form.form_info}}
+{% include 'bottom_buttons.html' %}
+</div>
+</form>
+{% endblock %}

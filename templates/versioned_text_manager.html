@@ -1,0 +1,49 @@
+{% extends 'forms_base.html' %}
+{{% block local_javascript_code %}
+{{block.super}}
+$(function() {
+	$("#id_open_text_window").val(false);
+	$("#id_new_revision_number").val("");		
+	function sendForm() {
+		// perform special actions here
+		if (validator.form() ){
+			saveAnnounce();		
+			$("#form1").submit();			
+		}
+	}
+	$("#new_revision_button").click(function() {
+		var newRevisionNumber = $("#id_new_revision_number").val();
+		if ((newRevisionNumber) === "") {
+			newRevisionNumber = (parseFloat($("id_revision_number").val()) + 0.1) + "";
+		}
+		$("#id_open_text_window").val(true);
+		$("#id_new_revision_number").val(newRevisionNumber);		
+		sendForm();		
+	});
+	
+	$("#same_revision_button").click(function() {
+		$("#id_open_text_window").val(true);
+		sendForm();		
+	});
+});
+{% endblock local_javascript_code %}
+{% block extended %}
+<fieldset class="std-block">
+<legend>Text Manager Information</legend>
+<table class="unbordered">
+	<tr><td>{{form.name.label}}:</td><td>{{form.name}}</td></tr>
+	<tr><td>{{form.title.label}}:</td><td>{{form.title}}</td></tr>
+	<tr><td>{{form.help_formatted.label}}:</td><td>{{form.help_formatted}}</td></tr>
+	<tr><td>{{form.dialog_template.label}}:</td><td>{{form.dialog_template}}</td></tr>
+	<tr><td>{{form.page_template.label}}:</td><td>{{form.page_template}}</td></tr>
+	<tr><td>{{form.general_info.label}}:</td><td>{{form.general_info}}</td></tr>
+  	<tr><td>{{form.revision_number.label}}:</td><td>{{form.revision_number}}</td></tr>
+</table>
+{{form.open_text_window}}
+{{form.new_revision_number}}
+</fieldset>
+<div>
+<input type="button" id="new_revision_button" class="btn blue menu-button" value="Create New Page" />
+<input type="button" id="same_revision_button" class="btn blue menu-button" value="Edit Current Page" />				
+</div>
+{% endblock extended %}

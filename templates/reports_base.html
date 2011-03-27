@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block script %}
+{{ block.super }}
+<script type='text/javascript' src='/js/tables.js'></script>
+{% endblock script %}
+{% block content %}
+<form id="form1" action="{{submit_action}}" method="post" >
+<p id="form_title" class="form-title print-hidden">{{title_prefix}}{{title_bridge}}{{title_suffix}}</p>    
+<div class="error" style="display:none;"> 
+    <img src="../media/warning.gif" alt="Warning!" width="24" height="24" style="float:left; margin: -5px 10px 0px 0px; " /> 
+ 
+      <span></span>.<br clear="all"/> 
+    </div> 
+
+<div>
+{% block extended %}
+<div id='report_top' class="print-hidden">
+{% block report_top %}{% endblock report_top %}
+<hr/>
+</div>
+<div id="report_title"></div>
+<div id="report_header"></div>
+<div id="report_table" class="blockFrame"></div>
+<div id="report_trailer"></div>
+{% block report_bottom %} {% endblock report_bottom %}
+{% endblock extended %}
+<!-- standard form hidden values -->
+<div>
+{{form.object_instance}}
+{{form.state}}
+{{form.requested_action}}
+</div>
+<!-- end standard form hidden values -->
+</form>
+<fieldset class="major single-button print-hidden">
+<legend>Action</legend>
+<table id="bottom-buttons-table" class="action-btn" >
+  <tbody>
+    <tr>
+      <td class="buttons centered">
+      	<a  href="/choose_report" id="finish_button" name="action" 
+		title='Click to return to the "Choose a Report Type" page.' class="btn tb action">Finished</a>
+    </td>
+	</tr>
+  </tbody>
+</table>
+</fieldset>
+</div>
+{% endblock content %}
