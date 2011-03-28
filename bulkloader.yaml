@@ -70,7 +70,7 @@ transformers:
 
 
 - kind: DatabaseUser
-  connector: simplexml
+  connector: csv
   connector_options:
     xpath_to_nodes: /DatabaseUsers/DatabaseUser
     style: attribute_centric

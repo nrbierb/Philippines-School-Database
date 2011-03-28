@@ -1,152 +1,27 @@
-import cPickle, zlib, datetime, base64
-import logging
-import SchoolDB.models
+#Copyright 2010,2011 Neal R Bierbaum, Redtreefalcon Software
+#This file is part of SchoolsDatabase.
 
+#SchoolsDatabase is free software: you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation, either version 3 of the License, or
+#(at your option) any later version.
+
+#SchoolsDatabase  is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+
+#You should have received a copy of the GNU General Public License
+#along with SchoolsDatabase.  If not, see <http://www.gnu.org/licenses/>.
 """
 Utilities that are normally used as scheduled jobs or called from the 
 "Run Utility" web page. 
 """
-#def send_task(task_dict):
-    #"""
-    #Prepare task for sending by pickling and compressing all parameters.
-    #Then add task to queue.
-    #"""
-    #packed = zlib.compress(cPickle.dumps(task_dict))
-    #encoded = base64.b64encode(packed)
-    #params_dict = {"task_data":encoded}
-    #taskqueue.add(url="/task", params=params_dict) 
-    
-##----------------------------------------------------------------------
-#def queue_tasks(task_name, function, function_args="", 
-                #organization = None, instance_keylist = None,
-                #query_iterator = None, instances_per_task = 10,
-                #rerun_if_failed = True):
-    #"""
-    #The primary function for creating and queuing tasks. This will create one
-    #or more tasks.
-    #-task_name, function, and function_args must be specified.
-    #-org: The keystring for the org that will be active for the task. If not
-     #defined then the caller's organization will be used.
-    #-instance_keylist: The list of keys for instances that should be 
-      #processed by the function
-    #-query_iterator: alternate to the keylist, it uses the keys_only query.
-     #Note: only one of the above should be defined
-    #-instances per task: if there is an instance_keylist this is the number of
-     #instances to be process by a single task. It the total length of the 
-     #instance keylist is greater than this then multiple tasks will be queued.
-     #"""
-    #try:
-        #task_dict = {"task_name":task_name, "function":function, 
-                     #"args":function_args, "organization":organization,
-                     #"rerun_if_failed":rerun_if_failed}
-        #task_count = 0
-        #if instance_keylist:
-            #block_end = instances_per_task - 1
-            #while instance_keylist:
-                #task_keylist = instance_keylist[0:block_end]
-                #task_dict["target_instances"] = task_keylist
-                #send_task(task_dict)
-                #del instance_keylist[0:block_end]
-        #elif query_iterator:
-            #keys_blocks = SchoolDB.models.get_blocks_from_iterative_query(
-                #query_iterator, instances_per_task)
-            #for block in keys_blocks:
-                #keystring_block = [str(key) for key in block]
-                #task_dict["target_instances"] = keystring_block
-                #send_task(task_dict) 
-                #task_count += 1
-        #else:
-            #send_task(task_dict)
-            #task_count = 1
-        #return "%d tasks successfully enqueued." %task_count
-    #except StandardError, e:
-        #return ("Failed after enqueueing %d tasks. Error: %s" 
-                #%(task_count, e))
-                
-#----------------------------------------------------------------------
 
-#def bulk_update(model_class, filter_parameters, change_parameters):
-    #"""
-    #Change the value of a parameter for all class objects that meet the
-    #filter specification. This may be used with a parameter that uses an
-    #associated history. The filtering is done with
-    #SchoolDB.assistant_classes.QueryMaker object.
-    
-    #The arguments are:
-    
-    #-model_class: The class of the object to be changed.
-    
-    #-filter_parameters: This is a direct pass through to the QueryMaker object.
-    #See documentation on that class for details.
-    
-    #-change_parameters: a dictionary keyed with the following values
-    #1. changed_parameter
-    #2. new_value
-    #If parameter has associated history:
-    #3. change_date
-    #4. date_parameter
-    #5. history_parameter
-    #6. value_is_reference
-    #If the changed_parameter does not have a history then dictionary entries 3-5 
-    #need not be defined.
-    #"""
-    #try:
-        #if (change_parameters.has_key("changed_parameter") and
-                 #change_parameters.has_key("new_value") and model_class):
-            ##if these aren't defined do nothing...
-            #qmkr_desc = SchoolDB.assistant_classes.QueryDescriptor()
-            #qmkr_desc.set("filters", filter_parameters)
-            #qmkr_desc.set("maximum_count", 4000)
-            #qmkr_query = SchoolDB.assistant_classes.QueryMaker(
-                #model_class, qmkr_desc)
-            #object_list = qmkr_query.get_objects()
-            #for obj in object_list:
-                #setattr(obj, change_parameters["changed_parameter"],
-                        #change_parameters["new_value"])
-                #if (change_parameters.has_key("change_date")):
-                    #if (change_parameters.has_key("date_parameter")):
-                        #setattr(obj, change_parameters["date_parameter"],
-                                #change_parameters["change_date"])
-                    #if (change_parameters.has_key("history_parameter")):
-                        #history = getattr(obj, 
-                                    #change_parameters["history_parameter"])
-                        #is_reference = change_parameters.get(
-                            #"value_is_reference", False)
-                        #if (is_reference):
-                            #string_val = ""
-                            #ref_val = change_parameters["new_value"]
-                        #else:
-                            #string_val = change_parameters["new_value"]
-                            #ref_val = None
-                        #history.add_or_change_entry_if_changed(
-                            #start_date=change_parameters["change_date"],
-                            #info_str=string_val, info_reference= ref_val)
-                #obj.put()
-            #return ("Changed %d %s objects"
-                    #%(len(object_list), model_class.classname))
-        #else:
-            #return ("Unusable args. Nothing changed")
-        ##change error type after debugging
-    #except EOFError, e:
-        #return "Failed Bulk Update: %s" %e
+import cPickle, zlib, datetime, base64
+import logging
+import SchoolDB.models
 
-#def bulk_update_utility(logger, model_class, filter_parameters, 
-                        #change_parameters):
-    #"""
-    #Call bulk_update with logging.
-    #"""
-    #org_name = \
-        #SchoolDB.models.getActiveDatabaseUser().get_active_organization_name()
-    #org_type = \
-        #SchoolDB.models.getActiveDatabaseUser().get_active_organization_type()
-    #logger.add_line("Starting Bulk Update on %s %s:" %(org_type,org_name))
-    #logger.add_line("Model Class: " + model_class.classname)
-    #logger.add_line("Filter Parameters: " + str(filter_parameters))
-    #logger.add_line("Change Parameters: " + str(change_parameters))
-    #result = bulk_update(model_class, filter_parameters, 
-                         #change_parameters)
-    #logger.add_line("Result: " + result)
-    
 
 def change_parameter(obj, change_parameters):
     """
