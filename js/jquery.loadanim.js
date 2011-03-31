@@ -1,13 +1,13 @@
 /**
  * @author master
  */
-var version = 0.01;
-var intvl_id = null;
-var count = 0;
-var startedCount = 0;
+var loadanimVersion = 0.1;
+var loadaminIntervalId = null;
+var loadaminCount = 0;
+var loadaminStartedCount = 0;
+var loadaminStarted = false;
 
 jQuery.loadanim = {
-
     start : function (options) {
         var defaults = {  
             updateTime: 400,  // milliseconds
@@ -16,8 +16,8 @@ jQuery.loadanim = {
         };  
         var options = $.extend(defaults, options);  
 
-		startedCount += 1;
-        if (startedCount > 1) {
+		loadaminStartedCount += 1;
+        if (loadaminStartedCount > 1) {
             return;
         }
         $("body").append('<div id="loadAnim"></div>');
@@ -32,31 +32,32 @@ jQuery.loadanim = {
         obj.css("left", "40%");
         obj.css("top", "20%");
         obj.css("z-index", "9999");
-        started = true;
+        loadaminStarted = true;
         obj.html(options.message);
-        count = 0;
-        intvl_id =  setInterval(function () {
-            if (++count > options.ellipsisText.length) {
-                count = 0;
+        loadaminCount = 0;
+        loadaminIntervalId =  setInterval(function () {
+            if (++loadaminCount > options.ellipsisText.length) {
+                loadaminCount = 0;
             }
             var obj = $("div#loadAnim");
-            obj.html(options.message + options.ellipsisText.substr(0, count));
+            obj.html(options.message + options.ellipsisText.substr(0, loadaminCount));
           }, options.updateTime);
         obj.css("display", "block");
     },
     stop : function (options) {
-        if (!started) {
+        if (!loadaminStarted) {
             return;
         }
-        startedCount -= 1;
-		if (startedCount > 0) {
+        loadaminStartedCount -= 1;
+		if (loadaminStartedCount > 0) {
 			return;
 		}
-        clearInterval(intvl_id);
-        intvl_id = null;
+        clearInterval(loadaminIntervalId);
+        loadaminIntervalId = null;
         var obj = $("div#loadAnim");
         obj.css("display", "none");
         obj.remove();
+		loadaminStarted = false;
     }
 
 };

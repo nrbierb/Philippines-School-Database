@@ -283,6 +283,11 @@ indexes:
   - name: organization
   - name: name
 
+- kind: Classroom
+  properties:
+  - name: organization
+  - name: name
+
 - kind: Family
   properties:
   - name: __key__
@@ -318,6 +323,13 @@ indexes:
   - name: class
   - name: end_date
     direction: desc
+
+- kind: MultiLevelDefined
+  properties:
+  - name: class
+  - name: organization
+  - name: taught_by_section
+  - name: name
 
 - kind: MultiLevelDefined
   properties:

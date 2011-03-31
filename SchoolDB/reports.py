@@ -15,7 +15,7 @@
 #along with SchoolsDatabase.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-This file contains much of the code used in ajax 
+This file contains most of the code used in ajax to create reports.
 """
 from datetime import date, timedelta
 import exceptions

@@ -40,7 +40,7 @@
 	</tr>
 	<tr>
 		<td><label for="id_classroom">Classroom:</label></td>
-		<td>{{ form.classroom }}</td>
+		<td>{{ form.classroom_name }}</td>
 	</tr>
 	<tr>
 		<td><label for="id_school_year_name">School Year*:</label></td>
@@ -71,6 +71,7 @@
 {{form.section}}
 {{form.class_period}}
 {{form.school_year}}
+{{form.classroom}}
 {{form.teacher}}
 {{form.teacher_history}}
 {% endblock extended %}

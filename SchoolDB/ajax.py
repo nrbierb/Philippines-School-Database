@@ -27,13 +27,7 @@ from datetime import date, timedelta
 from google.appengine.ext import db
 from django import http
 from django.utils import simplejson
-import SchoolDB.views
-import SchoolDB.models
-import SchoolDB.assistant_classes
-import SchoolDB.student_attendance
-import SchoolDB.reports
-import SchoolDB.summaries
-import SchoolDB.gviz_api
+import SchoolDB
 
 class AjaxError(exceptions.Exception):
     def __init__(self, args=None):
@@ -94,6 +88,7 @@ class AjaxServer():
             "edit_grading_period_grades":self._edit_grading_period_grades,
             "get_gradebook_entries":self._get_gradebook_entries,
             "change_date":self._change_date,
+            "create_class_sessions":self._create_class_sessions,
             "generate_dialog_content":self._generate_dialog_content
         }
         self.error_string = ""
@@ -730,6 +725,22 @@ class AjaxServer():
         json_data = simplejson.dumps(return_data)
         self.return_string = json_data
 
+    def _create_class_sessions(self):
+        """
+        Creating class sessions is a two step process. The initial
+        request includes an array describing which classes are to be
+        created. The response is a table with information about the
+        classes to be created. The second request is the possibly
+        edited table of classes that should be created. This is used to
+        actually perform the creation. All logic is in the
+        CreateClassSessions class.
+        """
+        return_data = \
+            SchoolDB.system_management.BulkClassSessionsCreator.manage_creation(
+            self.target_object, self.secondary_object, self.argsDict())
+        json_data = simplejson.dumps(return_data)
+        self.return_string = json_data        
+        
     def _generate_dialog_content(self):
         """
         Process text from a versioned text page through a Django
@@ -886,7 +897,7 @@ class AjaxServer():
         This will return the fully mapped and qualified function from
         the arguments in the Ajax request. While rather inflexible and
         difficult for arbitrary on-the-fly enhancement like "eval" it
-        provides the very stricly limited set of requestable functions
+        provides the very strictly limited set of requestable functions
         that is necessary for security with a web application. All
         functions listed here take the args_dict as the only argument.
         Each of these functions should be written to support the Ajax
@@ -899,13 +910,16 @@ class AjaxServer():
         The function name is included in the request as
         "function_name". The name is unique for every function that can
         be called. If the function is a class function then
-        self.target_object is used as the object in the call. All of the
-        mapping is done in this table with fully qualified function
+        self.target_object is used as the object in the call. All of
+        the mapping is done in this table with fully qualified function
         names for static class functions or simple functions. While all
         of the functions are in different files they are defined here
         both for correct qualification and ease of finding the mapping.
         This table must be extended as necessary to include further
-        external functions.
+        external functions. The functions defined here should be safe
+        ones like report generation that will not require tight control
+        of actions so that they should be filtered before ever reaching
+        ajax.
         
         This table can be viewed as the "traffic cop" or "firewall" for
         functions called via Ajax.

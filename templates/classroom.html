@@ -1,0 +1,24 @@
+{% extends 'forms_base.html' %}
+{% block extended %}
+<fieldset>
+<legend>Classroom Information</legend>
+<table class="unbordered"> 
+        <tr>
+          <td><label for="id_name" id="id_name_label">Name*:</label></td>
+          <td>{{ form.name }}</td>
+        </tr>
+        <tr>
+          <td><label for="id_active" id="id_active_label">Active Use:</label></td>
+          <td> {{form.active}}</td>
+        </tr>
+        <tr>
+          <td><label for="id_location" id="id_location_label">Location:</label></td>
+          <td> {{form.location}}</td>
+        </tr>
+        <tr>
+          <td><label for="id_other_information" id="id_other_information_label">Other Information:</label></td>
+          <td> {{form.other_information}}</td>
+        </tr>
+</table>
+</fieldset>
+{% endblock extended%}

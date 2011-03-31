@@ -481,9 +481,12 @@ def showStudentEmergency(request):
     return showStatic(request, "underconstruction", 
                       "Student Emergency Information")
 
+def showClassroom(request):
+    return standardShowAction(request, "classroom", ClassroomForm, 
+                              "Classroom", "classroom")
 def showClassSession(request):
     return standardShowAction(request, "class_session", ClassSessionForm,
-                              "Class", "class_session")
+                              "Class Sessions", "class_session")
 
 def showClassPeriod(request):
     return standardShowAction(request, "class_period", ClassPeriodForm,
@@ -496,7 +499,7 @@ def showGradingInstance(request):
 
 def showSchoolDay(request):
     return standardShowAction(request, "school_day", SchoolDayForm,
-                              "School Day", "school_day","/calendar")
+                              "School Day", "school_day", "/calendar")
 
 def showGrades(request):
     return standardShowAction(request, "grade", GradesForm, "Grades",
@@ -567,6 +570,11 @@ def showVersionedText(request):
 def showEnterGrades(request):
     return standardShowAction(request, "enter_grades",  GradesForm,
                               "Enter Grades", "entergrades", "/grades")
+
+def showCreateClassSessions(request):
+    return standardShowAction(request, "create_classes",  
+                              CreateClassSessionsForm,
+                              "Create Many Classes", "create_classes")
 
 def showStudentSummary(request):
     return standardShowAction(request, "student_summary", 
@@ -1585,6 +1593,7 @@ class StudentForm(PersonForm):
                                            widget=forms.HiddenInput)
     parents_initial_val = forms.CharField(required=False, 
                                           widget=forms.HiddenInput)
+    student_id = forms.CharField(required=False, label="Student Id:")
     #-------These fields about elementary school are normally hidden-----
     birth_community_name = forms.CharField(required=False,
                             label="Birth Barangay:",
@@ -1937,6 +1946,28 @@ class StudentGroupingForm(BaseStudentDBForm):
         initialize_fields([("teacher", "teacher_name")], data)
 
 #----------------------------------------------------------------------      
+class ClassroomForm(BaseStudentDBForm):
+    name = forms.CharField(required=True, max_length=60, label="Name*:",
+                           widget=forms.TextInput(attrs=
+                            {'class':'required entry-field', 'minlength':'3'}))
+    active = forms.BooleanField(label="Active", required=False)
+    location = forms.CharField(required=False, max_length=1000,
+                        label="Location:",
+                        widget=forms.Textarea(attrs={'cols':50, 'rows':3,
+                                                    'class':'entry-field'}))
+    other_information = forms.CharField(required=False, max_length=1000,
+                        label="Other Information:",
+                        widget=forms.Textarea(attrs={'cols':50, 'rows':3,
+                                                    'class':'entry-field'}))
+    parent_key = forms.CharField(required=False,  
+                                 widget=forms.HiddenInput, initial="NOTSET")
+    element_names = ["name", "active","location","other_information"]
+    parent_form = BaseStudentDBForm
+
+    def create_new_instance(self):
+        return  SchoolDB.models.Classroom.create(name = 
+                self.cleaned_data["name"])
+#----------------------------------------------------------------------      
 
 class SectionForm(StudentGroupingForm):
     class_year = forms.CharField(required=True,
@@ -1947,8 +1978,10 @@ class SectionForm(StudentGroupingForm):
                 {'class':'autofill entry-field'}))
     section_type = forms.CharField(required = False, 
                                    widget=forms.HiddenInput, initial="")
+    classroom_name = forms.CharField(required=False, label="Classroom",
+                    widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
     classroom = forms.CharField(required=False,
-                                widget=forms.TextInput(attrs={'class':'entry-field'}))
+                              widget=forms.HiddenInput, initial = "")
     element_names = ["section_type", "class_year", "classroom"]
     parent_form = StudentGroupingForm
 
@@ -1962,10 +1995,11 @@ class SectionForm(StudentGroupingForm):
         clsyr = javascript_generator.add_autocomplete_field(
             class_name = "class_year", field_name = "id_class_year")
         clsyr.set_local_choices_list(SchoolDB.choices.ClassYearNames)
+        clsrm = javascript_generator.add_autocomplete_field("classroom")
         sect_type = javascript_generator.add_autocomplete_field(
             class_name = "section_type")
         sect_type.add_extra_params({"use_class_query":"!true!"})
-        return (clsyr, sect_type)
+        return (clsyr, clsrm, sect_type)
 
     def generate_javascript_code(self, javascript_generator):
         self.parent_form.generate_javascript_code(self,
@@ -1978,16 +2012,19 @@ class SectionForm(StudentGroupingForm):
         javascript_generator.add_javascript_params (
             {"auxFields":[{"name":"class_year","label":"Class Year",
                            "fieldType":"view"}]})
-        clsyr, sect_type = SectionForm.generate_class_javascript_code(
+        clsyr, clsrm, sect_type = \
+             SectionForm.generate_class_javascript_code(
             javascript_generator)
         select_field.add_dependency(clsyr, is_key = False)
+        select_field.add_dependency(clsrm, False)
         select_field.add_extra_params({"filter_school":"false",
                                         "extra_fields":"class_year"})
 
     @staticmethod
     def initialize(data):
         SectionForm.parent_form.initialize(data)
-        initialize_fields([("section_type", "section_type_name")], data)
+        initialize_fields([("section_type", "section_type_name"),
+                           ("classroom", "classroom_name")], data)
 
     def modify_params(self, param_dict):
         """
@@ -2507,8 +2544,10 @@ class ClassPeriodForm(MultiLevelDefinedForm):
 class SubjectForm(MultiLevelDefinedForm):
     used_in_achievement_tests = forms.BooleanField(
         label="Used In Achievement Tests", required=False)
+    taught_by_section = forms.BooleanField(
+        label="Taught By Sections", required=False)
     parent_form = MultiLevelDefinedForm
-    element_names=["used_in_achievement_tests"]
+    element_names=["used_in_achievement_tests", "taught_by_section"]
     
     def create_new_instance(self):
         return SchoolDB.models.Subject.create(self.cleaned_data["name"], 
@@ -2672,9 +2711,6 @@ class ClassSessionForm(StudentGroupingForm):
                               widget=forms.HiddenInput, initial = "")
     level = forms.CharField(required=False,
             widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
-#forms.ChoiceField(required=False, 
-                              #choices=SchoolDB.choices.convert_to_form_choice_list(
-                                  #SchoolDB.choices.ClassLevel))
     class_period_name = forms.CharField(required=False, 
                                 label="Class Period", widget=forms.TextInput(attrs=
                                             {'class':'autofill entry-field'}))
@@ -2688,8 +2724,10 @@ class ClassSessionForm(StudentGroupingForm):
                     widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
     section = forms.CharField(required=False,
                               widget=forms.HiddenInput, initial = "")
-    classroom = forms.CharField(required=False, 
-                                widget=forms.TextInput(attrs={'class':'entry-field'}))
+    classroom_name = forms.CharField(required=False, label="Classroom",
+                    widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
+    classroom = forms.CharField(required=False,
+                              widget=forms.HiddenInput, initial = "")
     school_year_name = forms.CharField(required=False, label="School Year*:",
                     widget=forms.TextInput(attrs={'class':'autofill entry-field required'}))
     school_year = forms.CharField(required=False,
@@ -2773,15 +2811,16 @@ class ClassSessionForm(StudentGroupingForm):
         prd = javascript_generator.add_autocomplete_field(
             class_name = "class_period")
         prd.add_extra_params({"use_class_query":"!true!"})
+        clsrm = javascript_generator.add_autocomplete_field("classroom")
         tchr = javascript_generator.add_autocomplete_field(
             class_name = "teacher")
         schlyr = javascript_generator.add_autocomplete_field(
             class_name = "school_year")
         schlyr.add_extra_params({"ignore_organization":"!true!"})
-        return subject,studentmjr,clsyr,sect,prd,tchr,schlyr
+        return subject,studentmjr,clsyr,sect,prd,clsrm,tchr,schlyr
 
     def generate_javascript_code(self, javascript_generator):
-        subject, studentmjr, clsyr, sect, prd, tchr, schlyr = \
+        subject, studentmjr, clsyr, sect, prd, clsrm, tchr, schlyr = \
                ClassSessionForm.generate_class_javascript_code(
                    javascript_generator)
         javascript_generator.add_javascript_code(
@@ -2816,7 +2855,10 @@ class ClassSessionForm(StudentGroupingForm):
                   "fieldType":"view"},
                  {"name":"class_period","label":"Hidden",
                   "fieldType":"hidden"},
-                 {"name":"teacher_name","label":"Teacher",
+                 {"name":"classroom_name","label":"Classroom",
+                  "fieldType":"view"},
+                 {"name":"classroom","label":"Hidden","fieldType":"hidden"},
+                  {"name":"teacher_name","label":"Teacher",
                   "fieldType":"view"},
                  {"name":"teacher","label":"Hidden","fieldType":"hidden"},
                  {"name":"school_year_name","label":"School Year",
@@ -2825,8 +2867,8 @@ class ClassSessionForm(StudentGroupingForm):
                   "fieldType":"hidden"}]
              })
         select_field.add_extra_params({
-            "extra_fields":"section|student_major|class_year|class_period|teacher"})
-        (subject, studentmjr, clsyr, sect, prd, tchr, schlyr) = \
+            "extra_fields":"section|student_major|class_year|class_period|classroom|teacher"})
+        (subject, studentmjr, clsyr, sect, prd, clsrm, tchr, schlyr) = \
          ClassSessionForm.generate_class_javascript_code(
              javascript_generator)
         select_field.add_dependency(subject, True)
@@ -2834,8 +2876,57 @@ class ClassSessionForm(StudentGroupingForm):
         select_field.add_dependency(clsyr,False)
         select_field.add_dependency(sect, True)
         select_field.add_dependency(prd, True)
+        select_field.add_dependency(clsrm,False)
         select_field.add_dependency(tchr, True)
         select_field.add_dependency(schlyr, True)
+
+#----------------------------------------------------------------------
+class CreateClassSessionsForm(BaseStudentDBForm):
+    """
+    This form is used to configure and initiate the bulk creation of
+    classes. It is meant to be run only once for each set of class
+    sessions created. All class sessions can be created from a single
+    use of this form is will probably only be used once each year by a
+    school. Not only are the class session entities created but also
+    all students class records. This means that a single run with a
+    2000 student high school could create as many as 10000 database
+    entities. Thus the use of this from must be tightly controlled with
+    further major checks prior to execution.
+    """
+    start_date = forms.DateField(required=False,
+        widget=forms.DateInput(format="%m/%d/%Y",                    
+            attrs={"class":"date-mask entry-field popup-calendar required"}))
+    end_date = forms.DateField(required=False,
+        widget=forms.DateInput(format="%m/%d/%Y",                    
+            attrs={"class":"date-mask entry-field popup-calendar required"}))
+    classes_in_section_classrooms = forms.BooleanField(required=False)
+    
+        
+    @staticmethod
+    def process_request(data):
+        """
+        Initialize the date fields to the current school year. These
+        are probably the correct values and the fields are required.
+        """
+        data["start_date"] = SchoolYear.school_year_start_for_date()
+        data["end_date"] = SchoolYear.school_year_end_for_date()   
+    
+
+    def modify_params(self,params):
+        params["title_prefix"] = ""
+        params["title_bridge"] = ""
+
+    @staticmethod
+    def generate_javascript_code(javascript_generator):
+        class_years = get_class_years_only()        
+        (subject_names, subject_name_to_key_dict, subject_key_to_name_dict) = \
+         get_possible_subjects("taught_by_section =")
+        subject_keys = [str(subject_name_to_key_dict[name])
+                            for name in subject_names]
+        javascript_generator.add_javascript_params ({
+        "json_subject_names":simplejson.dumps(subject_names),
+        "json_subject_keys":simplejson.dumps(subject_keys),
+        "json_classyear_names":simplejson.dumps(class_years)})
 
 #----------------------------------------------------------------------
 
@@ -3151,7 +3242,7 @@ class GradingInstanceForm(GradeWorkForm):
 class AchievementTestDescriptionForm(BaseStudentDBForm):
     """
     The primary information about the achievment test result is
-    mainatained by school. Thi class contains the information which
+    mainatained by school. This class contains the information which
     describes the achievement test so that upper level orgs can create
     a definition of a test to be used by the schools.
     """
@@ -3191,8 +3282,9 @@ class AchievementTestForm(BaseStudentDBForm):
         Create with almost all information because the information is used
         within associated instances of different classes
         """
-        return SchoolDB.models.AchievementTest.create(self.cleaned_data["name"],
-                    SchoolDB.models.getActiveDatabaseUser().get_active_organization())
+        return SchoolDB.models.AchievementTest.create(
+            self.cleaned_data["name"],
+            SchoolDB.models.getActiveDatabaseUser().get_active_organization())
         
     def modify_params(self, param_dict):
         param_dict["title_bridge"] = " an "
@@ -4576,6 +4668,7 @@ def get_form_from_class_name(class_name_string):
             "attendance":(AttendanceForm), 
             "calendar":(SchoolCalendarForm),
             "community":(CommunityForm),
+            "classroom":(ClassroomForm),
             "class_session":(ClassSessionForm),
             "class_period":(ClassPeriodForm),
             "contact":(ContactForm),

@@ -213,17 +213,11 @@ function loadHelpDialog(helpDialogHtml) {
 
 function loadHelpBalloonTexts(balloonHelp){
 	var DomID;
-	/*
-	if (modifyHelpBalloonText !== null) {
-		balloonHelp = modifyHelpBalloonText(balloonHelp);
-	}
-	*/
 	for (DomID in balloonHelp) {
 		$("#"+DomID).attr({
 			"title": balloonHelp[DomID]
 		});
 	}
-	setupTooltips();
 }
 
 function getHelpInfo(pagename, testText) {
@@ -244,6 +238,7 @@ function getHelpInfo(pagename, testText) {
 					var balloonHelp = helpData.balloon_help;
 					loadHelpDialog(helpDialogHtml);
 					loadHelpBalloonTexts(balloonHelp);					
+					setupTooltips();
 	                },
 			error: function(ajaxResponse) {
 				var helpDialogHtml = 
@@ -335,12 +330,13 @@ $(function() {
 function setupTooltips(){
 	$(".btn[title]").tooltip({
 		effect: "slide",
-		opacity: 0.8,
-		predelay: 1500,
-		delay: 0}).dynamic();
+		opacity: 0.9,
+		predelay: 400,
+		delay: 0
+	}).dynamic();
 	$("[title]").tooltip({
 		effect: "slide",
-		opacity: 0.8,
+		opacity: 0.9,
 		predelay: 600,
 		delay: 0}).dynamic();
 }

@@ -1802,7 +1802,8 @@ class Subject (MultiLevelDefined):
     """
     classname = "Class Subject"
     used_in_achievement_tests = db.BooleanProperty()
-
+    taught_by_section = db.BooleanProperty()
+    
     @staticmethod
     def create(name, organization):
         return Subject(name=name, parent=organization,
@@ -1948,7 +1949,6 @@ class Person(polymodel.PolyModel):
         This assures that the first name, middle name, and last name
         fields will be capitalized.
         """
-        pass
         self.first_name = clean_up_letter_casing(self.first_name)
         self.middle_name = clean_up_letter_casing(self.middle_name)
         self.last_name = clean_up_letter_casing(self.last_name)
@@ -1977,7 +1977,11 @@ class Person(polymodel.PolyModel):
     @staticmethod
     def person_custom_query(organization, leading_value, value_dict,
                             query):
-
+        """
+        Perform a standard query for a person that will search and sort
+        on the last name. This is the normal way that a person list will
+        be chosen.
+        """
         if value_dict.has_key("filterkey-organization"):
             query.add_filter("organization =", 
                              value_dict["filterkey-organization"])
@@ -1986,6 +1990,8 @@ class Person(polymodel.PolyModel):
         return query.get_keys_and_names(Person.full_name_lastname_first)
 
     def remove(self):
+        if (self.organization_history):
+            self.organization_history.remove()
         self.delete()
 
     @staticmethod
@@ -2550,6 +2556,65 @@ class Teacher(Person):
         self.delete()
 
 #----------------------------------------------------------------------
+class Classroom(db.Model):
+    """
+    A trivial class with information about a classroom. This is used to
+    standardize the classroom names for a school, to associate a
+    section with a classroom, and to provide location and other
+    information about the room. If the classroom is not ready to be
+    used or is no longer used then "active" is should be unchecked so
+    that it will not be among the classrooms offered as a choice.
+    """
+    name = db.StringProperty(required=True)
+    organization = db.ReferenceProperty(Organization,required=True)
+    active = db.BooleanProperty(required=False,default=True)
+    location = db.StringProperty(required=False, multiline=True)
+    other_information = db.StringProperty(required=False, multiline=True)
+    custom_query_function = False
+    classname = "Classroom"
+
+
+    @staticmethod
+    def create(name):
+        organization = \
+                     getActiveDatabaseUser().get_active_organization()
+        return Classroom(name=name, parent=organization,
+                         organization=organization)
+
+    def post_creation(self):
+        """
+        Note that organization is defined as a reference of type School
+        rather than just organization. A classroom in any
+        organization other than a school is meaningless. Thus the
+        active user must be a member of the school or a highly
+        privileged database administrator that can set the active
+        organization before creating this object.
+        """
+        if (not self.organization):
+            self.organization = \
+                getActiveDatabaseUser().get_active_organization()
+        self.put()
+
+    def form_data_post_processing(self):
+        """
+        Perform actions that modify data in the model other than the
+        form fields. All of the data from the form has already been
+        loaded into the model ' instance so this processing does not
+        need the form at all. For this class this is just a default
+        funcion that does nothing.
+        """
+        pass
+
+    def __unicode__(self):
+        return self.name
+
+    def in_organization(self, organization_key, requested_action):
+        return (self.organization.key() == organization_key)
+
+    def remove(self):
+        self.delete()
+    
+#----------------------------------------------------------------------
 
 class StudentGrouping(polymodel.PolyModel):
     last_edit_time = db.DateTimeProperty(auto_now=True)
@@ -2557,6 +2622,7 @@ class StudentGrouping(polymodel.PolyModel):
     organization = db.ReferenceProperty(School, collection_name=
                                         "student_grouping_schools")
     name = db.StringProperty(required=True)
+    classroom = db.ReferenceProperty(Classroom)
     teacher = db.ReferenceProperty(Teacher, collection_name=
                                    "student_grouping_teachers")
     teacher_change_date = db.DateProperty()
@@ -2577,8 +2643,6 @@ class StudentGrouping(polymodel.PolyModel):
         if (not self.organization):
             self.organization = \
                 getActiveDatabaseUser().get_active_organization()
-        self.teacher_history = History.create(self, "teacher_history",
-                                              True)
         self.put()
 
     def form_data_post_processing(self):
@@ -2643,7 +2707,6 @@ class Section(StudentGrouping):
     section_type = db.ReferenceProperty(SectionType)
     creation_date = db.DateProperty()
     termination_date = db.DateProperty()
-    classroom = db.StringProperty()
     classname = "Section"
 
     @staticmethod
@@ -2733,7 +2796,6 @@ class ClassSession(StudentGrouping):
     period 
     section 
     class_year 
-    classroom 
     start_date 
     end_date 
     grade_element_ordered_list     
@@ -2746,7 +2808,6 @@ class ClassSession(StudentGrouping):
     students_assigned_by_section = db.BooleanProperty(default=True)
     section = db.ReferenceProperty(Section)
     class_year = db.StringProperty(choices = SchoolDB.choices.ClassYearNames)
-    classroom = db.StringProperty()
     start_date = db.DateProperty()
     end_date = db.DateProperty()
     school_year = db.ReferenceProperty(SchoolYear)
@@ -2757,10 +2818,73 @@ class ClassSession(StudentGrouping):
     def detailed_name(self):
         return ("%s - %s - %s" %(unicode(self.name), 
                                  unicode(self.class_period), unicode(self.teacher)))
+    
     @staticmethod
     def create(name,school):
         return ClassSession(name=name, parent=school)
 
+    @staticmethod
+    def create_if_necessary(name, subject_keysting, section_keystring, 
+                start_date, school_year_keystring,
+                classroom_is_section_classroom=True):
+        """
+        There should normally be only one class session for a
+        particular subject for a section each class year. This create
+        queries the database to see if there is already such a class
+        session in the database. If so, then nothing is created and the
+        preexisting class session is returned. If not (the normal
+        case), then the class session is created as are all student
+        class records. This function allows the call to be idempotent
+        -- repeated calls produce the same result as a single call.
+        This function performs numerous tests for validity and
+        permission. It is normally called by task and must be protected
+        from error.
+        This should only be used to create class sessions that are taught
+        by section!
+        """
+        logging_prefix = 'Create class_session "' + name +'"'
+        subject = get_instance_from_key_string(subject_keystring)
+        section = get_instance_from_key_string(section_keystring)
+        school_year = get_instance_from_key_string(school_year_keystring)
+        if subject and section and school_year:
+            query = ClassSession.all()
+            query.filter("subject =",subject)
+            query.filter("section =" ,section)
+            query.filter("school_year = ", school_year)
+            class_session_entity = query.get()
+        else:
+            logging.error(logging_prefix + " failed: One or more bad keys.")
+            return None
+        if not class_session_entity:
+            #none exists, create one
+            #determine organization from section
+            school = section.organization()
+            #confirm legal to create class for this section
+            if (not school.key() == 
+                getActiveDatabaseUser().get_active_organization_key()):
+                logging.error(
+                    logging_prefix + " failed: user is not in organization.")
+                return None
+            try:
+                class_session = ClassSession(parent=school, name=name,
+                            subject=subject, section=section, 
+                            start_date=start_date, school_year=school_year,
+                            organization=school)
+                if classroom_is_section_classroom:
+                    class_session.classroom = section.classroom
+                #now use post_creation to put in database and assign students
+                #to the class
+                class_session_entity = StudentGrouping.post_creation(self)
+                result = self.assign_to_all_section_students()
+                msg = logging_prefix + \
+                    " initial creation completed successfully."
+                logging.info(msg)
+            except StandardError, e:
+                class_session_entity = None
+                msg = "%s failed during creation: %s" %(logging_prefix, e)
+                logging.error(msg)
+        return class_session_entity
+                        
     def post_creation(self):
         StudentGrouping.post_creation(self)
         #For now, if a section is assigned then assign all students
@@ -2768,6 +2892,7 @@ class ClassSession(StudentGrouping):
         #rethought...
         if (self.section):
             self.assign_to_all_section_students()
+        return self
 
     @staticmethod
     def sort_by_time(class_sessions):
@@ -2878,6 +3003,31 @@ class ClassSession(StudentGrouping):
         else:
             return return_list
 
+    @staticmethod
+    def static_add_student_to_class(class_session_keystring, 
+                                    student_keystring, start_date):
+        """
+        A static function definition for use by tasks.
+        """
+        students_class = None
+        class_session_name = ""
+        student_name = ""
+        try:
+            class_session = get_instance_from_key_string(
+                class_session_keystring, ClassSession)
+            if class_session:
+                class_session_name = unicode(class_session)
+                student = get_instance_from_key_string(
+                    student_keystring, Student)
+                if student:
+                    student_name = unicode(student)
+                    students_class = class_session.add_student_to_class(
+                        student, date.from_ordinal(start_date))
+        except StandardError, e:
+            logging.error('Add student "%s" to class "%s" failed: %s' \
+                          %(student_name, class_session_name, e))
+        return students_class
+    
     def add_student_to_class(self, student, start_date=None):
         """
         Add a student to the class by creating a StudentsClass instance 
@@ -2890,21 +3040,45 @@ class ClassSession(StudentGrouping):
                                                       start_date)
         return students_class
 
-    def add_students_to_class(self, student_list, start_date=None):
+    def singlerun_add_students_to_class(self, student_list, start_date=None):
         """
         Add a list of students to the class. The list may be just a
         section list for section based classes or a list of students
         generated from a selection GUI.
         """
         if (not start_date):
-            start_date = self.start_date
+            start_date = None
+        else:
+            start_date = date.fromordinal(start_date)
         students_class_records = []
         for student in student_list:
             students_class = self.add_student_to_class(student, start_date)
             if (students_class):
                 students_class_records.append(students_class)
         return students_class_records
-
+                           
+    def add_students_to_class(self, student_list, start_date=None):
+        """
+        Add a list of students to the class. The list may be just a
+        section list for section based classes or a list of students
+        generated from a selection GUI. This function uses tasks to
+        add students.
+        """
+        if (not start_date):
+            start_date = self.start_date
+        task_name = "AddStudentsToClass-" + self.name
+        function = SchoolDB.models.ClassSession.static_add_student_to_class
+        function_args = "class_section=" + str(self.key())
+        if start_date:
+            function_args = "%s start_date=%d" %(function_args, 
+                                                 start_date.to_ordinal())
+        instance_keylist = [ str(student.key()) for student in student_list]
+        task = SchoolDB.assistant_classes.TaskGenerator(task_name=task_name,
+                    function=function, function_args=function_args,
+                    instance_keylist=instance_keylist, 
+                    instances_per_task=15)
+        return task.queue_tasks()
+        
     def assign_to_all_section_students(self):
         """
         The class session will be given to all students in the section.
@@ -3307,8 +3481,8 @@ class AchievementTest(db.Model):
         This contains all information necessary for edit and display
         """
         subject_names, name_to_key_dict, key_to_name_dict = \
-                     AchievementTest.get_possible_subjects_for_testing()
-        class_years = AchievementTest.get_class_years_for_testing()
+                     get_possible_subjects("used_in_achievement_tests =")
+        class_years = AchievementTest.get_class_years_only()
         view_info = [ ]
         at_instance = get_instance_from_key_string(instance_string)
         if (at_instance):
@@ -3419,40 +3593,6 @@ class AchievementTest(db.Model):
 
     def __unicode__(self):
         return self.name
-
-    @staticmethod
-    def get_possible_subjects_for_testing():
-        """
-        Get a dict of subject names by keys and an ordered list of keys for
-        subjects that are candiates for testsing.
-        """
-        query = Subject.all()
-        query.filter("organization =", National.get_national_org()) 
-        query.filter("used_in_achievement_tests =", True)
-        query.order("name")
-        subjects = query.fetch(20)
-        subject_name_to_key_dict = {}
-        subject_key_to_name_dict = {}
-        subject_names = []
-        for subject in subjects:
-            subject_name = unicode(subject)
-            subject_names.append(subject_name)
-            subject_name_to_key_dict[subject_name] = subject.key()
-            subject_key_to_name_dict[subject.key()] = subject_name
-        return (subject_names, subject_name_to_key_dict, 
-                subject_key_to_name_dict)
-
-    @staticmethod
-    def get_class_years_for_testing():
-        """
-        Return the ClassYearNames from choices without the name "None"
-        """
-        year_names = list(SchoolDB.choices.ClassYearNames)
-        try:
-            year_names.remove("None")
-        except ValueError:
-            pass
-        return year_names
 
     def form_data_post_processing(self):
         pass
@@ -4076,7 +4216,8 @@ class StudentsClass(db.Model):
     subject = db.ReferenceProperty(Subject, required=True)
     current_status = db.StringProperty(choices = 
                                        SchoolDB.choices.StudentClassStatus)
-    status_history = db.ReferenceProperty(History)
+    start_date = db.DateProperty()
+    end_date = db.DateProperty()
     grade_info_store = db.BlobProperty()
     grading_periods = db.ListProperty(db.Key)
     computed_final_grade = db.FloatProperty(default = 0.0)
@@ -4091,8 +4232,6 @@ class StudentsClass(db.Model):
         students_class_obj.grade_info_store = \
                           SchoolDB.assistant_classes.StudentsClassInstanceGrades(1).put_data()
         students_class_obj.put()
-        students_class_obj.status_history = \
-                          History.create(students_class_obj, "class_history")
         if (not start_date):
             start_date = class_session_ref.start_date
         students_class_obj.set_status("Active", start_date)
@@ -4120,7 +4259,12 @@ class StudentsClass(db.Model):
 
     def set_status(self, status, change_date):
         self.current_status = status
-        self.status_history.add_entry(change_date, status)
+        if ((status == "Active") and (not self.start_date)):
+            self.start_date = change_date
+        elif ((status == "Dropped" or status == "Passed"
+              or status == "Transfered" or status == "Failed")
+              and (not self.end_date)):
+            self.end_date = change_date
         self.put()
         self.update_student_cache()
 
@@ -4324,8 +4468,6 @@ class StudentsClass(db.Model):
         return False
 
     def remove(self):
-        if (self.status_history):
-            self.status_history.remove()
         self.delete()
 
 #----------------------------------------------------------------------
@@ -5956,6 +6098,38 @@ def get_school_year_for_date(day_date = date.today()):
     """
     return SchoolYear.school_year_for_date(day_date)
 
+def get_class_years_only():
+    """
+    Return the ClassYearNames from choices without the name "None"
+    """
+    year_names = list(SchoolDB.choices.ClassYearNames)
+    try:
+        year_names.remove("None")
+    except ValueError:
+        pass
+    return year_names
+
+def get_possible_subjects(filter_string):
+    """
+    Get a dict of subject names by keys and an ordered list of keys for
+    subjects defined at the national level. The filter_string is used to add another filter. If the result is meant for achievement tests then the string is "used_in_achievement_tests =", if for class_session creation then the string is "taught_by_section =".
+    """
+    query = Subject.all()
+    query.filter("organization =", National.get_national_org()) 
+    query.filter(filter_string, True)
+    query.order("name")
+    subjects = query.fetch(20)
+    subject_name_to_key_dict = {}
+    subject_key_to_name_dict = {}
+    subject_names = []
+    for subject in subjects:
+        subject_name = unicode(subject)
+        subject_names.append(subject_name)
+        subject_name_to_key_dict[subject_name] = subject.key()
+        subject_key_to_name_dict[subject.key()] = subject_name
+    return (subject_names, subject_name_to_key_dict, 
+            subject_key_to_name_dict)
+
 def get_key_from_string(key_string):
     key = None
     if key_string :
@@ -6046,18 +6220,25 @@ def get_model_class_from_name(name_string):
     """
     if (name_string):
         class_name_map = {"administrator":Administrator, 
-                          "achievement_test":AchievementTest, "community":Community,
-                          "class_session":ClassSession, "class_period":ClassPeriod,
+                          "achievement_test":AchievementTest, 
+                          "community":Community,
+                          "class_session":ClassSession, 
+                          "class_period":ClassPeriod,
+                          "classroom":Classroom,
                           "contact":Contact, "database_user":DatabaseUser,
                           "division":Division,"family":Family,
                           "grading_instance":GradingInstance, 
                           "grading_period":GradingPeriod,
-                          "municipality":Municipality, "organization":Organization,
+                          "municipality":Municipality, 
+                          "organization":Organization,
                           "person":Person,
-                          "parent_or_guardian":ParentOrGuardian,"province":Province,
+                          "parent_or_guardian":ParentOrGuardian,
+                          "province":Province,
                           "region": Region, "school": School,
-                          "school_day":SchoolDay, "school_day_type":SchoolDayType,
-                          "school_year": SchoolYear,"section": Section, 
+                          "school_day":SchoolDay, 
+                          "school_day_type":SchoolDayType,
+                          "school_year": SchoolYear,
+                          "section": Section, 
                           "section_type": SectionType, 
                           "special_designation":SpecialDesignation,
                           "student": Student, 
@@ -6069,6 +6250,7 @@ def get_model_class_from_name(name_string):
                           "subject": Subject,
                           "teacher": Teacher,
                           "versioned_text_manager":VersionedTextManager,
+                          "versioned_text":VersionedText,
                           "user_type": UserType}
         model_class = class_name_map.get(name_string, None)
     return model_class

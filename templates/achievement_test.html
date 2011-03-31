@@ -39,8 +39,7 @@ function atBuildSubjectsTable(class_year) {
 	}
 	subjectsTh = '<tr><th class="width75">Name</th><th></th><th class="width120"># Questions</th> ' +
 		'<th class="width75">Name</th><th></th><th style="width=120"># Questions</th></tr>';
-	subjectsTable = '<table class="at-subjects thin-border hidden" id="subject-table-' + class_year +
-		 '"><tbody>' + subjectsTh + subjectsRows + '</tbody></table>';
+	subjectsTable = '<table class="at-subjects thin-border hidden" id="subject-table-' + class_year +'"><tbody>' + subjectsTh + subjectsRows + '</tbody></table>';
 	return subjectsTable;	
 }
 
@@ -138,16 +137,16 @@ $(function() {
 <legend>Achievement Test Description</legend>
 <table class="unbordered"> 
 	<tr>
-		<td>{{ form.name.label }}</td><td>{{ form.name }}</td>
+		<td><label for="id_name" id="id_name_label" class="required">Name*:</label></td><td>{{ form.name }}</td>
 	</tr>
 	<tr>
-		<td>{{ form.date.label }}</td><td>{{ form.date }}</td>
+		<td><label for="id_date" id="id_date_label"</label>Test Date:</td><td>{{ form.date }}</td>
 	</tr>
 	<tr>
-		<td>{{ form.grading_type.label }}</td><td>{{ form.grading_type }}</td>
+		<td><label for="id_grading_type" id="id_grading_type_label">Test Authority:</label></td><td>{{ form.grading_type }}</td>
 	</tr>
 	<tr>
-		<td>{{form.percent_grade.label }}</td><td>{{form.percent_grade }}</td>
+		<td><label for="id_percent_grade" id="id_percent_grade_label">% Grade:</label></td><td>{{form.percent_grade }}</td>
 	</tr>
 </table>	
 </fieldset>
@@ -161,7 +160,7 @@ $(function() {
 <legend>Other Information</legend>
 <table class="unbordered"> 
 	<tr>
-	<td>{{ form.other_information.label }}</td><td>{{ form.other_information }}</td>
+	<td><label for="id_other_information" id="id_other_information_label">Other Information:</label></td><td>{{ form.other_information }}</td>
 	</tr> 
 </table>	
 </fieldset>
