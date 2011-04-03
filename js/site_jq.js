@@ -88,6 +88,15 @@ function saveAnnounce() {
 	$.loadanim.start({message:"Saving"});				
 }
 
+function standardSave() {
+	// perform special actions here
+	if (validator.form() ){
+		$("#save_button").unbind('click');
+		saveAnnounce();		
+		$("#form1").submit();			
+	}
+}
+	
 /*
  * A simple function for counting clicks on an dom element. This can be used
  * to emulate a multiple click event on any element. Each click extends the
@@ -137,15 +146,6 @@ function initializeBottomButtons() {
         close();
     });
 
-	function standardSave() {
-		// perform special actions here
-		if (validator.form() ){
-			$("#save_button").unbind('click');
-			saveAnnounce();		
-			$("#form1").submit();			
-		}
-	}
-	
 	$("#save_button").click(standardSave);
 }
 

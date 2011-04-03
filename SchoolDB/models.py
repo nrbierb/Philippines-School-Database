@@ -2644,6 +2644,7 @@ class StudentGrouping(polymodel.PolyModel):
             self.organization = \
                 getActiveDatabaseUser().get_active_organization()
         self.put()
+        return self
 
     def form_data_post_processing(self):
         """
@@ -2824,8 +2825,8 @@ class ClassSession(StudentGrouping):
         return ClassSession(name=name, parent=school)
 
     @staticmethod
-    def create_if_necessary(name, subject_keysting, section_keystring, 
-                start_date, school_year_keystring,
+    def create_if_necessary(name, subject_keystring, section_keystring, 
+                start_date, end_date, school_year_keystring,
                 classroom_is_section_classroom=True):
         """
         There should normally be only one class session for a
@@ -2858,7 +2859,7 @@ class ClassSession(StudentGrouping):
         if not class_session_entity:
             #none exists, create one
             #determine organization from section
-            school = section.organization()
+            school = section.organization
             #confirm legal to create class for this section
             if (not school.key() == 
                 getActiveDatabaseUser().get_active_organization_key()):
@@ -2866,16 +2867,21 @@ class ClassSession(StudentGrouping):
                     logging_prefix + " failed: user is not in organization.")
                 return None
             try:
+                start_date = date.fromordinal(int(start_date))
+                end_date = date.fromordinal(int(end_date))
+                class_year = section.class_year
                 class_session = ClassSession(parent=school, name=name,
                             subject=subject, section=section, 
-                            start_date=start_date, school_year=school_year,
+                            class_year=class_year, start_date=start_date, 
+                            end_date = end_date, school_year=school_year,
                             organization=school)
                 if classroom_is_section_classroom:
                     class_session.classroom = section.classroom
                 #now use post_creation to put in database and assign students
                 #to the class
-                class_session_entity = StudentGrouping.post_creation(self)
-                result = self.assign_to_all_section_students()
+                class_session_entity = StudentGrouping.post_creation(
+                    class_session)
+                result = class_session.assign_to_all_section_students()
                 msg = logging_prefix + \
                     " initial creation completed successfully."
                 logging.info(msg)
@@ -3004,8 +3010,8 @@ class ClassSession(StudentGrouping):
             return return_list
 
     @staticmethod
-    def static_add_student_to_class(class_session_keystring, 
-                                    student_keystring, start_date):
+    def static_add_student_to_class(student_keystring,
+                                    class_session_keystring, start_date):
         """
         A static function definition for use by tasks.
         """
@@ -3022,7 +3028,7 @@ class ClassSession(StudentGrouping):
                 if student:
                     student_name = unicode(student)
                     students_class = class_session.add_student_to_class(
-                        student, date.from_ordinal(start_date))
+                        student, date.fromordinal(int(start_date)))
         except StandardError, e:
             logging.error('Add student "%s" to class "%s" failed: %s' \
                           %(student_name, class_session_name, e))
@@ -3066,12 +3072,12 @@ class ClassSession(StudentGrouping):
         """
         if (not start_date):
             start_date = self.start_date
-        task_name = "AddStudentsToClass-" + self.name
-        function = SchoolDB.models.ClassSession.static_add_student_to_class
-        function_args = "class_section=" + str(self.key())
+        task_name = "AddStudentsToClass: " + self.name
+        function = "SchoolDB.models.ClassSession.static_add_student_to_class"
+        function_args = "class_session_keystring= '%s'" %str(self.key())
         if start_date:
-            function_args = "%s start_date=%d" %(function_args, 
-                                                 start_date.to_ordinal())
+            function_args = "%s, start_date='%d'" %(function_args, 
+                                                 start_date.toordinal())
         instance_keylist = [ str(student.key()) for student in student_list]
         task = SchoolDB.assistant_classes.TaskGenerator(task_name=task_name,
                     function=function, function_args=function_args,
@@ -3482,7 +3488,7 @@ class AchievementTest(db.Model):
         """
         subject_names, name_to_key_dict, key_to_name_dict = \
                      get_possible_subjects("used_in_achievement_tests =")
-        class_years = AchievementTest.get_class_years_only()
+        class_years = get_class_years_only()
         view_info = [ ]
         at_instance = get_instance_from_key_string(instance_string)
         if (at_instance):
@@ -4727,7 +4733,7 @@ class Student(Person):
         class_records_with_status = []
         all_classes = self.get_all_classes()
         for student_class in all_classes:            
-            if (unicode(student_class.status_history) == status):
+            if (unicode(student_class.current_status) == status):
                 class_records_with_status.append(student_class)
         return class_records_with_status
 

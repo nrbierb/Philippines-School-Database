@@ -41,6 +41,7 @@ import SchoolDB.choices
 import SchoolDB.reports
 import SchoolDB.assistant_classes
 import SchoolDB.local_utilities_functions
+import SchoolDB.system_management
 from SchoolDB.local_utilities_functions import bulk_student_status_change_utilty
 from SchoolDB.local_utilities_functions import update_student_summary_utility
 from SchoolDB.utilities.empty_database import empty_database
@@ -383,7 +384,10 @@ def specialShowAction(instance, requested_action, classname, formname, title_suf
         getprocessed().requested_instance = instance
         getprocessed().requested_action = requested_action
         getprocessed().selection_key_valid = True
-        getprocessed().selection_key = str(instance.key())
+        if (instance):
+            getprocessed().selection_key = str(instance.key())
+        else:
+            getprocessed().selection_key = ""
         form, javascript_code = buildForm(formname) 
         params = create_standard_params_dict(title_suffix, classname,
                                              javascript_code)
@@ -572,9 +576,9 @@ def showEnterGrades(request):
                               "Enter Grades", "entergrades", "/grades")
 
 def showCreateClassSessions(request):
-    return standardShowAction(request, "create_classes",  
+    return standardShowAction(request, "create_class_sessions",  
                               CreateClassSessionsForm,
-                              "Create Many Classes", "create_classes")
+                              "Create Many Classes", "create_class_sessions")
 
 def showStudentSummary(request):
     return standardShowAction(request, "student_summary", 
@@ -1036,17 +1040,24 @@ def runTask(request):
                 if (instance_keys):
                     completely_successful = True
                     for target_key in instance_keys:
-                        target_instance = db.get(target_key)
-                        command = "%s(target_instance, %s)" \
-                                %(function, args)
-                        action_desc = \
-                            "Task: %s on %s. Function: %s Args: '%s'" \
-                            %(task_name, unicode(target_instance),
-                              function, args)
-                        logging.info("Called " + action_desc)
-                        successful = eval(command)
-                        if not successful:
-                            logging.error("Failed: " + action_desc)
+                        target_instance = \
+                            get_instance_from_key_string(target_key)
+                        if target_instance:
+                            #confirm that the instance really exists before
+                            #acting on it
+                            command = "%s('%s', %s)" \
+                                    %(function, target_key, args)
+                            action_desc = \
+                                "Task: %s on %s. Function: %s Args: '%s'" \
+                                %(task_name, unicode(target_instance),
+                                  function, args)
+                            logging.info("Called " + action_desc)
+                            successful = eval(command)
+                            if not successful:
+                                logging.error("Failed: " + action_desc)
+                                completely_successful = False
+                        else:
+                            logging.error("Failed: invalid key.")
                             completely_successful = False
                     #report success only if none have failed
                     successful = completely_successful
@@ -2785,6 +2796,7 @@ class ClassSessionForm(StudentGroupingForm):
                            ("student_major","student_major_name"),
                            ("section", "section_name"), 
                            ("class_period", "class_period_name"),
+                           ("classroom", "classroom_name"),
                            ("school_year","school_year_name")], data)
 
     @staticmethod
@@ -2900,8 +2912,39 @@ class CreateClassSessionsForm(BaseStudentDBForm):
         widget=forms.DateInput(format="%m/%d/%Y",                    
             attrs={"class":"date-mask entry-field popup-calendar required"}))
     classes_in_section_classrooms = forms.BooleanField(required=False)
+    json_request_info = forms.CharField(required = False, 
+                widget=forms.HiddenInput)
     
-        
+    def save(self, instance):
+        """
+        This is a replacement for the normal save action. Nothing will
+        saved. The data will be used to initiate the creation of the
+        class sessions.
+        """
+        start_date= self.cleaned_data["start_date"]
+        end_date = self.cleaned_data["end_date"]
+        classes_in_section_classrooms = self.cleaned_data[
+            "classes_in_section_classrooms"]
+        json_request_info = self.cleaned_data["json_request_info"]
+        if (json_request_info):
+            creator = SchoolDB.system_management.BulkClassSessionsCreator(start_date, 
+                                end_date, 1, json_request_info)
+            request_table, conflict_table, other_info = \
+                         creator.process_request()
+            #now report the initial result
+            specialShowAction(instance=None, requested_action="save", 
+                    classname="", formname=CreateClassSessionsFormStep2,
+                    title_suffix="Confirm Multiple Class Sessions Creation",
+                    template="create_class_sessions_step2",
+                    return_url="create_class_session_step2",
+                    further_params={"request_table":request_table, 
+                                    "conflict_table":conflict_table,
+                                    "other_info":other_info,
+                                    "start_date":str(start_date.toordinal()),
+                                    "end_date":str(end_date.toordinal()),
+                                    "use_classrooms":str(
+                                        classes_in_section_classrooms)})
+
     @staticmethod
     def process_request(data):
         """
@@ -2915,6 +2958,8 @@ class CreateClassSessionsForm(BaseStudentDBForm):
     def modify_params(self,params):
         params["title_prefix"] = ""
         params["title_bridge"] = ""
+        params["title_suffix"] = "Create Many Classes for School Year " + \
+              unicode(SchoolYear.school_year_for_date(date.today()))
 
     @staticmethod
     def generate_javascript_code(javascript_generator):
@@ -2926,7 +2971,27 @@ class CreateClassSessionsForm(BaseStudentDBForm):
         javascript_generator.add_javascript_params ({
         "json_subject_names":simplejson.dumps(subject_names),
         "json_subject_keys":simplejson.dumps(subject_keys),
-        "json_classyear_names":simplejson.dumps(class_years)})
+        "json_classyear_names":simplejson.dumps(class_years),
+        "school_year_key":\
+        str(SchoolYear.school_year_for_date(date.today()).key())})
+
+#----------------------------------------------------------------------
+class CreateClassSessionsFormStep2(BaseStudentDBForm):
+    """
+    This form displays two tables "Class Session Creation Conflicts" and
+    "Class Sessions to be Created". These show the problems in in the
+    initial request and the actions to be performed. It is not initiated in
+    the normal manner by a web request but rather by a funciton call from
+    the first step form CreateClassSessionsForm.
+    """
+    json_final_request = forms.CharField(required = False, 
+                widget=forms.HiddenInput)
+    
+    def modify_params(self, params):
+        params["title_prefix"] = ""
+        params["title_bridge"] = ""
+        params["title_suffix"] = "Proposed Class Sessions to Create"
+
 
 #----------------------------------------------------------------------
 
@@ -3242,7 +3307,7 @@ class GradingInstanceForm(GradeWorkForm):
 class AchievementTestDescriptionForm(BaseStudentDBForm):
     """
     The primary information about the achievment test result is
-    mainatained by school. This class contains the information which
+    maintained by school. This class contains the information which
     describes the achievement test so that upper level orgs can create
     a definition of a test to be used by the schools.
     """
@@ -4405,13 +4470,6 @@ def perform_utilities():
     #results = load_provinces.scan_file('data/communitys.html')
     #remove_from_database("Organization")
     #remove_from_database("Province")
-
-def remove_from_database(database_class):
-    query = db.GqlQuery("SELECT * FROM " + database_class)
-    for obj in query:
-        db.delete(obj)
-    return "Emptied %s" %database_class
-
 
 def convert_form_date(string_val, alternate_date=None):
     """

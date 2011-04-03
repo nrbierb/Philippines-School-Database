@@ -532,6 +532,14 @@ indexes:
   - name: class
   - name: class_year
   - name: organization
+  - name: school_year
+  - name: name
+
+- kind: StudentGrouping
+  properties:
+  - name: class
+  - name: class_year
+  - name: organization
   - name: subject
   - name: name
 
@@ -548,6 +556,14 @@ indexes:
   - name: class
   - name: organization
   - name: school_year
+  - name: name
+
+- kind: StudentGrouping
+  properties:
+  - name: class
+  - name: organization
+  - name: school_year
+  - name: subject
   - name: name
 
 - kind: StudentGrouping

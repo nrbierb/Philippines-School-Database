@@ -169,12 +169,13 @@ class TaskGenerator():
         try:
             task_count = 0
             if self.instance_keylist:
-                block_end = instances_per_task - 1
+                block_end = self.instances_per_task - 1
                 while self.instance_keylist:
                     task_keylist = self.instance_keylist[0:block_end]
                     self.task_dict["target_instances"] = task_keylist
                     self.send_task()
-                    del instance_keylist[0:block_end]
+                    del self.instance_keylist[0:block_end]
+                    task_count += 1
             elif self.query_iterator:
                 keys_blocks = SchoolDB.models.get_blocks_from_iterative_query(
                     self.query_iterator, self.instances_per_task)
@@ -1839,10 +1840,14 @@ class AutoCompleteField():
         else:
             further_actions = """	
     select: function(event, ui) {
-	$("#%s").val(ui.item.value);
-	$("#%s").val(ui.item.key);
+	$("#%s").val(ui.item.value);""" %self.field_name
+            if not self.use_local_choices:
+                further_actions += """
+				$("#%s").val(ui.item.key);
+                """ %self.key_field_name				
+            further_actions += """	
 	return false;
-	},""" %(self.field_name, self.key_field_name)
+	},""" 
             further_actions = further_actions + """
     focus: function(event, ui) {
 	$("#%s").val(ui.item.value);
