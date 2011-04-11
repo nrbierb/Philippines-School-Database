@@ -7,7 +7,7 @@ import logging
 def empty_database(logger, initial_text = "Starting to Empty"):
     logger.add_line(initial_text)
     for del_class in [
-        SchoolDB.models.HistoryEntry, 
+        #SchoolDB.models.HistoryEntry, 
         #SchoolDB.models.History, 
         #SchoolDB.models.Contact, 
         #SchoolDB.models.National, 
@@ -32,7 +32,7 @@ def empty_database(logger, initial_text = "Starting to Empty"):
         #SchoolDB.models.StudentAttendanceRecord
         #SchoolDB.models.Student,
         #SchoolDB.models.StudentTransfer,
-        #SchoolDB.models.StudentsClass, 
+        SchoolDB.models.StudentsClass, 
         #SchoolDB.models.VersionedText,
         #SchoolDB.models.VersionedTextManager
         #DO NOT UNCOMMENT THESE!
@@ -45,21 +45,25 @@ def empty_database(logger, initial_text = "Starting to Empty"):
         logger.add_line("Starting delete for %s" %str(del_class))
         task_name = "Empty Database " + str(del_class)
         query = del_class.all(keys_only=True)
-        keys_blocks = SchoolDB.models.get_blocks_from_iterative_query(
-                query, 100)
-        task_count = 0
-        for block in keys_blocks:
-            #do not create task if block is empty
-            if block:
-                #put lists of keys in argument so all can be handled at the
-                #end by a single function call
-                keystrings = [str(key) for key in block]
-                args = {"delete_keys":keystrings, "classname":str(del_class)}
-                SchoolDB.local_utilities_functions.queue_tasks(
-                    task_name = task_name, function =\
-                    "SchoolDB.utilities.empty_database.delete_database_objects", 
-                    function_args = args)
-                task_count += 1
+        args = "classname=%s" %str(del_class)
+        task_generator = SchoolDB.assistant_classes.TaskGenerator(
+                    task_name = task_name, function = "db.delete", \
+                    function_args = "", query_iterator=query)
+        task_generator.queue_tasks()
+        #keys_blocks = SchoolDB.models.get_blocks_from_iterative_query(
+                #query, 100)
+        #task_count = 0
+        #for block in keys_blocks:
+            ##do not create task if block is empty
+            #if block:
+                ##put lists of keys in argument so all can be handled at the
+                ##end by a single function call
+                #keystrings = [str(key) for key in block]
+                #SchoolDB.local_utilities_functions.queue_tasks(
+                    #task_name = task_name, function =\
+                    #"SchoolDB.utilities.empty_database.delete_database_objects", 
+                    #function_args = args)
+                #task_count += 1
         logger.add_line("%d tasks successfully enqueued." %task_count)
     logger.add_line("All emptied")
     return (True)

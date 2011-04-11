@@ -3415,7 +3415,7 @@ class AchievementTest(db.Model):
         else:
             summary = SchoolDB.summaries.AchievementTestSummary()
         subject_names, name_to_key_dict, key_to_name_dict = \
-                     AchievementTest.get_possible_subjects_for_testing()
+                get_possible_subjects("used_in_achievement_tests =")
         for info_tuple in updated_information:
             classyear_name, subject_name, number_questions = info_tuple
             subject_keystr = str(name_to_key_dict.get(subject_name, None))
@@ -3436,19 +3436,21 @@ class AchievementTest(db.Model):
         """
         grading_instances = self.get_grading_instances()
         subject_names, name_to_key_dict, key_to_name_dict = \
-                     AchievementTest.get_possible_subjects_for_testing()
+                get_possible_subjects("used_in_achievement_tests =")
         updated_grading_instances = []
         for info_tuple in updated_information:
             class_year, subject_name, number_questions = info_tuple
             subject_key = name_to_key_dict.get(subject_name, None)
             if subject_key:
                 grading_instance = None
+                found = False
                 for grading_instance in grading_instances:
                     if ((grading_instance.class_year == class_year)
                         and (grading_instance.subject.key() == subject_key)):
                         grading_instances.remove(grading_instance)
+                        found = True
                         break
-                if not grading_instance:
+                if not found:
                     #create new
                     gi_name = "%s.%s" %(self.name, subject_name)
                     gd_events=SchoolDB.assistant_classes.GradingEvents()

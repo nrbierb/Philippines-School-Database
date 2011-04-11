@@ -865,6 +865,9 @@ class AjaxGetGradeHandler:
                 self.grading_instance_keys_dict[gi_key])
             subject = grading_instance.subject
             title = unicode(subject)
+            if self.achievement_test:
+                #add number of questions as aid to entry
+                title = "%s %d" %(title, grading_instance.number_questions)
             column_hdr = (gi_keystr, "string", title)
             header.append(column_hdr)
             grading_instances_list.append(grading_instance)
@@ -1585,11 +1588,11 @@ class QueryMaker:
 
     def _build_upper_limit_string(self, lower_match):
         chars_list = list(lower_match)
+        upper_limit = ""
         if (chars_list):
             last_char = chars_list.pop()
             next_char = unichr(ord(last_char)+1)
             chars_list.append(next_char)
-            upper_limit = ""
             for char in chars_list:
                 upper_limit = upper_limit + char
         return upper_limit

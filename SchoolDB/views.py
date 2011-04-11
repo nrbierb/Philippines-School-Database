@@ -57,7 +57,7 @@ result_string = ""
 __http_request__ = None
 __processed_request__ = None
 __revision_id__ = \
-"Version: 1--0-10 " + datetime.now().strftime("%m/%d/%y %I:%M%p")
+"Version: 1--0-11 " + datetime.now().strftime("%m/%d/%y %I:%M%p")
 
 
 site_description = [("Main Menu", "index", ""), 
@@ -3390,6 +3390,7 @@ class AchievementTestForm(BaseStudentDBForm):
         "json_subject_names":json_subject_names,
         "json_classyear_names":json_classyear_names,
         "json_testing_info":json_testing_info})
+        return grading_type
 
         
     @staticmethod    
@@ -3398,8 +3399,9 @@ class AchievementTestForm(BaseStudentDBForm):
         javascript_generator.add_javascript_params (
             {"auxFields":[{"name":"grading_type","label":"Achievement Test Type",
                            "fieldType":"view"}]})
-        AchievementTestForm.generate_javascript_code(
+        grading_type = AchievementTestForm.generate_javascript_code(
             javascript_generator)
+        select_field.add_dependency(grading_type,False)
         select_field.add_extra_params({"extra_fields":"grading_type|date"})
 
     @staticmethod    
@@ -3520,6 +3522,7 @@ class AchievementTestGradesForm(BaseStudentDBForm):
             class_name = "achievement_test", 
             field_name = "id_achievement_test_name",
             key_field_name = "id_achievement_test")
+        achtest.add_dependency(clsyr, False)
         
         
     @staticmethod

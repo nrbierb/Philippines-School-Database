@@ -280,6 +280,18 @@ indexes:
 
 - kind: AchievementTest
   properties:
+  - name: class_year
+  - name: organization
+  - name: name
+
+- kind: AchievementTest
+  properties:
+  - name: grading_type
+  - name: organization
+  - name: name
+
+- kind: AchievementTest
+  properties:
   - name: organization
   - name: name
 
