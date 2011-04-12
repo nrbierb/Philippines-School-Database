@@ -1,8 +1,16 @@
 {% extends 'grading_base.html' %}
 {% block local_javascript_code %}
 {{ block.super }}
+function setupPage() {
+	var titleText = "<p class='report-title'>Achievement Test:  <em>" +
+	 	$('#id_achievement_test_name').val() + "</em> Section:  <em>" +
+		$('#id_section_name').val() + "</em></p>";
+	$("#grades_title").replaceWith(titleText);
+}
+
 $(function() {
 	$("#get_grades_btn").click(function(){
+		setupPage();
 		loadAchievementTestGrades();
 		});
 });	
@@ -10,9 +18,10 @@ $(function() {
 	$("#grades_div").hide();
 	$("#save_grades_btn").click(function(){
 		returnResults("section", $("#id_section").val(),"achievement_test", 
-			$("#id_achievement_test").val());
+			$("#id_achievement_test").val());		
 		});
-});	
+});
+	
 {% endblock local_javascript_code %}
 {% block extended %}
 <fieldset>

@@ -1974,6 +1974,24 @@ class Person(polymodel.PolyModel):
     def in_organization(self, organization_key, requested_action):
         return (self.organization.key() == organization_key)
 
+    def add_to_interesting_instances(self, model_class, new_key):
+        """
+        Add a key for an entity of of class "model_class" to the
+        associated database user interesting interests list. This will
+        only add an instance so that it can be used by other than the
+        database user herself. This is commonly used to add a section
+        or class to a teacher's list when she is assigned as teacher or
+        section advisor.
+        """
+        db_user = self.get_associated_database_user()
+        current_instances = None
+        if db_user:
+            current_instances = db_user.update_object_list(
+                args_dict = {"action":"add"},
+                model_class = model_class,
+                change_instance_key = new_key)
+        return current_instances
+        
     @staticmethod
     def person_custom_query(organization, leading_value, value_dict,
                             query):
@@ -2554,7 +2572,7 @@ class Teacher(Person):
     def remove(self):
         self.employment_history.remove()
         self.delete()
-
+            
 #----------------------------------------------------------------------
 class Classroom(db.Model):
     """
@@ -3390,7 +3408,7 @@ class AchievementTest(db.Model):
                      getActiveDatabaseUser().get_active_organization())
         query.filter("date >", min_date)
         query.filter("date <", max_date)
-        query.filter("class_year =", class_year)
+        query.filter("class_years =", class_year)
         query.order("-date")
         return query.fetch(50)
 
@@ -3505,10 +3523,22 @@ class AchievementTest(db.Model):
                     pass
         return subject_names, class_years, view_info
 
-    def get_grading_instances(self):
-        instance_query = GradingInstance.all()
-        instance_query.ancestor(self)
-        return(instance_query.fetch(100))
+    def get_grading_instances(self, section = None, class_year = ""):
+        """
+        Get the achievement test grading instances. The grading
+        instances are different for each class year. If the section is
+        defined then the class year of the section is used to filter
+        the results. If the class year is defined then it is used if no
+        section defined. If both are undefined then all grading
+        instances for the test are returned.
+        """        
+        query = GradingInstance.all()
+        if section:
+            class_year = section.class_year
+        if class_year:
+            query.filter("class_year =", class_year)
+        query.ancestor(self)
+        return(query.fetch(100))
 
     def changeDate(self, old_date, new_date):
         """
@@ -3608,6 +3638,15 @@ class AchievementTest(db.Model):
     def post_creation(self):
         pass
 
+    def remove(self):
+        """
+        Remove all associated grading instances and then self. Note:
+        Dangerous to do if it has already been used.
+        """
+        grading_instances = self.get_grading_instances()
+        grading_instances.delete()
+        self.delete()
+        
 #----------------------------------------------------------------------
 class Family(db.Model):
     """
@@ -5263,7 +5302,7 @@ class DatabaseUser(db.Model):
         self.put()
         return self.last_access_time
 
-    def update_object_list(self, args_dict, focus_class, change_instance_key):
+    def update_object_list(self, args_dict, model_class, change_instance_key):
         """
         Get a list of interesting instances of a specified class.
         This is an interface function for ajax, etc.
@@ -5280,7 +5319,7 @@ class DatabaseUser(db.Model):
                 changed = True
             if changed:
                 self.put()               
-        return self.get_interesting_instances_class_list(focus_class)
+        return self.get_interesting_instances_class_list(model_class)
 
     def get_interesting_instances_class_list(self, model_class):
         """

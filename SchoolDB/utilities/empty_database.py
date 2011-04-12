@@ -48,7 +48,8 @@ def empty_database(logger, initial_text = "Starting to Empty"):
         args = "classname=%s" %str(del_class)
         task_generator = SchoolDB.assistant_classes.TaskGenerator(
                     task_name = task_name, function = "db.delete", \
-                    function_args = "", query_iterator=query)
+                    function_args = "", query_iterator=query, 
+                    rerun_if_failed = False)
         task_generator.queue_tasks()
         #keys_blocks = SchoolDB.models.get_blocks_from_iterative_query(
                 #query, 100)
@@ -64,7 +65,7 @@ def empty_database(logger, initial_text = "Starting to Empty"):
                     #"SchoolDB.utilities.empty_database.delete_database_objects", 
                     #function_args = args)
                 #task_count += 1
-        logger.add_line("%d tasks successfully enqueued." %task_count)
+        logger.add_line("All tasks successfully enqueued.")
     logger.add_line("All emptied")
     return (True)
 

@@ -1956,6 +1956,23 @@ class StudentGroupingForm(BaseStudentDBForm):
     def initialize(data):
         initialize_fields([("teacher", "teacher_name")], data)
 
+    def save(self, instance, model_class = None):
+        """
+        Perform normal actions and then, if a teacher has been assigned
+        to the grouping add this student grouping to the teacher's
+        associated database user's interesting list. This will
+        automatically add classes and sections to the teacher's chosen
+        list. This function can be called repeatedly because the
+        support function will only add the student grouping once to the
+        teacher's list.
+        """
+        instance = BaseStudentDBForm.save(self, instance)
+        teacher = convert_to_instance_value(instance, "teacher",
+                                        self.cleaned_data["teacher"])
+        if (teacher and model_class):
+            teacher.add_to_interesting_instances(model_class, instance.key())
+        return instance
+
 #----------------------------------------------------------------------      
 class ClassroomForm(BaseStudentDBForm):
     name = forms.CharField(required=True, max_length=60, label="Name*:",
@@ -2044,7 +2061,17 @@ class SectionForm(StudentGroupingForm):
         field.
         """
         add_history_field_params(param_dict, ("teacher", "Advisor", ""))
-
+    
+    def save(self, instance):
+        """
+        Perform normal actions and then, if a teacher has been assigned
+        as section advisor add the sectin to the teachers "my sections"
+        list. There is no problem performing this repeatedly -- nothing
+        will be added to the teachers record if it is already there.
+        """
+        StudentGroupingForm.save(self, instance, 
+                    model_class = Section)
+        
 #---------------------------------------------------------------------- 
 
 class OrganizationForm(BaseStudentDBForm):
@@ -2892,6 +2919,15 @@ class ClassSessionForm(StudentGroupingForm):
         select_field.add_dependency(tchr, True)
         select_field.add_dependency(schlyr, True)
 
+    def save(self, instance):
+        """
+        Perform normal actions and then, if a teacher has been assigned
+        as teacher for the class add the class to the teachers "my classes"
+        list. There is no problem performing this repeatedly -- nothing
+        will be added to the teachers record if it is already there.
+        """
+        StudentGroupingForm.save(self, instance, model_class = ClassSession)
+
 #----------------------------------------------------------------------
 class CreateClassSessionsForm(BaseStudentDBForm):
     """
@@ -3368,12 +3404,16 @@ class AchievementTestForm(BaseStudentDBForm):
                 "json_classyear_names"])
             testing_info = simplejson.loads(self.cleaned_data[
                 "json_testing_info"])
+            class_year_dict = {}
             for subject_instance in testing_info:
                 class_year = class_year_names[subject_instance[0]]
                 subject_name = subject_names[subject_instance[1]]
                 number_questions = int(subject_instance[2])
                 at_info.append((class_year, subject_name, number_questions))
+                class_year_dict[class_year] = True
+            instance.class_years = class_year_dict.keys()
             instance.update(at_info)
+            instance.put()
         except ValueError:
             pass
         
@@ -3521,8 +3561,9 @@ class AchievementTestGradesForm(BaseStudentDBForm):
         achtest = javascript_generator.add_autocomplete_field(
             class_name = "achievement_test", 
             field_name = "id_achievement_test_name",
-            key_field_name = "id_achievement_test")
-        achtest.add_dependency(clsyr, False)
+            key_field_name = "id_achievement_test",
+            ajax_root_path = "/ajax/get_achievement_tests_for_section")
+        achtest.add_dependency(sect, True)
         
         
     @staticmethod
@@ -3542,7 +3583,7 @@ class AchievementTestGradesForm(BaseStudentDBForm):
                         data["section"] = section_keystr
                         data["section_name"] = unicode(section)
                         data["class_year"] = section.class_year
-
+                            
 #---------------------------------------------------------------------- 
 class GradingPeriodResultsForm(BaseStudentDBForm):
     """

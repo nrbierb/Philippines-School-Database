@@ -29,6 +29,7 @@ from google.appengine.ext import db
 from django import http
 from django.utils import simplejson
 import SchoolDB
+import SchoolDB.student_attendance
 
 class AjaxError(exceptions.Exception):
     def __init__(self, args=None):
@@ -86,6 +87,8 @@ class AjaxServer():
             "set_grades":self._set_grades,
             "get_achievement_test_grading_instances":\
               self._get_achievement_test_grading_instances,
+            "get_achievement_tests_for_section":\
+              self._get_achievement_tests_for_section,
             "edit_grading_period_grades":self._edit_grading_period_grades,
             "get_gradebook_entries":self._get_gradebook_entries,
             "change_date":self._change_date,
@@ -524,7 +527,7 @@ class AjaxServer():
                     days = attendance_data["dates"])
             data_processor.process_data()
             
-    #rewrite   the next two with common code in decorator.  
+    #rewrite the next two with common code in decorator.  
     def _get_calendar(self):
         """
         Get information from the SchoolDay instances for the days
@@ -578,18 +581,37 @@ class AjaxServer():
     def _get_achievement_test_grading_instances(self):
         """
         Return a list of keys of all of the grading instances in the 
-        achievement test.
+        achievement test for the class year of the section.
         """
-        query = SchoolDB.models.GradingInstance.all()
-        query.ancestor(self.target_object)
-        instances = []
-        for instance in query:
-            instances.append(str(instance.key()))
-        json_instances = simplejson.dumps(instances)
+        instances = self.target_object.get_grading_instances(
+            section = self.secondary_object)
+        key_strings = []
+        for instance in instances:
+            key_strings.append(str(instance.key()))
+        json_instances = simplejson.dumps(key_strings)
         return_data = {"gradingInstKeyArray":json_instances,
                        "studentRecordsArray":simplejson.dumps([])}
         self.return_string = simplejson.dumps(return_data)
     
+    def _get_achievement_tests_for_section(self):
+        """
+        Use achievement test model function to provide a list of tests
+        that have been taken this school year by a section. Return
+        result in standard form choice list.
+        """
+        section_keystring = self.argsDict.get("filterkey-section", "")
+        section = SchoolDB.utility_functions.get_instance_from_key_string(
+            section_keystring)
+        if section:
+            tests = SchoolDB.models.AchievementTest.findAchievementTestsForSection(
+                    section)
+        else:
+            tests = []
+        result_list, key_list, combined_list = \
+            SchoolDB.assistant_classes.QueryMaker.get_keys_names_fields_from_object_list(tests)
+        self.return_string = simplejson.dumps(combined_list)
+        return result_list
+
     def _edit_grading_period_grades(self):
         """
         Return the table of grades for one or more grading periods.

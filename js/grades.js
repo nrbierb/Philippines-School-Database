@@ -162,7 +162,9 @@ function loadAchievementTestGrades() {
 			dataType: "json",
 			data: {
 				"class": "achievement_test",
-				"key": achievementTest
+				"key": achievementTest,
+				"secondary_class": "section",
+				"secondary_key": section
 			},
 			success: function(ajaxResponse){
 				var gradingInstKeyArray = ajaxResponse.gradingInstKeyArray;

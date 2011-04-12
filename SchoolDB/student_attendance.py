@@ -8,7 +8,7 @@ from datetime import date, timedelta
 import exceptions
 from google.appengine.ext import db
 from django.utils import simplejson
-import SchoolDB.models
+import SchoolDB
 
 class AttendenceTableStudentInformation:
     """

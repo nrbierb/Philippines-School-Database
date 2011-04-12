@@ -12,7 +12,14 @@ h1 {font-weight:bold; font-style:italic;
 	color:#1d3059}
 h2 {font-size:1.15em; margin-top:0pt; margin-bottom:0pt;}
 h3 {font-size:1.05em; margin-top:3pt; margin-bottom:0pt;}
-
+em {
+	font-variant: small-caps; 
+	margin-right:2pt; 
+	margin-left:2pt; 
+	font-weight:bold;
+	font-style:normal;
+	font-size:110%;
+}
 .centered-object {
 	margin-left:auto;
 	margin-right:auto;

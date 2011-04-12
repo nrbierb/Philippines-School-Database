@@ -96,7 +96,15 @@ function standardSave() {
 		$("#form1").submit();			
 	}
 }
-	
+
+function return_to_active_page() {
+		var next_page = $.cookie("return_to_page");
+		if (next_page !== null) {
+			location = next_page;
+		} else {
+			location = "/index";
+		}		
+	}	
 /*
  * A simple function for counting clicks on an dom element. This can be used
  * to emulate a multiple click event on any element. Each click extends the
@@ -133,14 +141,10 @@ function initializeBottomButtons() {
 		history.back();
 	});
 
-	$("#return_active_button").click(function() {
-		var next_page = $.cookie("return_to_page");
-		if (next_page !== null) {
-			location = next_page;
-		} else {
-			location = "/index";
-		}		
-	});
+	$("#return_active_button").click(function(){
+		return_to_active_page();
+		});
+		
 	
     $("#close_button").click(function(){
         close();

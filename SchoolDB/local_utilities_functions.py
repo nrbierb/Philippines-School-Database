@@ -221,11 +221,13 @@ def bulk_student_status_change_utilty(logger, class_year,
         bulk_update_by_task(model_class, query_filters, 
                             change_parameters, organization=organization)
     
-def create_new_attendance_record(student):
+def create_new_attendance_record(student_keystring):
     """
     Create a new attendance record for a student.
     """
     try:
+        student = SchoolDB.utility_functions.get_instance_from_key_string(
+            student_keystring)
         start_date = datetime.date(2011,1,1)
         student.attendance = SchoolDB.models.StudentAttendanceRecord.create(
             parent_entity = student, start_date = start_date)

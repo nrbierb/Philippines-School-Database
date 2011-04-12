@@ -75,9 +75,11 @@ function atLoadTestingInfo() {
 function atGatherTestingInfo(){
 	//report only those subjects active for the year
 	var testingInfo = [];
+	var activeClassYears =[];
 	var yearIndex, subjectIndex;
 	var idYearCheckbox, idSubjectCheckbox, idNumField;
 	var numQuestions;
+	var hasTestSubjects;
 	for (yearIndex = 0; yearIndex < atYearNames.length; yearIndex++) {
 		idYearCheckbox = "#year-" + yearIndex;
 		if ($(idYearCheckbox).attr("checked")) {
@@ -85,6 +87,7 @@ function atGatherTestingInfo(){
 				idSubjectCheckbox = "#subject-checkbox-" + 
 					yearIndex + "-" + atSubjectNames[subjectIndex];
 				if ($(idSubjectCheckbox).attr("checked")) {
+					hasTestSubjects = true;
 					idNumField  = "#subject-numfield-" +
 						yearIndex + "-" + atSubjectNames[subjectIndex];
 					numQuestions = $(idNumField).val();
@@ -140,7 +143,7 @@ $(function() {
 		<td><label for="id_name" id="id_name_label" class="required">Name*:</label></td><td>{{ form.name }}</td>
 	</tr>
 	<tr>
-		<td><label for="id_date" id="id_date_label"</label>Test Date:</td><td>{{ form.date }}</td>
+		<td><label for="id_date" id="id_date_label"></label>Test Date:</td><td>{{ form.date }}</td>
 	</tr>
 	<tr>
 		<td><label for="id_grading_type" id="id_grading_type_label">Test Authority:</label></td><td>{{ form.grading_type }}</td>

@@ -282,13 +282,44 @@ indexes:
   properties:
   - name: class_year
   - name: organization
+  - name: date
+
+- kind: AchievementTest
+  properties:
+  - name: class_year
+  - name: organization
+  - name: date
+    direction: desc
+
+- kind: AchievementTest
+  properties:
+  - name: class_year
+  - name: organization
   - name: name
+
+- kind: AchievementTest
+  properties:
+  - name: class_years
+  - name: organization
+  - name: date
+
+- kind: AchievementTest
+  properties:
+  - name: class_years
+  - name: organization
+  - name: date
+    direction: desc
 
 - kind: AchievementTest
   properties:
   - name: grading_type
   - name: organization
   - name: name
+
+- kind: AchievementTest
+  properties:
+  - name: organization
+  - name: date
 
 - kind: AchievementTest
   properties:

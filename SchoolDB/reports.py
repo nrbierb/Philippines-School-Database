@@ -547,14 +547,25 @@ class Form14Report():
                     self.passing_count[j] += 1
                 if (self.raw_table_data[i][j+1] != 0):
                     self.total_cases[j] += 1
-        self.mean_raw_scores = [round((total_raw_scores[i] / 
-                                       self.total_cases[i]), 2)
-                                for i in range(self.data_columns_count)]
+        self.mean_raw_scores = []
+        for i in range(self.data_columns_count):
+            if (self.total_cases[i]):
+                score = round((total_raw_scores[i] / 
+                    self.total_cases[i]), 2)
+            else:
+                score = 0
+            self.mean_raw_scores.append(score)
         self.mean_percentage_scores = [round((self.mean_raw_scores[i] / 
             self.number_questions[i]), 2) for i in 
                                   range(self.data_columns_count)]
-        self.percent_passing_grade = [ round((float(self.passing_count[i]) / 
-                float(self.total_cases[i])), 2) for i in range(self.data_columns_count)]
+        self.percent_passing_grade = []
+        for i in range(self.data_columns_count):
+            if (self.total_cases[i]):
+                score = round((float(self.passing_count[i]) / 
+                       float(self.total_cases[i])), 2) 
+            else:
+                score = 0.0
+            self.percent_passing_grade.append(score)
         
     def create_table_description(self):
         """
