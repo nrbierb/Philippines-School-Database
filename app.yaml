@@ -1,9 +1,10 @@
-application: pi-schooldb-practice
+application: pi-schooldb-dev
 version: 1--0-11
 runtime: python
 api_version: 1
 
 handlers:
+
 - url: /static_pages
   static_dir: static_pages
  
@@ -31,10 +32,16 @@ handlers:
   script: main.py
   login: admin
   
-- url: /task
-  script: main.py
+- url: /static_tasks/(.*)
+  script: /static_tasks/\1.py
   login: admin
-  
+  secure: always
+ 
+- url: /task
+  script: /main.py
+  login: admin
+  secure: always
+
 - url: /.*
   script: main.py
   login: required

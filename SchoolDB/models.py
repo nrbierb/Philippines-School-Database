@@ -240,7 +240,8 @@ class History(polymodel.PolyModel):
     #unused legacy field from prior implementation
     history_list = db.ListProperty(db.Key)
     _empty_flag_string = "--------"
-
+    classname = "History"
+    
     @staticmethod
     def create(ownerref, attributename, isreference=False, 
                multiactive=False, isprivate_reference_object=False):
@@ -1011,7 +1012,7 @@ class Region(Organization):
         subordinate_dict = self.get_subordinate_organizations()
         schools = []
         for division in subordinate_dict.values():
-            schools.extend(division.values())
+            schools.extend(division)
         return schools
 
 #----------------------------------------------------------------------
@@ -1920,7 +1921,18 @@ class Person(polymodel.PolyModel):
         full_name = "%s, %s%s" %(self.last_name, self.first_name,
                                  padded_middle)
         return full_name
-
+    
+    def short_name(self):
+        """
+        Create a short version of the name useful for tables. It is
+        first initial last name
+        """
+        if self.first_name:
+            initial = self.first_name[0] + ". "
+        else:
+            initial = ""
+        short_name = initial + self.last_name
+        
     @staticmethod    
     def format_full_name_lastname_first(person):
         try:
@@ -2504,7 +2516,7 @@ class School(Organization):
             #reference is invalid. The docs imply just using a get but
             #that doesn't work at least in the local environment
             self.student_summary.attribute_name
-        except datastore_errors.Error:
+        except StandardError:
             self.student_summary = None       
         if self.student_summary:
             return self.student_summary.update_current_summary(
@@ -2524,7 +2536,7 @@ class School(Organization):
 
 def update_all_schools_summaries(logger, force_update = False):
     """
-    The standard schduled action to update the school summaries which
+    The standard scheduled action to update the school summaries which
     is performed nightly. Only the summaries which have been marked for
     updating will do anything unless force update is set True.
     """
@@ -2879,11 +2891,11 @@ class ClassSession(StudentGrouping):
             #determine organization from section
             school = section.organization
             #confirm legal to create class for this section
-            if (not school.key() == 
-                getActiveDatabaseUser().get_active_organization_key()):
-                logging.error(
-                    logging_prefix + " failed: user is not in organization.")
-                return None
+            #if (not school.key() == 
+                #getActiveDatabaseUser().get_active_organization_key()):
+                #logging.error(
+                    #logging_prefix + " failed: user is not in organization.")
+                #return None
             try:
                 start_date = date.fromordinal(int(start_date))
                 end_date = date.fromordinal(int(end_date))
@@ -3200,9 +3212,9 @@ class GradingInstance(db.Model):
     percent_grade = db.FloatProperty()
     extra_credit = db.BooleanProperty()
     multiple = db.BooleanProperty()
+    number_questions = db.IntegerProperty()
     other_information = db.StringProperty(multiline=True)
     events = db.BlobProperty()
-    number_questions = db.IntegerProperty()
     class_year = db.StringProperty() #this is only used for achievement tests
     classname = "Gradebook Entry"
 
@@ -4787,7 +4799,8 @@ class Student(Person):
         q.ancestor(self)
         return q.fetch(500)
 
-    def get_class_records_by_subject(self, subjectkey_list):
+    def get_class_records_by_subject(self, subjectkey_list, 
+                                     known_class_sessions):
         """
         Return a dictionary of class records in the cache keyed
         by subject key. This supports achievement test recording.
@@ -4795,13 +4808,24 @@ class Student(Person):
         record_by_subject = {}
         class_sessions = self.get_active_class_sessions()
         class_records = self.get_active_class_records()
+        num_subjects = len(subjectkey_list)
         for class_record_key in class_records:
             class_record = db.get(class_record_key)
             class_session = class_record.get_class_session()
-            class_session_subject_key = class_session.subject.key()
+            class_session_key = class_session.key()
+            if known_class_sessions.has_key(class_session_key):
+                class_session_subject_key = known_class_sessions[
+                    class_session_key]
+            else:
+                class_session_subject_key = class_session.subject.key()
+                known_class_sessions[class_session_key] = \
+                                    class_session_subject_key
             for subjectkey in subjectkey_list:
                 if (class_session_subject_key == subjectkey):
-                    record_by_subject[subjectkey] = class_record.key()
+                    record_by_subject[subjectkey] = class_record_key
+                    num_subjects -= 1
+                    if num_subjects == 0:
+                        break
         return record_by_subject
 
     def get_parents(self):
@@ -5866,9 +5890,12 @@ class ActiveDatabaseUser:
 def _update_history(instance, value_name, create_params):
     """
     The history primary fields are changed by form editing. Compare the
-    values of those fields with the current entry in the history. If not equal
-    then a new event has occured so update the history. If no history has yet
-    been created, create one and store the value in it. Unfortunately I have not yet found a way in python to set a value selected by name, so the hack of the history field is used to allow writes of a new history into the history element.
+    values of those fields with the current entry in the history. If
+    not equal then a new event has occured so update the history. If no
+    history has yet been created, create one and store the value in it.
+    Unfortunately I have not yet found a way in python to set a value
+    selected by name, so the hack of the history field is used to allow
+    writes of a new history into the history element.
     """
     date_name = value_name + "_change_date"
     history_name = value_name + "_history"
@@ -6347,7 +6374,15 @@ def setActiveDatabaseUser(databaseUser):
 def setActiveOrganization(organization):
     global __activeOrganization
     __activeOrganization = organization
-    
+
+def getActiveOrganization():
+    """
+    Only for use under special circumstances such as tasking that requires
+    an active organization to be set
+    """
+    global __activeOrganization
+    return __activeOrganization
+
 def getActiveDatabaseUser():
     global __activeDatabaseUser
     return __activeDatabaseUser

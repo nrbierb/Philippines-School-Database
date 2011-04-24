@@ -152,7 +152,7 @@ class AchievementTestSummary(
             self.by_class_year[classyear_name] = set()
             self.subjects_by_year[classyear_name] = set()
             organization = \
-                SchoolDB.models.getActiveDatabaseUser().get_active_organization().key()
+                SchoolDB.models.getActiveDatabaseUser().get_active_organization_key()
             self.sections_by_year[classyear_name] = set()
             query = SchoolDB.models.Section.all()
             query.filter("organization =", organization)
@@ -221,14 +221,15 @@ class AchievementTestSummary(
             if set_contains(self.subjects_by_year[class_year], 
                             subject_keystr):
                 ati_statistics_set = \
-                                   self.by_section[section_keystr].intersection(
-                                       self.by_subject[subject_keystr])
+                            self.by_section[section_keystr].intersection(
+                            self.by_subject[subject_keystr])
                 if (len(ati_statistics_set)):
                     ati_statistics = ati_statistics_set.pop()
         return ati_statistics
 
     def set_ati_statistics_for_class_and_subject(self, section_keystr,
-                                                 subject_keystr, combined_results, male_results, female_results):
+                subject_keystr, combined_results, male_results, 
+                female_results):
         """
         Set the statistics in the core ati_statistics instance that represents the
         specified subject and section. Each of the results is a list of the 

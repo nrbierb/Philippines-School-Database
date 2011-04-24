@@ -3,7 +3,7 @@
 {{ block.super }}
 {% endblock script %}
 {% block local_javascript_code %}
-
+	
 var selectedFieldsTable = new StandardTable();
 selectedFieldsTable.initializeTableParams();
 
@@ -52,16 +52,28 @@ function removeOrgs() {
 
 function setParametersForRequest(top_level_org) {
 	var param_dict = {
-		//"class":"section",
-		//"key":$('#id_section').val(),
 		"top_level_org":top_level_org,
 		"values_to_show":JSON.stringify(getSelectedValues(selectedFieldsTable)),
 		"orgs_to_show":JSON.stringify(getSelectedValues(selectedOrgsTable)),
 		"show_genders":$("#id_by_gender").is(':checked'),
 		"by_class_year":$("#id_by_class_year").is(':checked'),
 		"single_line_per_school":$("#id_single_line_per_school").is(':checked'),
-		"function":"create_student_summary_table"
+		
 		};
+	switch (localParams.reportType){
+		case "achievementTest":
+			param_dict.class = "achievement_test";
+			param_dict.key = $('#id_achievement_test').val();
+			param_dict.function = "create_achievement_test_summary";
+			param_dict.values_to_show = "";
+			break;
+		case "studentSummary":
+			param_dict.function = "create_student_summary_table";
+			param_dict.values_to_show = JSON.stringify(getSelectedValues(selectedFieldsTable));
+			break;
+		default:
+			//should show error message, I guess -- TBD
+		}	
 	return param_dict;
 }	
 
@@ -157,7 +169,9 @@ $(function() {
 	<tr><td>{{form.by_gender.label}}</td><td>{{form.by_gender}}</td></tr>
 </table>
 </fieldset>
-</td><td class="minpad">
+</td>
+{% if show_choose_fields_block %}
+<td class="minpad">
 <fieldset id="fields_select" class="min-block">
 	<legend>Choose Fields to Show</legend>
 <table id="fields_table">
@@ -182,6 +196,9 @@ $(function() {
 </td></tr>
 <tr {{upper_level_hide|safe}}><td></td>
 <td class="minpad">
+{% else %}
+<td {{upper_level_hide|safe}}>
+{% endif %}
 <fieldset id="fields_select" class="min-block">
 	<legend>Choose Organizations to Show</legend>
 <table id="fields_table">

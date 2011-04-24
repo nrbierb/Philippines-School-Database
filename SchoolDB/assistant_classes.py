@@ -143,9 +143,12 @@ class TaskGenerator():
                     organization = None, instance_keylist = None,
                     query_iterator = None, instances_per_task = 10,
                     rerun_if_failed = True):
+        active_user_keystr = \
+            str(SchoolDB.models.getActiveDatabaseUser().get_active_user().key())
         self.task_dict = {"task_name":task_name, "function":function, 
-                         "args":function_args, "organization":organization,
-                         "rerun_if_failed":rerun_if_failed}
+                    "args":function_args, "organization":organization,
+                    "rerun_if_failed":rerun_if_failed,
+                    "task_initiator":active_user_keystr}
         self.task_name = task_name
         self.instance_keylist = instance_keylist
         self.instances_per_task = instances_per_task
@@ -235,7 +238,7 @@ class StatisicalResults():
             hist_index = 0
             for i in xrange(self.count):
                 for hist_index in xrange(len(hist_limits)):
-                    if values[i] <= histogram_limits[hist_index]:
+                    if values[i] <= hist_limits[hist_index]:
                         self.histogram[hist_index] += 1
                         break
 
@@ -797,13 +800,17 @@ class AjaxGetGradeHandler:
         """
         #build subject list
         subjects_dict = {}
-        for gd_inst_key in self.grading_instances_keys:
-            gd_inst = SchoolDB.models.GradingInstance.get(gd_inst_key)
-            subjects_dict[gd_inst_key] = gd_inst.subject.key()
+        known_class_sessions = {}
+        gd_inst_list = SchoolDB.models.GradingInstance.get(
+            self.grading_instances_keys)
+        for i in xrange(len(self.grading_instances_keys)):
+            subjects_dict[self.grading_instances_keys[i]] = \
+                          gd_inst_list[i].subject.key()
         self.students = self.student_group.get_students()
         for student in self.students:
             student_record_by_subject = \
-                student.get_class_records_by_subject(subjects_dict.values())
+                student.get_class_records_by_subject(subjects_dict.values(),
+                                                     known_class_sessions)
             student_record_by_gd_inst_key = {}
             for gd_inst_key in self.grading_instances_keys:
                 subject_key = subjects_dict[gd_inst_key] 
@@ -818,7 +825,7 @@ class AjaxGetGradeHandler:
         Create a single array of (student class record key, 
         student name) for all students in the class. If keys_only        
         """
-#        try:
+#       try:
         roster_list = []
         for student in self.students:
             student_keystr = \
@@ -898,20 +905,22 @@ class AjaxGetGradeHandler:
             raw_data[y][0] = table_data[y][0]
             for x, gd_inst_key in enumerate(self.grading_instances_keys):
                 student_record_key = \
-                                   self.student_record_keys_dict[student.key()][gd_inst_key]
+                    self.student_record_keys_dict[student.key()][gd_inst_key]
                 grade = None
                 if student_record_key:
                     student_record_data[y][x] = str(student_record_key)
                     student_record = \
-                                   SchoolDB.models.StudentsClass.get(student_record_key)
+                        SchoolDB.models.StudentsClass.get(student_record_key)
                     grade = student_record.get_grade(gd_inst_key)
                 if grade:
                     grade_str = "value=%5.1f" %grade
                 else:
                     grade_str = ""
                     grade = 0
-                table_data[y][x+1] = '<input type="text" class="entry-field numeric-field" ' +\
-                          'id="%s-%s-%s" %s></input>' %(self.table_name, x, y, grade_str)
+                table_data[y][x+1] = \
+                    '<input type="text" class="entry-field numeric-field" '+\
+                    'id="%s-%s-%s" %s></input>' %(self.table_name, x, 
+                                                        y, grade_str)
                 raw_data[y][x+1] = grade
         return table_data, student_record_data, raw_data
 
@@ -936,9 +945,12 @@ class AjaxGetGradeHandler:
         table with other surrounding elements.
         """
         table_header, grading_instances_list = self.create_table_header()
+        student_keys, unused = self.create_class_roster_and_json(
+            keys_only=True)
         table_data, student_record_data, raw_data = \
                   self.create_table_data()
-        return table_header, grading_instances_list, raw_data
+        return table_header, grading_instances_list, student_keys,\
+               student_record_data, raw_data
     
     def create_full_package(self):
         """
@@ -1004,6 +1016,7 @@ class AjaxGetGradeHandler:
                                 "percentGrd":gi.percent_grade,
                                 "extraCredit":gi.extra_credit,
                                 "multiple":gi.multiple,
+                                "numQuest":gi.number_questions,
                                 "otherInfo":gi.other_information,
                                 #"valid":gi.valid,
                                 #"dates":gi.dates
@@ -1166,7 +1179,7 @@ class AjaxSetGradeHandler:
     def save_grading_instance_change(self, grade_instance_key):
         """
         There may be a dictionary of changed values for the grade instance.
-        The most comman change will be the date of the test (or whatever)
+        The most common change will be the date of the test (or whatever)
         which is entered at the same time the grades are entered.
         """
         change = self.gi_changes[grade_instance_key]
@@ -1319,7 +1332,7 @@ class GradingPeriodGradesHandler:
     def _create_get_table_data(self):
         """
         Return a table of the grades for the students in the class session for
-        the grading periods selected and gradeable. The most currnt gradeable
+        the grading periods selected and gradeable. The most current gradeable
         period is returned as editable if the user is the teacher of the
         class. All others are simply viewable. Any gradings periods that are
         not yet in the list of gradeable periods are not included in the

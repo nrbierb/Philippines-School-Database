@@ -8,31 +8,32 @@ def empty_database(logger, initial_text = "Starting to Empty"):
     logger.add_line(initial_text)
     for del_class in [
         #SchoolDB.models.HistoryEntry, 
-        #SchoolDB.models.History, 
-        #SchoolDB.models.Contact, 
-        #SchoolDB.models.National, 
-        #SchoolDB.models.Region,
-        #SchoolDB.models.Division, 
-        #SchoolDB.models.Province, 
-        #SchoolDB.models.Municipality, 
-        #SchoolDB.models.Community, 
-        #SchoolDB.models.StudentStatus,
-        #SchoolDB.models.Subject, 
-        #SchoolDB.models.SchoolDay, 
-        #SchoolDB.models.SchoolYear,
-        #SchoolDB.models.ClassPeriod, 
-        #SchoolDB.models.ClassSession,
-        #SchoolDB.models.SpecialDesignation, 
-        #SchoolDB.models.Section,
-        #SchoolDB.models.SectionType,
-        #SchoolDB.models.GradingInstance,
-        #SchoolDB.models.GradingPeriod,
-        #SchoolDB.models.Family,
-        #SchoolDB.models.ParentOrGuardian,
-        #SchoolDB.models.StudentAttendanceRecord
-        #SchoolDB.models.Student,
-        #SchoolDB.models.StudentTransfer,
-        SchoolDB.models.StudentsClass, 
+        SchoolDB.models.History, 
+        SchoolDB.models.Contact, 
+        SchoolDB.models.National, 
+        SchoolDB.models.Region,
+        SchoolDB.models.Division, 
+        SchoolDB.models.Province, 
+        SchoolDB.models.Municipality, 
+        SchoolDB.models.Community, 
+        SchoolDB.models.StudentStatus,
+        SchoolDB.models.Subject, 
+        SchoolDB.models.SchoolDay, 
+        SchoolDB.models.SchoolYear,
+        SchoolDB.models.ClassPeriod, 
+        SchoolDB.models.ClassSession,
+        SchoolDB.models.Classroom,
+        SchoolDB.models.SpecialDesignation, 
+        SchoolDB.models.Section,
+        SchoolDB.models.SectionType,
+        SchoolDB.models.GradingInstance,
+        SchoolDB.models.GradingPeriod,
+        SchoolDB.models.Family,
+        SchoolDB.models.ParentOrGuardian,
+        SchoolDB.models.StudentAttendanceRecord,
+        SchoolDB.models.Student,
+        SchoolDB.models.StudentTransfer,
+        SchoolDB.models.StudentsClass,
         #SchoolDB.models.VersionedText,
         #SchoolDB.models.VersionedTextManager
         #DO NOT UNCOMMENT THESE!
@@ -42,8 +43,8 @@ def empty_database(logger, initial_text = "Starting to Empty"):
         #SchoolDB.models.School, 
         #SchoolDB.models.DatabaseUser
         ]:
-        logger.add_line("Starting delete for %s" %str(del_class))
-        task_name = "Empty Database " + str(del_class)
+        logger.add_line("Starting delete for " + del_class.classname)
+        task_name = "Empty Database " + del_class.classname
         query = del_class.all(keys_only=True)
         args = "classname=%s" %str(del_class)
         task_generator = SchoolDB.assistant_classes.TaskGenerator(
@@ -72,7 +73,7 @@ def empty_database(logger, initial_text = "Starting to Empty"):
 def delete_database_objects(args_dict):
     """
     A trivial action to delete all database entities with the
-    listed keys and report the result. THe list of keys is sent in a 
+    listed keys and report the result. The list of keys is sent in a 
     compressed pickle to limit data transfer
     """
     try:

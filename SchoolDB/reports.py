@@ -519,7 +519,7 @@ class Form14Report():
                 section, json_data)
          
     def get_data(self):
-        (unused, unused1, self.raw_table_data) = \
+        (unused, unused1, unused2, unused3, self.raw_table_data) = \
             self.grade_processor.create_raw_information()
         self.student_count = len(self.raw_table_data)
         self.number_questions = \
@@ -678,7 +678,6 @@ class SummaryReportBase():
                                 SchoolDB.models.School) 
                 for key_string in school_text_key_list]
         else:
-            #self._get_schools_list()
             self.schools_list = []
         self.values_to_show = []
         if self.parameter_dict.has_key("values_to_show"):
@@ -711,18 +710,6 @@ class SummaryReportBase():
                 #add_division_to_report_list(division, schools_list)
         #return schools_list
         
-    @staticmethod
-    def get_report_field_choices():
-        return ["# Stu",
-            "Balik Aral", 
-            "Trans In",
-            "Trans Out",
-            "Dropped Out",
-            "Min Age",
-            "Max Age",
-            "Avg Age",
-            "Median Age"]
-
     def _get_single_section_summary(self, section_summary, 
                                     add_section_name = False):
         section_data = section_summary.get_data()
@@ -753,71 +740,7 @@ class SummaryReportBase():
                 values_list.append(values_dict[value_name])
         summary_values.extend(values_list)
         return summary_values
-    
-        
-    def _fill_values_dict(self, values_dict, col, section_data):
-        """
-        Create a dictionary of numeric values keyed by the dsicriptive
-        name used in the report header.
-        """
-        values_dict["# Stu"] = section_data.num_students[col]
-        values_dict["Balik Aral"] = section_data.balik_aral[col]
-        values_dict["Trans In"] = section_data.transferred_in[col]
-        values_dict["Trans Out"] = section_data.transferred_out[col]
-        values_dict["Dropped Out"] = section_data.dropped_out[col]
-        values_dict["Min Age"] = section_data.min_age[col]
-        values_dict["Max Age"] = section_data.max_age[col]
-        values_dict["Avg Age"] = section_data.average_age[col]
-        values_dict["Median Age"] = section_data.median_age[col]
-        
-    def _get_information_for_school(self, school):
-        """
-        Create the table array entry for a single school. If row type
-        "single" create on row with all values (for spreadsheet). If
-        row type "classyear" create an entry with each year on a different
-        row. If row type "section" create a row for each section.
-        """
-        table_entry = []
-        #try:
-        info_summary_db_instance = school.student_summary
-        info_summary = info_summary_db_instance.get_current_summary()
-        section_summaries_list = info_summary.get_section_summaries_list()
-        row_leader = []
-        if self.is_region:
-            row_leader.append(unicode(school.division))
-        if (not self.is_school):
-            row_leader.append(unicode(school))
-        if self.single_row:
-            table_row = row_leader           
-        class_year_summary_values = []
-        for class_year in SchoolDB.choices.ClassYearNames[0:4]:
-            class_year_summary_values = []
-            if self.by_class_year:
-                class_year_summary_values.append(
-                    self._create_summary_block(
-                    info_summary.get_class_year_summary(class_year,
-                                            section_summaries_list)))
-            else:
-                by_section = True
-                for sect in \
-                    info_summary.get_sections_by_class_year(class_year,
-                                        section_summaries_list, True):
-                    class_year_summary_values.append( \
-                        self._get_single_section_summary(sect, True))
-            if self.single_row:
-                #continue to add the years to the single row
-                table_row.extend(class_year_summary_values[0])
-            else:
-                for row_info in class_year_summary_values:
-                    table_row = \
-                              [row_leader[i] for i in range(len(row_leader))]
-                    table_row.append(class_year)
-                    table_row.extend(row_info)
-                    table_entry.append(table_row)
-        if self.single_row:
-            table_entry = [table_row]
-        #except 
-        return table_entry
+                    
         
     def _get_table_data(self):
         """
@@ -832,7 +755,7 @@ class SummaryReportBase():
     def _get_table_description(self):
         """
         Create table headers and the header description depending upon
-        options or organizational level. Prepend division name adn
+        options or organizational level. Prepend division name and
         school name if necessary to identify entries. Expand the table
         line for single line reports and gender based reports.
         """
@@ -899,7 +822,8 @@ class SummaryReportBase():
 
 #----------------------------------------------------------------------
     
-class AchievementTestReport:
+class AchievementTestReport(SummaryReportBase):
+    
     """
     This class builds acheivement test reports from information from
     the achievement test summaries. It designed suppurt upper level
@@ -912,14 +836,86 @@ class AchievementTestReport:
         Initialize the object with values from a dictionary of parameter
         values. 
         """
-        SummaryReportBase.__init__(self,
-                primary_object, secondary_class, 
-                secondary_object)
+        SummaryReportBase.__init__(self, parameter_dict, 
+            primary_object, secondary_class, secondary_object)
         self.achievement_test = primary_object
     
-    def build_table(self):
-        pass
+    #def build_table(self):
+        #pass
     
+    def _get_information_for_school(self, school):
+        """
+        Create the table array entry for a single school. If row type
+        "single" create on row with all values (for spreadsheet). If
+        row type "classyear" create an entry with each year on a different
+        row. If row type "section" create a row for each section.
+        """
+        table_entry = []
+        #try:
+        info_summary_db_instance = school.student_summary
+        info_summary = info_summary_db_instance.get_current_summary()
+        section_summaries_list = info_summary.get_section_summaries_list()
+        row_leader = []
+        if self.is_region:
+            row_leader.append(unicode(school.division))
+        if (not self.is_school):
+            row_leader.append(unicode(school))
+        if self.single_row:
+            table_row = row_leader           
+        class_year_summary_values = []
+        for class_year in SchoolDB.choices.ClassYearNames[0:4]:
+            class_year_summary_values = []
+            if self.by_class_year:
+                class_year_summary_values.append(
+                    self._create_summary_block(
+                    info_summary.get_class_year_summary(class_year,
+                                            section_summaries_list)))
+            else:
+                by_section = True
+                for sect in \
+                    info_summary.get_sections_by_class_year(class_year,
+                                        section_summaries_list, True):
+                    class_year_summary_values.append( \
+                        self._get_single_section_summary(sect, True))
+            if self.single_row:
+                #continue to add the years to the single row
+                table_row.extend(class_year_summary_values[0])
+            else:
+                for row_info in class_year_summary_values:
+                    table_row = \
+                              [row_leader[i] for i in range(len(row_leader))]
+                    table_row.append(class_year)
+                    table_row.extend(row_info)
+                    table_entry.append(table_row)
+        if self.single_row:
+            table_entry = [table_row]
+        #except 
+        return table_entry
+
+    def _fill_values_dict(self, values_dict, col, section_data):
+        """
+        Create a dictionary of numeric values keyed by the descriptive
+        name used in the report header.
+        """
+        values_dict["# Stu"] = section_data.num_students[col]
+        values_dict["Balik Aral"] = section_data.balik_aral[col]
+        values_dict["Trans In"] = section_data.transferred_in[col]
+        values_dict["Trans Out"] = section_data.transferred_out[col]
+        values_dict["Dropped Out"] = section_data.dropped_out[col]
+        values_dict["Min Age"] = section_data.min_age[col]
+        values_dict["Max Age"] = section_data.max_age[col]
+        values_dict["Avg Age"] = section_data.average_age[col]
+        values_dict["Median Age"] = section_data.median_age[col]
+
+    @staticmethod
+    def get_report_field_choices():
+        return ["# Stu",
+            "Minimum", 
+            "Maximum",
+            "Average",
+            "Median",
+            "Histogram"]
+
     @staticmethod
     def create_report_table(parameter_dict, primary_object,
                                 secondary_class, secondary_object):
@@ -979,6 +975,55 @@ class StudentSummaryReport(SummaryReportBase):
         values_dict["Avg Age"] = section_data.average_age[col]
         values_dict["Median Age"] = section_data.median_age[col]
     
+    def _get_information_for_school(self, school):
+        """
+        Create the table array entry for a single school. If row type
+        "single" create on row with all values (for spreadsheet). If
+        row type "classyear" create an entry with each year on a different
+        row. If row type "section" create a row for each section.
+        """
+        table_entry = []
+        #try:
+        info_summary_db_instance = school.student_summary
+        info_summary = info_summary_db_instance.get_current_summary()
+        section_summaries_list = info_summary.get_section_summaries_list()
+        row_leader = []
+        if self.is_region:
+            row_leader.append(unicode(school.division))
+        if (not self.is_school):
+            row_leader.append(unicode(school))
+        if self.single_row:
+            table_row = row_leader           
+        class_year_summary_values = []
+        for class_year in SchoolDB.choices.ClassYearNames[0:4]:
+            class_year_summary_values = []
+            if self.by_class_year:
+                class_year_summary_values.append(
+                    self._create_summary_block(
+                    info_summary.get_class_year_summary(class_year,
+                                            section_summaries_list)))
+            else:
+                by_section = True
+                for sect in \
+                    info_summary.get_sections_by_class_year(class_year,
+                                        section_summaries_list, True):
+                    class_year_summary_values.append( \
+                        self._get_single_section_summary(sect, True))
+            if self.single_row:
+                #continue to add the years to the single row
+                table_row.extend(class_year_summary_values[0])
+            else:
+                for row_info in class_year_summary_values:
+                    table_row = \
+                              [row_leader[i] for i in range(len(row_leader))]
+                    table_row.append(class_year)
+                    table_row.extend(row_info)
+                    table_entry.append(table_row)
+        if self.single_row:
+            table_entry = [table_row]
+        #except 
+        return table_entry
+
     @staticmethod
     def create_report_table(parameter_dict, primary_object,
                                 secondary_class, secondary_object):

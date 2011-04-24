@@ -603,7 +603,8 @@ class AjaxServer():
         section = SchoolDB.utility_functions.get_instance_from_key_string(
             section_keystring)
         if section:
-            tests = SchoolDB.models.AchievementTest.findAchievementTestsForSection(
+            tests = \
+            SchoolDB.models.AchievementTest.findAchievementTestsForSection(
                     section)
         else:
             tests = []
@@ -978,12 +979,15 @@ class AjaxServer():
               "create_students_eligible_for_class_table"):
             function = \
                 SchoolDB.views.create_students_eligible_for_class_table
-        elif (self.function_name == "create_student_summary_table"):
-            function = \
-                SchoolDB.reports.StudentSummaryReport.create_report_table
         elif (self.function_name == "create_form14_table"):
             function = \
                 SchoolDB.reports.Form14Report.create_report_table
+        elif (self.function_name == "create_student_summary_table"):
+            function = \
+                SchoolDB.reports.StudentSummaryReport.create_report_table
+        elif (self.function_name == "create_achievement_test_summary"):
+            function = \
+                SchoolDB.reports.AchievementTestReport.create_report_table
         else: 
             function = None
         #It is assumed that the function is always needed. If it is

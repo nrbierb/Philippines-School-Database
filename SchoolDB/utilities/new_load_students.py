@@ -37,7 +37,7 @@ def get_person(class_name, first_name, middle_name, last_name):
 
 def convert_name(name):
     """
-    Split a persons name into three parts: first, miiddle, and last.
+    Split a persons name into three parts: first, middle, and last.
     Assume that the first field is the first name, the second the middle
     name, and the last fields the last name and perhaps something like
     "Jr."
@@ -57,21 +57,14 @@ def convert_name(name):
         name_parts = ["", "", ""]
     return name_parts
 
-def convert_date(text_val):
-    parts = text_val.split('/')
-    if (len(parts) == 1):
+def convert_date(text_val):    
+    parts = re.findall(r'\d+',text_val)
+    if not len(parts):
         #empty value
         return None
     else:
-        # year may be with only 2 digits -- correct
-        year = int(parts[2])
-        if (year < 1900):
-            if (year > 60):
-                #late 20th Century
-                year += 1900
-            else:
-                year += 2000
-    return date(year, int(parts[0]), int(parts[1]))
+        year = int(parts[0])
+    return date(year, int(parts[1]), int(parts[2]))
 
 def elmentary_gd_processing(text_val):
     #might be a year, a 0 or a blank

@@ -47,12 +47,15 @@ from SchoolDB.local_utilities_functions import update_student_summary_utility
 from SchoolDB.utilities.empty_database import empty_database
 from SchoolDB.utilities import load_students
 from SchoolDB.utilities.low_level_utils import delete_student
-from SchoolDB.utilities.update_database_user_types import update_database_user_types
+from SchoolDB.utilities.update_database_user_types \
+     import update_database_user_types
 from SchoolDB.utilities.convert_histories import convert_histories
 from SchoolDB.utilities.add_student_major_history import \
      add_student_major_history, clear_student_major_histories, \
      assign_student_majors_for_test_database
 from SchoolDB.utilities.create_schooldays import create_schooldays
+from SchoolDB.utilities.createStudents import create_students_for_school
+import SchoolDB.utilities
 result_string = ""
 __http_request__ = None
 __processed_request__ = None
@@ -583,7 +586,15 @@ def showCreateClassSessions(request):
 def showStudentSummary(request):
     return standardShowAction(request, "student_summary", 
                               StudentSummaryForm, "Student Summary",
-                              "student_summary")
+                              "upper_level_summary")
+def showAchievementTestSummary(request):
+    return standardShowAction(request, "achievment_test_summary", 
+                              AchievementTestSummaryForm, 
+                              "Achievement Test Summary",
+                              "upper_level_summary")
+def showGenerateGrades(request):
+    return standardShowAction(request, "generate_grades", GenerateGradesForm, 
+                              "Generate Fake Grades", "generate_grades")
 
 def showAssignStudents(request):
     """
@@ -1014,14 +1025,28 @@ def runTask(request):
     """
     successful = False
     try:
-        validate_user(request, auto_task=True)
+        #validate_user(request, auto_task=True)
         #must have task_data so just raise error and report if not there
         task_data = request.POST["task_data"]
         unencoded = base64.b64decode(task_data)
         uncompressed = zlib.decompress(unencoded)
         task_dict = cPickle.loads(uncompressed)
         task_name = task_dict.get("task_name", "Unnamed Task")
-        logging.info("Started task: '%s'" %task_name)
+        rerun_if_failed = False
+        #The task is normally not run via a database user. Use the
+        #user identified in the initial tasking instead.
+        task_initiator_keystr = task_dict.get("task_initiator", None)
+        task_initiator = \
+                SchoolDB.utility_functions.get_instance_from_key_string(
+                   task_initiator_keystr, DatabaseUser)
+        SchoolDB.models.setActiveDatabaseUser(task_initiator)
+        if getActiveDatabaseUser():
+            username = getActiveDatabaseUser().get_active_user_name()
+        else:
+            username = "None"
+        logging.info("Started task: '%s' User: %s" %(task_name, username))
+        #put here only for testing 
+        validate_user(request, auto_task=True)
         if (task_dict.has_key("function")):
             # if no function is given then there is nothing to do
             function = task_dict["function"]
@@ -4286,7 +4311,7 @@ class Form14ReportForm(BaseStudentDBForm):
             key_field_name = "id_achievement_test")
 
 #----------------------------------------------------------------------  
-class StudentSummaryForm(BaseStudentDBForm):
+class BaseSummaryForm(BaseStudentDBForm):
     """
     This form creates a summary report of student information for higher
     level organizations.
@@ -4325,9 +4350,6 @@ label="Single Line Per School")
         selected_fields_descriptor = "(%s)" %selected_fields_table.ToJSon()
         field_choices_table = SchoolDB.gviz_api.DataTable(
             ("field","string","Field Choices"))
-        field_choices_table.LoadData(
-            SchoolDB.reports.StudentSummaryReport.get_report_field_choices())
-        field_choices_descriptor = "(%s)" %field_choices_table.ToJSon()
         selected_orgs_table = SchoolDB.gviz_api.DataTable(
             ("field","string","Selected Organizations"))
         selected_orgs_table.LoadData([])
@@ -4337,10 +4359,59 @@ label="Single Line Per School")
         org_choices_table.LoadData(org_choices)
         org_choices_descriptor = "(%s)" %org_choices_table.ToJSon()
         javascript_generator.add_javascript_params({
-            "field_choices_table":field_choices_descriptor,
             "selected_fields_table":selected_fields_descriptor,
             "org_choices_table":org_choices_descriptor,
             "selected_orgs_table":selected_orgs_descriptor})
+        return field_choices_table
+
+#----------------------------------------------------------------------  
+class AchievementTestSummaryForm(BaseSummaryForm):
+    achievement_test_name = forms.CharField(required=False, 
+            label="Achievement Test",
+            widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
+    achievement_test = forms.CharField(required=False,
+                              widget=forms.HiddenInput, initial = "")   
+    parent_form = BaseSummaryForm
+    
+    def modify_params(self, params):
+        self.parent_form.modify_params(self, params)
+        params["title_bridge"] = " An "
+        params["title_suffix"] = "Achievement Test Summary Report"
+        params["show_choose_fields_block"] = True
+        params["achievement_test"] = True
+
+    def generate_javascript_code(self, javascript_generator):
+        achtest = javascript_generator.add_autocomplete_field(
+            class_name = "achievement_test", 
+            field_name = "id_achievement_test_name",
+            key_field_name = "id_achievement_test")
+        field_choices_table = self.parent_form.generate_javascript_code(
+            self, javascript_generator)
+        field_choices_table.LoadData(
+            SchoolDB.reports.AchievementTestReport.get_report_field_choices())
+        field_choices_descriptor = "(%s)" %field_choices_table.ToJSon()
+        javascript_generator.add_javascript_params({
+            "field_choices_table":field_choices_descriptor,
+            "report_type":"achievementTest"})
+
+#----------------------------------------------------------------------  
+class StudentSummaryForm(BaseSummaryForm):
+    parent_form = BaseSummaryForm
+    
+    def modify_params(self, params):
+        self.parent_form.modify_params(self, params)
+        params["title_suffix"] = "Student Information Summary Report"
+        params["show_choose_fields_block"] = True
+
+    def generate_javascript_code(self, javascript_generator):
+        field_choices_table = self.parent_form.generate_javascript_code(
+            self, javascript_generator)
+        field_choices_table.LoadData(
+            SchoolDB.reports.StudentSummaryReport.get_report_field_choices())
+        field_choices_descriptor = "(%s)" %field_choices_table.ToJSon()
+        javascript_generator.add_javascript_params({
+            "field_choices_table":field_choices_descriptor,
+            "report_type":"studentSummary"})
 
 #----------------------------------------------------------------------  
 class VersionedTextManagerForm(BaseStudentDBForm):
@@ -4445,7 +4516,58 @@ class VersionedTextForm(BaseStudentDBForm):
     @staticmethod
     def initialize(data):
         initialize_fields([("author", "author_name")], data)
+#-------------------------Special Purpose Forms------------------------
+# These forms are used for testing and maintenance and are not meant 
+# for normal work.
 
+class GenerateGradesForm(BaseStudentDBForm):
+    """
+    This form is used to define which acheivement tests, grading instances, 
+    and class years will have grades automatically filled in. It is meant
+    only for testing and should never be used on a real site. The url 
+    should be typed in and only available to the the database developer.
+    Warning:Dangerous!
+    """
+    class_year = forms.CharField(required=True,
+                             widget=forms.TextInput(attrs={
+                                 'class':'autofill required entry-field'}))
+
+    achievement_test_name = forms.CharField(required = False, 
+                label="Achievement Test:", widget=forms.TextInput(attrs=
+                {'class':'autofill entry-field'}))
+    achievement_test = forms.CharField(required = False, 
+                                   widget=forms.HiddenInput, initial="")
+    grading_period_name = forms.CharField(required = False, 
+                label="Grading Period:", widget=forms.TextInput(attrs=
+                {'class':'autofill entry-field'}))
+    grading_period = forms.CharField(required = False, 
+                                   widget=forms.HiddenInput, initial="")
+    fixed_seed = forms.BooleanField(required=False)
+    
+    def generate_javascript_code(self, javascript_generator):
+        clsyr = javascript_generator.add_autocomplete_field(
+            class_name = "class_year", field_name = "id_class_year")
+        clsyr.set_local_choices_list(SchoolDB.choices.ClassYearNames)
+        achtest = javascript_generator.add_autocomplete_field(
+            class_name = "achievement_test")
+        gdprd = javascript_generator.add_autocomplete_field(
+            class_name = "grading_period")
+        gdprd.add_extra_params({"use_class_query":"!true!"})
+    
+    def save(self, instance):
+        """
+        This is a replacement for the normal save action. Nothing will
+        saved. The data will be used to initiate the  grades generation.
+        """
+        class_year = self.cleaned_data["class_year"]
+        achievement_test = self.cleaned_data["achievement_test"]
+        grading_period = self.cleaned_data["grading_period"]
+        if (achievement_test):
+            SchoolDB.local_utilities_functions.create_fake_at_grades(class_year, achievement_test)
+        elif grading_period:
+            SchoolDB.local_utilities_functions.create_fake_gp_grades(class_year, grading_period)
+        
+        
 #--------------------------Utility Functions---------------------------
 def convert_to_field_value(instance, field_name):
     """
@@ -4814,9 +4936,7 @@ def filter_keystring(keystring):
     """
     if keystring:
         keystring = keystring[0:150]
-        #leave commented until can find characters in keystring
-        if re.search(r'(\W)', keystring):
-            keystring = None
+        keystring = keystring.strip()
     return keystring
 
 #----------------------------------------------------------------------

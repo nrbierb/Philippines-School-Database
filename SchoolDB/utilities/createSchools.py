@@ -56,8 +56,9 @@ def create_schools():
     return schools
 
 def create_users(schools):
-    master_person = SchoolDB.models.Administrator(first_name = "Neal", 
-        last_name = "Bierbaum", organization = schools["Compostela Practice HS"],
+    #compostela master
+    master_person = SchoolDB.models.Teacher(first_name = "Neal", 
+        last_name = "Bierbaum-CM", organization = schools["Compostela Practice HS"],
                 gender = "Male")
     master_person.put()
     usertype = SchoolDB.utility_functions.get_entities_by_name(
@@ -66,7 +67,49 @@ def create_users(schools):
                                 last_name = "Bierbaum", 
                                 person = master_person,
                                 organization = schools["Compostela Practice HS"], 
+                                email="nrbierb@gmailcm.com",
+                                user_type = usertype)
+    masterDBUser.post_creation()
+    #liloan master
+    master_person = SchoolDB.models.Teacher(first_name = "Neal", 
+        last_name = "Bierbaum-LA", organization = schools["Liloan Practice HS"],
+                gender = "Male")
+    master_person.put()
+    usertype = SchoolDB.utility_functions.get_entities_by_name(
+        SchoolDB.models.UserType,"Master")
+    masterDBUser = SchoolDB.models.DatabaseUser(first_name = "Neal",
+                                last_name = "Bierbaum", 
+                                person = master_person,
+                                organization = schools["Liloan Practice HS"], 
                                 email="nrbierb@gmail.com",
+                                user_type = usertype)
+    masterDBUser.post_creation()
+    #danao master
+    master_person = SchoolDB.models.Teacher(first_name = "Neal", 
+        last_name = "Bierbaum-DN", organization = schools["Danao City Practice HS"],
+                gender = "Male")
+    master_person.put()
+    usertype = SchoolDB.utility_functions.get_entities_by_name(
+        SchoolDB.models.UserType,"Master")
+    masterDBUser = SchoolDB.models.DatabaseUser(first_name = "Neal",
+                                last_name = "Bierbaum", 
+                                person = master_person,
+                                organization = schools["Danao City Practice HS"], 
+                                email="nrbierb@gmaildn.com",
+                                user_type = usertype)
+    masterDBUser.post_creation()
+    #liloan master
+    master_person = SchoolDB.models.Teacher(first_name = "Neal", 
+        last_name = "Bierbaum-CC", organization = schools["Cebu City Practice HS"],
+                gender = "Male")
+    master_person.put()
+    usertype = SchoolDB.utility_functions.get_entities_by_name(
+        SchoolDB.models.UserType,"Master")
+    masterDBUser = SchoolDB.models.DatabaseUser(first_name = "Neal",
+                                last_name = "Bierbaum", 
+                                person = master_person,
+                                organization = schools["Cebu City Practice HS"], 
+                                email="nrbierb@gmailcc.com",
                                 user_type = usertype)
     masterDBUser.post_creation()
     teacher = SchoolDB.models.Teacher(first_name = "A", middle_name = "Db", 

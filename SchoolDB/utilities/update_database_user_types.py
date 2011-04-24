@@ -1,9 +1,11 @@
 #! /usr/bin/python2.5
-import pickle, sys
+import pickle, sys, logging
 #sys.path.insert(1,'/home/master/SchoolsDatabase/phSchoolDB/')
-#from appengine_django import InstallAppengineHelperForDjango
-#InstallAppengineHelperForDjango()
+from appengine_django import InstallAppengineHelperForDjango
+InstallAppengineHelperForDjango()
+from google.appengine.api import users
 from google.appengine.ext import db
+import SchoolDB.views
 import SchoolDB.models
 
 """
@@ -327,12 +329,13 @@ def build_master_permissions():
         "function_permissions":function_permissions}
     return permissions
 
-def create_user_type(name, home_page, permissions_function, 
+def create_user_type(name, home_page, permissions_function, maint_page, 
                      master_user=False):
     user_type = SchoolDB.models.UserType()
     user_type.master_user = master_user
     user_type.name = name
     user_type.home_page = home_page
+    user_type.maint_page = maint_page
     permissions_creator = UserPermissionsCreator() 
     permission_params = permissions_function()
     user_type.active_permissions_vault = \
@@ -343,11 +346,13 @@ def create_user_type(name, home_page, permissions_function,
 def create_upper_level_user_type():
     return create_user_type(name = "UpperLevelUser", 
         home_page = "upperlevel_home",
+        maint_page = "upperlevel_maint",
         permissions_function = build_upper_level_permissions)
 
 def create_upper_level_db_admin_type():
     return create_user_type(name = "UpperLevelDbAdministrator", 
         home_page = "upperlevel_adminhome",
+        maint_page = "upperleveladmin_maint",
         permissions_function = build_upper_level_admin_permissions)
     
 def create_teacher_user_type():
@@ -389,19 +394,6 @@ def create_student_user_type():
     user_type.prepare_to_save()
     return user_type
 
-def create_upper_level_user_type():
-    user_type = SchoolDB.models.UserType()
-    user_type.master_user = False
-    user_type.name = "UpperLevelUser"
-    user_type.home_page = "upperlevelhome"
-    user_type.maint_page = "upperleveladmin_maint"
-    permissions_creator = UserPermissionsCreator()    
-    permission_params = build_upper_level_permissions()
-    user_type.active_permissions_vault = \
-             permissions_creator.create_user_permissions_vault(permission_params)
-    user_type.prepare_to_save()
-    return user_type
- 
 def create_master_user_type():
     user_type = SchoolDB.models.UserType()
     user_type.master_user = True
@@ -437,7 +429,7 @@ def update_database_user_types(logger = None):
     permissions_vault.
     """
     user_types = build_user_types()
-    update_list = ("Teacher", "Student", "UpperLevelUser","UpperLevelDbAdministrator","SchoolDbAdministrator",None)
+    update_list = ("Teacher", "Student", "UpperLevelUser","UpperLevelDbAdministrator","SchoolDbAdministrator","Master",None)
     for i in update_list:
         if i:
             user_type_instance = user_types[i]
@@ -450,7 +442,7 @@ def update_database_user_types(logger = None):
             else:
                 user_type_instance = user_types[i]
                 user_type_instance.put()
-            
+    logging.info("Created %d user types", len(update_list))
                 
 if __name__ == '__main__':
     update_database_user_types()

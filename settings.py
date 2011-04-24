@@ -20,10 +20,11 @@ DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
 ADMINS = (
-    ('Neal Bierbaum', "nrbierb@gmail.com")
+    ('Neal Bierbaum', "schooldb.errors@gmail.com")
 )
 
 MANAGERS = ADMINS
+SERVER_EMAIL = "schooldb.errors@gmail.com"
 
 DATABASE_ENGINE = 'appengine'  
 DATABASE_NAME = ''             # Or path to database file if using sqlite3.

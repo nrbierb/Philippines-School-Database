@@ -61,9 +61,9 @@ def delete_all_localities():
 def load_localities(pickle_file, provinces= []):
     data = local_utilities.read_pickle(pickle_file)
     if (data):
-        if (load_localities.delete_all_localities()):
-            pass
-            #load_localities.load_database(data, provinces)
+        #if (load_localities.delete_all_localities()):
+            #pass
+        load_localities.load_database(data, provinces)
     
             
             

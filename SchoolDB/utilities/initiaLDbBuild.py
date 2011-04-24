@@ -46,9 +46,12 @@ def initial_build():
     db.put(pending_entities)
     logging.info("Created majors")
     pending_entities = []
-    for name in ("Enrolled", "Dropped Out", "Graduated", "Transferred Out"):
+    for name in ("Dropped Out", "Graduated", "Transferred Out"):
         pending_entities.append(SchoolDB.models.StudentStatus(name = name,
                                 organization = national,parent = national))
+        pending_entities.append(SchoolDB.models.StudentStatus(
+            name = "Enrolled", active_student=True, default_choice=True,
+            organization = national,parent = national))
     db.put(pending_entities)
     logging.info("Created statuses")
     pending_entities = []

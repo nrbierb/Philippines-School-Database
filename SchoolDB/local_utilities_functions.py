@@ -18,8 +18,8 @@ Utilities that are normally used as scheduled jobs or called from the
 "Run Utility" web page. 
 """
 
-import cPickle, zlib, datetime, base64
-import logging
+import cPickle, zlib, datetime, random, logging
+from django.utils import simplejson
 import SchoolDB.models
 
 
@@ -134,12 +134,11 @@ def bulk_update_by_task(model_class, filter_parameters, change_parameters,
 def update_student_summary(force = False):
     """
     The utility function called as a scheduled job to perform an update
-    on school student summary records. The caller must belong to a school
-    organization.
+    on school student summary records.
     """
     try:
         organization = \
-            SchoolDB.models.getActiveDatabaseUser().get_active_organization()
+            SchoolDB.models.getActiveOrganization()
         if (organization.classname == "School"):
             result = organization.update_student_summary(force)
             return result
@@ -161,18 +160,27 @@ def update_student_summary_by_task(encompassing_organization=None,
     if orgs_list:
         for organization in orgs_list:
             org_keystring = str(organization.key())
+            task_name = "Update Student Summary: " + unicode(organization)
+            if (force):
+                task_name = "Forced " + task_name
             task_generator = SchoolDB.assistant_classes.TaskGenerator(
-                task_name="Update Student Summary", function=
+                task_name = task_name, function=
                 "SchoolDB.local_utilities_functions.update_student_summary",
-                function_args=force, organization=org_keystring)
+                function_args=force, organization=org_keystring, 
+                rerun_if_failed=False)
             task_generator.queue_tasks()
 
-def update_student_summary_utility(logger, encompassing_organization=None,
-                                   force = False):
+def update_student_summary_utility(logger, encompassing_organization_name="",
+                                   force = ""):
     """
     A trivial wrapper for call from utilrequest webpage
     """
-    update_student_summary_by_task(encompassing_organization, force)
+    encompassing_organization = None
+    if (encompassing_organization_name):
+        q = SchoolDB.models.Organization.all()
+        q.filter("name =", encompassing_organization_name)
+        encompassing_organization = q.get()
+    update_student_summary_by_task(encompassing_organization, (force != ""))
     logger.add_line("Queued all")
     
 #----------------------------------------------------------------------
@@ -259,3 +267,233 @@ def create_new_attendance_records_utility(logger):
         return result_string
     except StandardError, e:
         return "Failed: %s" %e
+
+def generate_sample_grades(count, max_value = 100, round_result=True, 
+                           pilot_section=False):
+    """
+    Use a weibull distribution to generate a sample set of grades. This
+    will create count values with a maximum value max value, and, if
+    integer_value is true then the grades will be only integer values.
+    The value is initially computed without rounding on a 0 -100 basis
+    with an offset of 75 so that most will pass. The multiplier is used
+    to have a 4% probablility that the result is above 100 which is
+    converted to a failing grade by subtracting 2 * the excess above
+    100 from 70. Finally it is scaled and, if necessary, converted to
+    integer. If pilot section then dstribution is changed to give higher grades
+    """
+    #for test we may want a standard set of "random" values that can be
+    #generated with a fixed seed. Leave the next line commented out normally
+    #random.seed(1)
+    grades_list = []
+    passing_grade = 75.0
+    multiplier = 8.0
+    weibull_scale_factor = 1.5
+    if pilot_section:
+        multiplier = 11.0
+        weibull_scale_factor = 4.0       
+    working_range = 100.0 - passing_grade
+    for i in xrange(count):
+        wb_value = random.weibullvariate(1.3, weibull_scale_factor) * multiplier
+        if (wb_value < working_range):
+            raw_grade = passing_grade + wb_value
+        elif pilot_section:
+            #just innvert the excess -- it keeps the grades high and does
+            #not allow failure
+            delta = wb_value - working_range
+            raw_grade = 100.0 - delta           
+        else:
+            #convert to failing grade
+            delta = wb_value - working_range
+            raw_grade = passing_grade - delta
+        grade = raw_grade * max_value/100.0
+        if (round_result):
+            grade = round(grade)
+        grades_list.append(grade)
+    return grades_list
+
+def generate_artificial_grades(grades_table, grading_instances_list, 
+                               round_result = True,  pilot_section = False):
+    """
+    Emulate the web page in loading the grading table, filling in values,
+    and then sending it back. The only real action to be done in this function
+    is setting each element of the raw data array to a generated grade.
+    """
+    #grades_table is a 2D array with the primary index as row (a student)
+    #and the secondary index as column (grading_instance) grades
+    #generated by grading instance because each gdinst may have a
+    #different max value
+    rows = len(grades_table)
+    cols = len(grades_table[0])
+    for gdinst in xrange(cols):
+        grades_list = generate_sample_grades(rows, 
+                        grading_instances_list[gdinst].number_questions,
+                        round_result, pilot_section)    
+        for student in xrange(rows):
+                grades_table[student][gdinst] = grades_list[student]
+    return grades_table
+    
+def insert_artificial_grades(grading_instances_keys, student_group,
+                             grading_instances_owner, achievement_test = False,
+                             round_result = True, pilot_section = False):
+    """
+    Fill in grades with artificial values for test and demonstration.
+    This uses the ajax base grade handlers just connected back to back.
+    The AjaxGetGradeHandler generates the infomation about the students
+    grading entities, fake grades are inserted, and then
+    AjaxSetGradeHandler records them. This acts like the web page to
+    fill in the values. The grading_instances_keys are list of all
+    grading instances to be handeled. The student group is the class
+    session or, for achv test, the section. The grading instances owner
+    is ether the class session or the achievement test. If
+    pilot_section is true then a slightly different grading
+    distribution is used to generate somewhat better grades.
+    """
+    try:
+        #generate json to give to the GetGradesHandler
+        json_gi_key_strings = simplejson.dumps([str(key) for key in
+                                                grading_instances_keys])
+        achievement_test_keystr = str(grading_instances_owner.key())
+        json_req_data = {"requested_action":"full_package",
+                         "achievement_test":achievement_test_keystr,
+                         "gi_keys":json_gi_key_strings}
+        json_req = simplejson.dumps(json_req_data)                     
+        #Use GetGradesHandler to generate the tables
+        get_grades_handler = SchoolDB.assistant_classes.AjaxGetGradeHandler(
+            student_group, json_req)
+        table_header, grading_instances_list, student_keystrs,\
+                    student_record_data, grades_table = \
+                    get_grades_handler.create_raw_information()
+        # all arrays have a first column that is either empty or a name -- strip
+        grading_instances_list.pop(0)
+        for i in xrange(len(grades_table)):
+            grades_table[i].pop(0)
+        #process the table to fill in grades with fake grades
+        grades_table = generate_artificial_grades(grades_table, 
+                        grading_instances_list, round_result, pilot_section)    
+        gi_key_strings = [str(gi.key()) for gi in grading_instances_list]
+        # use SetGradesHandler to set the grades
+        grade_handler = SchoolDB.assistant_classes.AjaxSetGradeHandler(
+            student_grouping = student_group, 
+            gi_owner = grading_instances_owner,
+            gi_key_strings = gi_key_strings,
+            student_record_key_strings = student_keystrs,
+            grades_table = grades_table,
+            student_class_records_table = student_record_data,
+            gi_changes = None)
+        grade_handler.service_request()
+        return len(grades_table)
+    except StandardError, e:
+        logging.error('insert_artificial_grades failed for section "%s": %s' \
+                      %(unicode(student_group), e))
+        return 0
+    
+def fake_at_grades(section_keystr, achievement_test_keystr):
+    """
+    
+    """
+    try:
+        section = SchoolDB.utility_functions.get_instance_from_key_string(
+            section_keystr,SchoolDB.models.Section)
+        achievement_test = SchoolDB.utility_functions.get_instance_from_key_string(
+            achievement_test_keystr,SchoolDB.models.AchievementTest)
+        pilot_section = (section.section_type == 
+                         SchoolDB.utility_functions.get_entities_by_name(
+                             SchoolDB.models.SectionType, "Pilot"))
+        grading_instances = achievement_test.get_grading_instances(section)
+        grading_instances_keys = [gi.key() for gi in grading_instances]
+        number_graded = insert_artificial_grades(grading_instances_keys = \
+                grading_instances_keys,
+                student_group=section, grading_instances_owner=achievement_test,
+                achievement_test = True, pilot_section = pilot_section)
+        if number_graded:
+            logging.info( \
+                'Fake AppTest grades set %d grades for %d students in section "%s"'
+                %(len(grading_instances), number_graded, unicode(section)))
+            return number_graded
+    except StandardError, e:
+        logging.error('fake_at_grades failed for section "%s": %s' \
+                      %(unicode(section), e))
+        return 0
+                             
+def fake_gp_grades(class_session_keystr, grading_period_keystr):
+    """
+    Create fake grades for a single grading period for a single class session.
+    """
+    try:
+        class_session = SchoolDB.utility_functions.get_instance_from_key_string(
+            class_session_keystr, SchoolDB.models.ClassSession)
+        student_records = class_session.get_student_class_records()
+        students = class_session.get_students_from_records(student_records)   
+        #create fake data
+        student_keystr_array = [str(student.key()) for student in students]
+        gp_array = [grading_period_keystr]
+        #create fake data
+        grades_array = [[gd] for gd in generate_sample_grades(len(students))]
+        results_table = {"columns":gp_array, "data":grades_array, 
+                         "keys":student_keystr_array}
+        gp_handler = SchoolDB.assistant_classes.GradingPeriodGradesHandler(
+            class_session = class_session, edit_grading_periods=gp_array,        
+                     view_grading_periods=[], students=[], 
+                     results_table=results_table)
+        gp_handler.set_grades()
+        logging.info('Fake GP grades set for %d students in class "%s"' \
+                     %(len(students), unicode(class_session)))
+        return True
+    except StandardError, e:
+        logging.error('fake_gp_grades failed for class "%s": %s'\
+                      %(unicode(class_session), e))
+        return False
+        
+
+def create_fake_at_grades(class_year, achievement_test_keystr):
+    """
+    Create tasks to create fake grades on achievement test for every section 
+    in the class year at the school.
+    """
+    #Confirm that this class year has taken the achievement test
+    try:
+        achievement_test = SchoolDB.models.get_instance_from_key_string(
+            achievement_test_keystr, SchoolDB.models.AchievementTest)
+        achievement_test.class_years.index(class_year)
+        #will throw exception if class year not in list
+        query = SchoolDB.models.Section.all()
+        query.filter("class_year =", class_year)
+        query.filter("organization =", SchoolDB.models.getActiveOrganization())
+        for section in query:
+            function_args='section_keystr="%s", achievement_test_keystr="%s"' \
+                         %(str(section.key()), achievement_test_keystr)
+            task_generator =SchoolDB.assistant_classes.TaskGenerator(
+                        task_name="fake_at_grades", function = 
+                        "SchoolDB.local_utilities_functions.fake_at_grades", 
+                        function_args=function_args, rerun_if_failed=False)
+            successful, result_string = task_generator.queue_tasks()
+            logging.info("Queued achievement test fake grades for %s",
+                         unicode(section))
+        logging.info("All fake grades enqueued")
+    except ValueError:
+            logging.warning(\
+                "Achievement test %s was not taken by %s. No action performed." \
+                %(unicode(achievement_test), class_year))
+
+
+def create_fake_gp_grades(class_year, grading_period_keystr):
+    """
+    Set fake grades for grading period. This uses a completly different set of software than achievement tests to get and set grades. The two parts are:
+    """
+    query = SchoolDB.models.ClassSession.all()
+    query.filter("organization =", SchoolDB.models.getActiveOrganization())
+    query.filter("class_year =", class_year)
+    for class_session in query:
+        class_session_keystr = str(class_session.key())
+        function_args = 'class_session_keystr="%s", grading_period_keystr="%s"' \
+                      %(class_session_keystr, grading_period_keystr)
+        task_generator =SchoolDB.assistant_classes.TaskGenerator(
+                    task_name="fake_gp_grades", function = 
+                    "SchoolDB.local_utilities_functions.fake_gp_grades", 
+                    function_args=function_args, rerun_if_failed=False)
+        successful, result_string = task_generator.queue_tasks()
+        logging.info("Queued grading period fake grades for %s",
+                         unicode(class_session))
+        logging.info("All fake grades enqueued")
+        
+    
