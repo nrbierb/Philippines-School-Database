@@ -4,18 +4,21 @@
 $(function(){
 	//Expand forms list on click
 	$("#form_expand_button").click(function(){
+		var hide_string = "Hide Numbered Forms " + String.fromCharCode(8657);
+		var show_string = "Show Numbered Forms " + String.fromCharCode(8659);
 			$('#report_form1').slideToggle(50,function(){
-			if ($('#form_expand_button').val() == "Show Forms") {
-				$('#form_expand_button').val("Hide Forms");
+			if ($('#form_expand_button').val() == show_string) {
+				$('#form_expand_button').val(show_string);
 			}
 			else {
-				$('#form_expand_button').val("Show Forms");
+				$('#form_expand_button').val(show_string);
 			}
 		});
 		$('#report_form2').slideToggle(50);
-		$('#report_form3').slideToggle(50);
-		$('#report_form4').slideToggle(50);
-		$('#report_form5').slideToggle(50);
+		$('#report_form9').slideToggle(50);
+		$('#report_form14').slideToggle(50);
+		$('#report_form18').slideToggle(50);
+		$('#report_form137').slideToggle(50);
 	});	
 });
 {% endblock local_javascript_code %}
@@ -24,49 +27,53 @@ $(function(){
 <p class="form-title">Choose Report Type</p>
 <fieldset class="major one-col-buttons">
 <legend class="major">Choose A Report Type</legend>
-<table class="lg-btn" >
+<table  >
   <tbody>
 	  <tr>
-      <td class="width200"><a id="attendance" class="btn blue tb" 
+      <td class="width200"><a id="attendance" class="btn blue menu-button" 
 	  	href="/reports/attendance">Attendance</a></td>
 	  </tr>
 	  <tr>
-      <td class="width200"><a id="student_age" class="btn blue tb" 
+      <td ><a id="student_age" class="btn blue menu-button" 
 	  	href="/reports/student_age">Student Age Summary</a></td>
 	  </tr>
 	  <tr>
-      <td class="width200"><a id="section_list" class="btn blue tb" 
+      <td ><a id="section_list" class="btn blue menu-button" 
 	  	href="/reports/section_list">Section List</a></td>
 	  </tr>
 	  <tr>
-      <td class="width200"><a id="student_records_check" class="btn blue tb" 
+      <td ><a id="student_records_check" class="btn blue menu-button" 
 	  	href="/reports/student_record_check">Student Records Check</a></td>
 	  </tr>
 	  <tr>
-      <td class="width200"><a id="custom_reports" class="btn blue tb" 
+      <td ><a id="custom_reports" class="btn blue menu-button" 
 	  	href="/choose_custom_report">Custom Reports</a></td>
 	  </tr>
 	  <tr>
-		<td class="width200"><input type="button" id="form_expand_button" 
-		class="btn blue tb menu-button" value="Show Forms" ></input></td>
+		<td ><input type="button" id="form_expand_button" 
+		class="btn blue tb menu-button" value="Show Numbered Forms &#8659;" ></input></td>
 		</tr>
 	  <tr class="hidden" id="report_form1">
-      <td class="width200"><a id="form1" class="btn blue tb" 
-	  	href="/reports/school_register">Form 1</a></td>
+      <td ><a id="form1" class="btn blue menu-button" 
+	  	href="/reports/form1">Form 1</a></td>
 	  </tr>
  	  <tr class="hidden" id="report_form2">
-      <td class="width200 not-ready"><a id="form9" class="btn blue tb" 
+      <td ><a id="form2" class="btn blue menu-button" 
+	  	href="/reports/form2">Form 2</a></td>
+	  </tr>
+  	  <tr class="hidden" id="report_form9">
+      <td><a id="form9" class="btn blue menu-button not-ready" 
 	  	href="/choose_report">Form 9</a></td>
 	  </tr>
- 	  <tr class="hidden" id="report_form3">
-      <td class="width200"><a id="form14" class="btn blue tb" 
+ 	  <tr class="hidden" id="report_form14">
+      <td><a id="form4" class="btn blue menu-button" 
 	  	href="/reports/form14">Form 14</a></td>
 	  </tr>
- 	  <tr class="hidden" id="report_form4">
-      <td class="width200 not-ready"><a id="form18" class="btn blue tb" 
+ 	  <tr class="hidden" id="report_form18">
+      <td ><a id="form18" class="btn blue menu-button not-ready" 
 	  	href="/choose_report">Form 18</a></td>
- 	  <tr class="hidden" id="report_form5">
-      <td class="width200 not-ready"><a id="form137" class="btn blue tb" 
+ 	  <tr class="hidden" id="report_form137">
+      <td><a id="form137" class="btn blue menu-button not-ready" 
 	  	href="/choose_report">Form 137</a></td>
 	  </tr>
 	  </tr>

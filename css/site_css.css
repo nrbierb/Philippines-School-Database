@@ -12,6 +12,7 @@ h1 {font-weight:bold; font-style:italic;
 	color:#1d3059}
 h2 {font-size:1.15em; margin-top:0pt; margin-bottom:0pt;}
 h3 {font-size:1.05em; margin-top:3pt; margin-bottom:0pt;}
+h4 {font-size:1.0em}
 em {
 	font-variant: small-caps; 
 	margin-right:2pt; 
@@ -158,7 +159,7 @@ tr.tblRow {
 	color: black;
 }
 
-.tblOddRow {
+tr.tblOddRow {
 	background: #dbe5f3 url(/media/shade.png) 80% 80% repeat-x;
 	color: black;
 }
@@ -464,6 +465,7 @@ ul.errorlist{
 	margin-left:auto;
 	margin-right:auto;
 	text-align:center;
+	font-family:  Arial, Helvetica, sans-serif;
 	font-size:1.0em;
 	font-weight: bold;
 	width:200px;
@@ -487,16 +489,7 @@ width: 50px;
 padding: 0;
 }
 
-input {
-	border-style:inset;
-	border-width:2px;
-	background-color:#f5ffff;
-	border-radius: 5px;
-	-moz-border-radius: 5px;
-	-webkit-border-radius: 5px;
-}
-
-textarea {
+text, textarea {
 	border-style:inset;
 	border-width:2px;
 	background-color:#f5fffc;

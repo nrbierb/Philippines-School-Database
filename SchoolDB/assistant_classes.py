@@ -33,7 +33,7 @@ class InformationContainer():
     database as blobs after pickling and may optionally use compression to
     reduce storage size.
     """
-    def __init__(self, version_id):
+    def __init__(self, version_id = 1):
         #Change version id when a software change in the class 
         #definition requires that the data be converted in a 
         #different manner upon unpickling. 
@@ -146,9 +146,11 @@ class TaskGenerator():
         active_user_keystr = \
             str(SchoolDB.models.getActiveDatabaseUser().get_active_user().key())
         self.task_dict = {"task_name":task_name, "function":function, 
-                    "args":function_args, "organization":organization,
+                    "args":function_args,
                     "rerun_if_failed":rerun_if_failed,
                     "task_initiator":active_user_keystr}
+        if organization:
+            self.task_dict["organization"] = organization
         self.task_name = task_name
         self.instance_keylist = instance_keylist
         self.instances_per_task = instances_per_task

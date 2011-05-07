@@ -46,8 +46,8 @@ function modifyHelpBalloonText(balloonHelp){
 			balloonHelp.select_edit_button = balloonHelp.select_edit_button +
 			localParams.titleName;
 		}
-		else if (DomID == "select_create_button") {
-			balloonHelp.select_create_button = balloonHelp.select_create_button +
+		else if (DomID == "select_view_button") {
+			balloonHelp.select_view_button = balloonHelp.select_view_button +
 			localParams.titleName;
 		}
 	}
@@ -80,13 +80,13 @@ $(function() {
 	});
 	
 	$("#select_edit_button").click(function(){
-		$("#title_div").text("Edit A " + localParams.titleName);
+		$("#title_div").text("Edit a " + localParams.titleName);
 		requestedAction = "Edit";
 		showSelection();
 	});
 
 	$("#select_view_button").click(function(){
-		$("#title_div").text("View A " + localParams.titleName);
+		$("#title_div").text("View a " + localParams.titleName);
 		requestedAction = "View";
 		showSelection();
 	});		

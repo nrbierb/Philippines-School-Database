@@ -197,7 +197,7 @@ class StudentAgeReport():
             distribution_table = [["No Students",(0,'--'),(0,'--'),(0,'--'),
                               (0,'--'),(0,'--'),(0,'--')]]
         return (distribution_table_description, distribution_table, 
-                distribution_keys, report_generator.error)
+                distribution_keys, None, report_generator.error)
 
 #----------------------------------------------------------------------
 
@@ -281,7 +281,7 @@ class SchoolRegisterReport():
         #(sorted_table,sorted_keys) = \
          #SchoolDB.models.sort_table_contents_and_key(
              #table_contents, keys, [(1,False),(0,False)])
-        return (table_description, table_contents, keys, "")
+        return (table_description, table_contents, keys, None, "")
 
     @staticmethod
     def create_report_table(parameter_dict, primary_object,
@@ -361,7 +361,7 @@ class SectionListReport:
                str(self.count["Male"] + self.count["Female"]),"","","","",""]
         table_contents.extend([row1,row2,row3,row4])
         keys.extend(["","","",""])
-        return(table_description, table_contents, keys, "")
+        return(table_description, table_contents, keys, None, "")
     
     @staticmethod
     def create_report_table(parameter_dict, primary_object,
@@ -389,21 +389,16 @@ class StudentRecordCheck:
         query.filter("organization = " , 
                 SchoolDB.models.getActiveDatabaseUser().get_active_organization())
         if (self.report_type == "No Current Enrollment"):
-            #this uses inequality filter so sort must be on same field
-            #just skip sort and let the table do it
-            active_status_key = \
-                        SchoolDB.models.get_active_student_status_key()
-            query.filter("student_status = ", active_status_key)
-            SchoolDB.models.filter_by_date(query, "before",
-                                        "student_status_change_date", 0)
-            self.query = query
-            return
+            query.filter("student_status", 
+                        SchoolDB.models.get_student_status_key_for_name(
+                            "Not Currently Enrolled"))
         elif (self.report_type == "No Section"):
+            SchoolDB.models.active_student_filter(query)
             query.filter('section = ', None)
         else:
             #report type is missing records
+            SchoolDB.models.active_student_filter(query)
             query.filter('section = ', self.section)
-        SchoolDB.models.active_student_filter(query)
         query.order('last_name')
         query.order('first_name')
         self.query = query
@@ -417,27 +412,24 @@ class StudentRecordCheck:
         """
         self.table_description = [('last_name','string','Last Name'),
                     ('first_name','string','First Name'),
+                    ('class_year','string', 'Last Class Year'),
                     ('last_date', 'string','Last Change Date')]
         table_contents = []
         keys = []
-        student_status_not_enrolled_key = \
-                SchoolDB.models.get_student_status_key_for_name(
-                "Not Currently Enrolled")
         for student in self.query:
-            keys.append(str(SchoolDB.models.get_key_from_instance(
+            keys.append(str(SchoolDB.utility_functions.get_key_from_instance(
                 student)))
             table_contents.append([student.last_name, 
                                    student.first_name,
+                unicode(student.class_year),
                 student.student_status_change_date.strftime(
                     "%m/%d/%Y")])
-            student.student_status = student_status_not_enrolled_key
-            student.put()
         if (len(table_contents)):
             (self.table_contents, self.keys) = \
              SchoolDB.models.sort_table_contents_and_key(
                  table_contents, keys, [(1,False),(0,False)])
         return(self.table_description, self.table_contents, 
-               self.keys, "")
+               self.keys, None, "")
         
     def build_no_section_table(self):
         self.table_description = [('last_name','string','Last Name'),
@@ -448,7 +440,8 @@ class StudentRecordCheck:
                 student)))
             self.table_contents.append([student.last_name, 
                                    student.first_name, student.class_year])
-        return(self.table_description, self.table_contents, self.keys, "")
+        return(self.table_description, self.table_contents, self.keys, 
+               None, "")
         
     def build_missing_info_table(self):   
         self.table_description = [("namel", "string", "Family Name"),
@@ -480,7 +473,7 @@ class StudentRecordCheck:
                     table_entry.append(missing_fields[i])           
                 self.table_contents.append(table_entry)
         return(self.table_description, self.table_contents, 
-               self.keys, "")
+               self.keys, None, "")
     
     @staticmethod
     def create_report_table(parameter_dict, primary_object,
@@ -629,7 +622,7 @@ class Form14Report():
         self.compute_summary_values()
         table_description, data_table = self.build_report_table()
         keys = [data_table[i][0] for i in range(len(data_table))]
-        return table_description, data_table, keys, ""
+        return table_description, data_table, keys, None, ""
         
     @staticmethod
     def create_report_table(parameter_dict, primary_object,
@@ -800,7 +793,7 @@ class SummaryReportBase():
         table_data = self._get_table_data()
         table_desc = self._get_table_description()
         keys = [" " for i in range(len(table_data))]
-        return (table_desc, table_data, keys, '')
+        return (table_desc, table_data, keys, None, '')
     
     @staticmethod
     def create_report_table(parameter_dict, primary_object,
@@ -826,7 +819,7 @@ class AchievementTestReport(SummaryReportBase):
     
     """
     This class builds acheivement test reports from information from
-    the achievement test summaries. It designed suppurt upper level
+    the achievement test summaries. It designed support upper level
     group reports sith information from multiple schools.
     """
     
@@ -839,6 +832,7 @@ class AchievementTestReport(SummaryReportBase):
         SummaryReportBase.__init__(self, parameter_dict, 
             primary_object, secondary_class, secondary_object)
         self.achievement_test = primary_object
+        self.subject = secondary_object
     
     #def build_table(self):
         #pass
@@ -851,6 +845,7 @@ class AchievementTestReport(SummaryReportBase):
         row. If row type "section" create a row for each section.
         """
         table_entry = []
+        return table_entry
         #try:
         info_summary_db_instance = school.student_summary
         info_summary = info_summary_db_instance.get_current_summary()
@@ -898,14 +893,11 @@ class AchievementTestReport(SummaryReportBase):
         name used in the report header.
         """
         values_dict["# Stu"] = section_data.num_students[col]
-        values_dict["Balik Aral"] = section_data.balik_aral[col]
-        values_dict["Trans In"] = section_data.transferred_in[col]
-        values_dict["Trans Out"] = section_data.transferred_out[col]
-        values_dict["Dropped Out"] = section_data.dropped_out[col]
-        values_dict["Min Age"] = section_data.min_age[col]
-        values_dict["Max Age"] = section_data.max_age[col]
-        values_dict["Avg Age"] = section_data.average_age[col]
-        values_dict["Median Age"] = section_data.median_age[col]
+        values_dict["Minimum"] = section_data.balik_aral[col]
+        values_dict["Maximum"] = section_data.transferred_in[col]
+        values_dict["Average"] = section_data.transferred_out[col]
+        values_dict["Median"] = section_data.dropped_out[col]
+        values_dict["Histogram"] = section_data.min_age[col]
 
     @staticmethod
     def get_report_field_choices():

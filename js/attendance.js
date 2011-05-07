@@ -18,6 +18,7 @@ var dataMapping =
 var valueImages = {
 	"notactive":{"alt_text":"X", "image":"/media/hash.gif", "name":"notactive"},
 	"noedit":{"alt_text":"N", "image":"/media/dash.gif", "name":"noedit"},
+	"othersection":{"alt_text":"O", "image":"/media/other.gif", "name":"othersection"},
     "unknown":{"alt_text":"U",	"image":"/media/yellow-question.gif", "name":"unknown"},
     "present":{"alt_text":"P", "image":"/media/green-check.png", "name":"present"},
     "absent":{"alt_text":"A", "image":"/media/red-x.png","name":"absent"}
@@ -404,8 +405,8 @@ function returnResults() {
 $(function() {
 // Initialization actions
 	var sectionKey = $("#id_section").val();
-	if ((sectionKey == "") && ($.cookie("active_section") != null)){
-		sectionKey = $.cookie("active_section");
+	if ((sectionKey == "") && ($.cookie("aS") != null)){
+		sectionKey = $.cookie("aS");
 	}
 
 	var samePeriodDialog =  $('#local_error_div')

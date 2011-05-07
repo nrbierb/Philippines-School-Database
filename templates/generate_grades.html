@@ -1,0 +1,22 @@
+{% extends 'forms_base.html' %}
+{% block extended %}
+<fieldset>
+<legend>Grading Target Selection (Not for real DB)</legend>
+<table class="unbordered"> 
+        <tr>
+          <td><label for="id_class_year" id="id_class_year_label">Class Year*:</label></td>
+          <td>{{ form.class_year}}</td>
+        </tr>
+        <tr>
+          <td><label for="id_achievement_test_name" id="id_achievement_test_name_label">AchievementTest:</label></td>
+          <td> {{form.achievement_test_name}}</td>
+        </tr>
+        <tr>
+          <td><label for="id_grading_period" id="id_grading_period_label">Grading Period:</label></td>
+          <td> {{form.grading_period_name}}</td>
+        </tr>
+</table>
+</fieldset>
+{{form.achievement_test}}
+{{form.grading_period}}
+{% endblock extended %}

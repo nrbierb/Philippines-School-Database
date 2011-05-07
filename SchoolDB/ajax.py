@@ -76,6 +76,7 @@ class AjaxServer():
             "students_family_key":self._students_family_key,
             "students_family":self._students_family,
             "create_family":self._create_family,
+            
             "cleanup_family":self._cleanup_family,
             "suggest_siblings":self._suggest_siblings,
             "find_similar_students":self._find_similar_students,
@@ -89,6 +90,8 @@ class AjaxServer():
               self._get_achievement_test_grading_instances,
             "get_achievement_tests_for_section":\
               self._get_achievement_tests_for_section,
+            "get_subjects_for_achievement_test":\
+              self._get_subjects_for_achievement_test,
             "edit_grading_period_grades":self._edit_grading_period_grades,
             "get_gradebook_entries":self._get_gradebook_entries,
             "change_date":self._change_date,
@@ -264,20 +267,25 @@ class AjaxServer():
         
     def _calculated_table(self):
         function = self._get_mapped_function()
-        table_description, table_data, key_list, error = function(
-            parameter_dict = self.argsDict, 
-            primary_object = self.target_object,
-            secondary_class = self.secondary_class,
-            secondary_object = self.secondary_object)
+        table_description, table_data, key_list, extra_data, error, = \
+                         function(parameter_dict = self.argsDict, 
+                                  primary_object = self.target_object,
+                                  secondary_class = self.secondary_class,
+                                  secondary_object = self.secondary_object)
         if (error):
             raise AjaxError, error
-        self._produce_table(table_description, table_data, key_list)
+        self._produce_table(table_description, table_data, key_list, 
+                            extra_data)
         
-    def _produce_table(self, table_description, table_data, key_list):
+    def _produce_table(self, table_description, table_data, key_list, 
+                           extra_data=None):
         json_table = self._make_table(table_description, table_data)
         json_key_list = simplejson.dumps(key_list)
         json_combined = simplejson.dumps({"keysArray":json_key_list, 
                                           "tableDescriptor":json_table})
+        if (extra_data):
+            json_combined = simplejson.dumps({"table":json_combined,
+                                             "extra_data":extra_data})
         self.return_string = json_combined
         
     def _set_single_value(self):
@@ -484,16 +492,22 @@ class AjaxServer():
         table. The request will have the student section as target_object
         and the end date as end_date in the dict.
         """
-        student_keys = self.target_object.get_students()
         if self.argsDict.get("end_date",None):
             d_array = simplejson.loads(
                 self.argsDict.get("end_date",None))
             end_date=date(d_array[0],d_array[1],d_array[2])
         else:
-            end_date = date.today()            
+            end_date = date.today()
+        display_end_date = \
+            SchoolDB.student_attendance.AttendanceTableCreator.compute_display_end_date(end_date)
+        start_date = SchoolDB.student_attendance.AttendanceTableCreator.compute_default_start_date(display_end_date, 2)
+        #get the list of all students who were in the section during the time of the attendance table period
+        students = self.target_object.get_inclusive_student_list_for_period(
+            start_date=start_date, end_date=end_date, 
+             sort_by_gender = False)
         attendance_creator = \
             SchoolDB.student_attendance.AttendanceTableCreator(
-                students=student_keys, end_date=end_date, 
+                students=students, end_date=end_date, 
                 section=self.target_object)
         table_descriptor = \
                 attendance_creator.create_table_description()
@@ -502,7 +516,7 @@ class AjaxServer():
         daytype_list = attendance_creator.dayperiod_type
         date_list = attendance_creator.date_list
         json_table = self._make_table(table_descriptor, table_data)
-        student_key_strings = [str(k.key()) for k in student_keys]
+        student_key_strings = [str(student.key()) for student in students]
         json_key_list = simplejson.dumps(student_key_strings)
         json_daytype_list = simplejson.dumps(daytype_list)
         json_date_list = simplejson.dumps(date_list)
@@ -612,7 +626,29 @@ class AjaxServer():
             SchoolDB.assistant_classes.QueryMaker.get_keys_names_fields_from_object_list(tests)
         self.return_string = simplejson.dumps(combined_list)
         return result_list
-
+    
+    def _get_subjects_for_achievement_test(self):
+        """
+        Return the list of subjects from the achievement test instance.
+        Note: TBD generalize this and the previous function
+        """
+        achievement_test_keystring = self.argsDict.get(
+            "filterkey-achievement_test", "")
+        achievement_test = \
+            SchoolDB.utility_functions.get_instance_from_key_string(
+                achievement_test_keystring)
+        if (achievement_test):
+            subject_keys = achievement_test.subjects
+            subjects = [db.get(key) for key in subject_keys]
+            
+        else:
+            subjects = []        
+        result_list, key_list, combined_list = \
+            SchoolDB.assistant_classes.QueryMaker.get_keys_names_fields_from_object_list(subjects)
+        self.return_string = simplejson.dumps(combined_list)
+        return result_list
+        
+            
     def _edit_grading_period_grades(self):
         """
         Return the table of grades for one or more grading periods.
@@ -979,6 +1015,9 @@ class AjaxServer():
               "create_students_eligible_for_class_table"):
             function = \
                 SchoolDB.views.create_students_eligible_for_class_table
+        elif (self.function_name == "create_form2_table"):
+            function = \
+                SchoolDB.student_attendance.Form2Report.create_report_table
         elif (self.function_name == "create_form14_table"):
             function = \
                 SchoolDB.reports.Form14Report.create_report_table

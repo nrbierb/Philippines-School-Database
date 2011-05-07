@@ -1,0 +1,239 @@
+{% extends 'reports_base.html' %}
+{% block script %}
+{{ block.super }}
+{% endblock script %}
+{% block local_javascript_code %}
+
+var selectedFieldsTable = new StandardTable();
+selectedFieldsTable.initializeTableParams();
+
+var fieldChoicesTable = new StandardTable();
+fieldChoicesTable.initializeTableParams();
+
+var selectedOrgsTable = new StandardTable();
+selectedOrgsTable.initializeTableParams();
+
+var orgChoicesTable = new StandardTable();
+orgChoicesTable.initializeTableParams();
+
+function getSelectedValues(selectedTable) {
+	var selectedValues = [];
+	var i;
+	for (i = 0; i < selectedTable.dataTable.getNumberOfRows(); i++) {
+		selectedValues[i] = selectedTable.dataTable.getValue(i, 0);
+	}
+	return selectedValues;
+}
+
+var selectedFieldsTableFillFunctions = {};
+function addFields() {
+	var selectedRowsData = fieldChoicesTable.removeSelectedRows();
+	selectedFieldsTable.putRows(selectedRowsData, selectedFieldsTableFillFunctions);
+}
+	
+var fieldChoicesTableFillFunctions = {};
+function removeFields() {
+	var selectedRowsData = selectedFieldsTable.removeSelectedRows();
+	fieldChoicesTable.putRows(selectedRowsData, fieldChoicesTableFillFunctions);
+}
+
+var selectedOrgsTableFillFunctions = {};
+function addOrgs() {
+	var selectedRowsData = orgChoicesTable.removeSelectedRows();
+	selectedOrgsTable.putRows(selectedRowsData, selectedOrgsTableFillFunctions);
+}
+	
+var orgChoicesTableFillFunctions = {};
+function removeOrgs() {
+	var selectedRowsData = selectedOrgsTable.removeSelectedRows();
+	orgChoicesTable.putRows(selectedRowsData, orgChoicesTableFillFunctions);
+}
+
+function setParametersForRequest(top_level_org) {
+	var param_dict = {
+		"top_level_org":top_level_org,
+		"values_to_show":JSON.stringify(getSelectedValues(selectedFieldsTable)),
+		"orgs_to_show":JSON.stringify(getSelectedValues(selectedOrgsTable)),
+		"show_genders":$("#id_by_gender").is(':checked'),
+		"by_class_year":$("#id_by_class_year").is(':checked'),
+		"single_line_per_school":$("#id_single_line_per_school").is(':checked'),
+		
+		};
+	switch (localParams.report_type){
+		case "achievementTest":
+			param_dict.class = "achievement_test";
+			param_dict.key = $('#id_achievement_test').val();
+			param_dict.secondary_class = "subject";
+			param_dict.secondary_key = $('#id_subject').val();
+			param_dict.function = "create_achievement_test_summary";
+			break;
+		case "studentSummary":
+			param_dict.function = "create_student_summary_table";
+			break;
+		default:
+			//should show error message, I guess -- TBD
+		}	
+	return param_dict;
+}	
+
+$(function() {
+	var reportTable = new StandardTable();
+	reportTable.setDom(document.getElementById('report_table'));
+	reportTable.initializeTableParams();
+	reportTable.tableParameters.sort = "disable";
+	$('#generate_report_button').click(function(){
+			$.loadanim.start({
+				message: "Creating Summary Report"
+			});
+			var params = setParametersForRequest("");
+			var titleString = '<p class="report-title">{{report_title}}</p>';
+			$('#report_title').html(titleString);
+			requestTable("/ajax/calculated_table", params, reportTable);		
+	});
+
+	selectedFieldsTable.tableParameters.width = 250;
+	selectedFieldsTable.setHeight(5);
+	selectedFieldsTable.setDom(document.getElementById('selected_fields_table'));
+	selectedFieldsTable.tableDescriptor = eval(localParams.selected_fields_table);
+	selectedFieldsTable.finalizeTable();
+	
+	fieldChoicesTable.tableParameters.width = 250;
+	fieldChoicesTable.setHeight(5);
+	fieldChoicesTable.setDom(document.getElementById('field_choices_table'));
+	fieldChoicesTable.tableDescriptor = eval(localParams.field_choices_table);
+	fieldChoicesTable.finalizeTable();
+
+	$("#add_field_button").click(function() {
+		addFields();
+	});
+	
+	$("#add_all_fields_button").click(function() {
+		fieldChoicesTable.selectAllRows();
+		addFields();
+	});
+	
+	$("#remove_field_button").click(function() {
+		removeFields();
+	});
+	
+	$("#remove_all_fields_button").click(function() {
+		selectedFieldsTable.selectAllRows();
+		removeFields();
+	});
+	
+	selectedOrgsTable.tableParameters.width = 250;
+	selectedOrgsTable.setHeight(5);
+	selectedOrgsTable.setDom(document.getElementById('selected_orgs_table'));
+	selectedOrgsTable.tableDescriptor = eval(localParams.selected_orgs_table);
+	selectedOrgsTable.finalizeTable();
+	
+	orgChoicesTable.tableParameters.width = 250;
+	orgChoicesTable.setHeight(5);
+	orgChoicesTable.setDom(document.getElementById('org_choices_table'));
+	orgChoicesTable.tableDescriptor = eval(localParams.org_choices_table);
+	orgChoicesTable.finalizeTable();
+	
+	$("#add_org_button").click(function() {
+		addOrgs();
+	});
+	
+	$("#add_all_orgs_button").click(function() {
+		orgChoicesTable.selectAllRows();
+		addOrgs();
+	});
+	
+	$("#remove_org_button").click(function() {
+		removeOrgs();
+	});
+	
+	$("#remove_all_orgs_button").click(function() {
+		selectedOrgsTable.selectAllRows();
+		removeOrgs();
+	});
+});
+
+{% endblock local_javascript_code %}
+{% block report_top %}
+<div id="title_div" class="form-title centered-object print-hidden"></div>
+<div id="setup_div" class="print-hidden">
+<table>
+<tr><td class="minpad width250">		
+<fieldset id="select_filters" class="min-block">
+		<legend>Options</legend>
+<table id ="report_params">
+	<tr {{upper_level_hide|safe}}><td><label for="id_single_line_per_school" id="single_line_per_school_label" 
+			title="Report values for all years for a school on a single line. This may result in a very wide table">
+			Single Report Line Per School</label></td><td>{{form.single_line_per_school}}</td></tr>
+	<tr {{school_hide|safe}}><td><label for="id_by_class_year" id="id_by_class_year_name">Summarize by Class Year:</label></td><td>{{form.by_class_year}}</td></tr>	
+	<tr><td><label for="id_by_gender" id="id_by_gender_name">Show By Gender:</label></td><td>{{form.by_gender}}</td></tr>
+{% if achievement_test %}
+	<tr>
+		<td><label for="id_achievement_test_name" id="id_achievement_test_name_label">Achievement Test:</label></td>
+         <td> {{form.achievement_test_name}}</td>
+    </tr>
+	<tr>
+		<td><label for="id_subject" id="id_subject_name_label">Subject:</label></td>
+		<td>{{form.subject_name}}</td>
+    </tr>
+	{{form.achievement_test}}
+	{{form.subject}}
+{% endif %}
+</table>
+</fieldset>
+</td>
+{% if show_choose_fields_block %}
+<td class="minpad">
+<fieldset id="fields_select" class="min-block">
+	<legend>Choose Fields to Show</legend>
+<table id="fields_table">
+	<tr>
+		<td id="selected_fields" class="nopad">
+			<div id="selected_fields_table" class="blockFrame">				
+			</div>
+		</td>
+		<td id="field_selections" class="nopad">
+			<div id="field_choices_table" class="blockFrame">
+			</div>
+		</td>
+	<tr><td>
+		<input type="button" id="remove_all_fields_button" value="Remove All >" class="float-left btn inside linked_table_btn"></input>
+		<input type="button" id="remove_field_button" value="Remove Selected >" class="float-right btn inside linked_table_btn"></input>
+	</td><td>
+		<input type="button" id="add_field_button" value="< Add Selected" class="float-left btn inside linked_table_btn"></input>
+		<input type="button" id="add_all_fields_button" value="< Add All" class="float-right btn inside linked_table_btn"></input>
+	</td></tr>
+</table>
+</fieldset>
+</td></tr>
+<tr {{upper_level_hide|safe}}><td></td>
+<td class="minpad">
+{% else %}
+<td {{upper_level_hide|safe}}>
+{% endif %}
+<fieldset id="fields_select" class="min-block">
+	<legend>Choose Organizations to Show</legend>
+<table id="fields_table">
+	<tr>
+		<td id="selected_orgs" class="nopad">
+			<div id="selected_orgs_table" class="blockFrame">				
+			</div>
+		</td>
+		<td id="org_selections" class="nopad">
+			<div id="org_choices_table" class="blockFrame">
+			</div>
+		</td></tr>
+	<tr><td>
+		<input type="button" id="remove_all_orgs_button" value="Remove All >" class="float-left btn inside linked_table_btn"></input>
+		<input type="button" id="remove_org_button" value="Remove Selected >" class="float-right btn inside linked_table_btn"></input>
+	</td><td>
+		<input type="button" id="add_org_button" value="< Add Selected" class="float-left btn inside linked_table_btn"></input>
+		<input type="button" id="add_all_orgs_button" value="< Add All" class="float-right btn inside linked_table_btn"></input>
+	</td></tr>
+</table>
+</fieldset>
+</td></tr>
+<tr><td colspan='2'><input type="button" id="generate_report_button" value="Create Report" 
+	class="btn inside centered-object"></input></td></tr>
+</table>
+</div>
+{% endblock report_top %}

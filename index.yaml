@@ -358,6 +358,13 @@ indexes:
 
 - kind: MultiLevelDefined
   properties:
+  - name: achievement_test
+  - name: class
+  - name: organization
+  - name: name
+
+- kind: MultiLevelDefined
+  properties:
   - name: class
   - name: date
 

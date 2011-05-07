@@ -1,11 +1,12 @@
 application: pi-schooldb-dev
-version: 1--0-11
+version: 1--0-12
 runtime: python
 api_version: 1
 
 handlers:
 
 - url: /static_pages
+
   static_dir: static_pages
  
 - url: /js
@@ -20,10 +21,6 @@ handlers:
 - url: /upload_data
   static_dir: upload_data
   
-- url: /remote_api
-  script: $PYTHON_LIB/google/appengine/ext/remote_api/handler.py
-  login: admin
-
 - url: /utilrequest
   script: main.py
   login: admin
@@ -45,8 +42,8 @@ handlers:
 - url: /.*
   script: main.py
   login: required
-  secure: always
 
 builtins:
+- remote_api: on
 - datastore_admin: on
 - appstats: on

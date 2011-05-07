@@ -5,6 +5,7 @@
 # Created: 08/10/2009
 
 from datetime import date, timedelta
+import time
 import exceptions
 from google.appengine.ext import db
 from django.utils import simplejson
@@ -79,9 +80,12 @@ class AttendanceTableCreator:
         self.end_date = end_date
         self.start_date = start_date
         self.num_weeks = num_weeks
-        self.display_end_date = self.compute_display_end_date()
+        self.display_end_date = \
+            AttendanceTableCreator.compute_display_end_date(self.end_date)
         if not self.start_date:
-            self.start_date = self.compute_default_start_date()
+            self.start_date = \
+                AttendanceTableCreator.compute_default_start_date(
+                self.display_end_date, self.num_weeks)
         self.days_count = self.compute_real_days()
         self.total_days_count = SchoolDB.models.get_num_days_in_period(
             self.start_date, self.display_end_date)
@@ -118,16 +122,31 @@ class AttendanceTableCreator:
             table_rows = [self._create_student_row(student) for student
                           in self.students]
         return table_rows
-                
-    def compute_default_start_date(self):
+    
+    @staticmethod
+    def compute_display_end_date(end_date):
+        """
+        Compute the day that is at the end of the current week. If
+        the end date is in the week then display end date is
+        Friday of the week, if on the weekend, then the display date
+        is on the Sunday of the week.
+        """
+        weekday = end_date.isoweekday()
+        remaining_days = 6 - weekday
+        if (weekday == 7):
+            remaining_days = 6
+        return (end_date + timedelta(remaining_days))  
+
+    @staticmethod
+    def compute_default_start_date(display_end_date, num_weeks):
         """
         Return a date that is the default value for start based upon the
         end date. This will be num_weeks prior starting on a Sunday
         """
         # compute the end of the week that we will be displaying and then
         # move the number of weeks prior
-        days_earlier = 7 * self.num_weeks - 1
-        start_date = self.display_end_date - timedelta(days_earlier)
+        days_earlier = 7 * num_weeks - 1
+        start_date = display_end_date - timedelta(days_earlier)
         return start_date
  
     def compute_real_days(self):
@@ -141,20 +160,7 @@ class AttendanceTableCreator:
         else:
             return SchoolDB.models.get_num_days_in_period(
                 self.start_date, self.end_date)
-        
-    def compute_display_end_date(self):
-        """
-        Compute the day that is at the end of the current week. If
-        the end date is in the week then display end date is
-        Friday of the week, if on the weekend, then the display date
-        is on the Sunday of the week.
-        """
-        weekday = self.end_date.isoweekday()
-        remaining_days = 6 - weekday
-        if (weekday == 7):
-            remaining_days = 6
-        return (self.end_date + timedelta(remaining_days))  
-    
+            
     def _create_student_row(self, student):
         student_info = AttendenceTableStudentInformation(student,
             self.start_date, self.total_days_count)
@@ -407,7 +413,204 @@ class AttendanceResultsProcessor():
             student.attendance.save_multiple_dates(self.days,
                 students_attendance_data)
 
-########################################################################
+#----------------------------------------------------------------------
+
+class RosterChangeEvent():
+    """
+    Each event has the date (in ordinal form), the key of the
+    student, and two different sets of flags: "cause" and
+    "direction". There are three causes: 1."status",
+    (i.e, Enrolled,DroppedOut) 2."transfer" 3."reassigned" and two
+    directions: 1:add to section and 0:remove from
+    section.
+    """
+    
+    def __init__(self, student_key, event_date, cause_name, direction):
+        """
+        Map direction and cause into internal values and create
+        the final object with all data set.
+        """
+        cause_names = {"student_status":0, "transfer":1, "reassign":2}
+        self.student_key = student_key
+        self.date_ordinal = event_date.toordinal()
+        self.cause = cause_names[cause_name]
+        self.direction = 1
+        if (direction == "Out"):
+            self.direction = 0
+    
+    def get_student(self):
+        """
+        Return the student entity.
+        """
+        return db.get(self.student_key)
+    
+    def get_event_text(self):
+        """
+        Return a short text describing the change: Student Name and
+        reason as a report_abbrev value
+        """
+        report_abbrev = [("Drop Out", "Enrl"), ("Trn Out", "Trn In"),
+                     ("Mv Out", "Mv In")]
+        name = unicode(db.get(self.student_key))
+        reason = report_abbrev[self.cause][self.direction]
+        return name + " " + reason
+    
+    def add_to_section(self):
+        return self.direction
+    
+    
+#----------------------------------------------------------------------
+
+class SectionRosterProcessor:
+    """
+    This class provides a temporary object to do all of the 
+    processing needed by the section roster changes class.
+    it uses the current section list to work backward in time to
+    recreate the section list at the earlier dates. It returns three
+    sets of data: a section list with all students who were in the
+    section at some time between start and end data, an array of
+    the set of the active students for each day between start and
+    end date, and a list of strings, one per day, with text
+    infomation about the change.
+    """
+    def __init__(self, current_student_list, start_date, end_date,
+                 change_events_list):
+        self.all_students_dict = dict([student.key(), student] \
+                            for student in current_student_list)
+        self.end_date_ordinal = end_date.toordinal()
+        self.start_date_ordinal = start_date.toordinal()
+        self.change_events = change_events_list
+        self.number_of_days = self.end_date_ordinal - \
+            self.start_date_ordinal + 1
+        self.event_index = len(self.change_events) - 1
+        self.active_dicts = [self.all_students_dict.copy()
+                             for i in xrange(self.number_of_days)]
+        self.event_texts = ["" for i in xrange(self.number_of_days)]
+        
+    def correct_list_to_end_date(self):
+        """
+        If some changes in the roster have happened after the
+        end_date roll these back until the day after the end date
+        to get a set with the correct students for the end_date.
+        """
+        if len(self.change_events):
+            event_index = len(self.change_events) - 1
+            while (self.change_events[event_index].date_ordinal >
+                   self.end_date_ordinal):
+                event = self.change_events[event_index]
+                student_key = event.student_key
+                if event.add_to_section():
+                    # add is in forward direction - for reverse we
+                    # remove it
+                    del(self.all_students_dict[student_key])             
+                else:
+                    self.all_students_dict[student_key] = \
+                        db.get(student_key)
+                event_index -= 1
+                
+    def add_event_text(self, day_index, event):
+        """
+        Add the text description of the event to todays entry
+        """
+        current_text = self.event_texts[day_index]
+        if len(current_text):
+            current_text += ", "
+        current_text += event.get_event_text()
+        self.event_texts[day_index] = current_text
+        
+    def process_event(self, event, day_index, scratchpad_dict):
+        """
+        Make changes to the student list and active student set for
+        the day as needed and add the event text description to the
+        event_texts.
+        """
+        student_key = event.student_key
+        if event.add_to_section():
+            #The student was not in the section yesterday but
+            #already have her in the list of students 
+            del(scratchpad_dict[student_key])
+        else:
+            #The student is no longer in the section as of today.
+            #Thus there has been no record of the student in our
+            #dict of students as we move backwards in time
+            student = db.get(student_key)
+            self.all_students_dict[student_key] = student
+            scratchpad_dict[student_key] = student
+        self.add_event_text(day_index, event)
+                        
+    def process_all_events(self):
+        """    
+        Move backward a day at a time from the end date back to the
+        start date. Process each event that occured at that day.
+        """
+        day_ordinal = self.end_date_ordinal
+        scratchpad_dict = self.all_students_dict.copy()
+        if len(self.change_events):
+            for day_index in xrange(self.number_of_days-1, 0, -1):
+                self.active_dicts[day_index] = scratchpad_dict.copy()
+                if (self.change_events[self.event_index].date_ordinal == 
+                    day_ordinal):
+                    while ((self.event_index > -1) and 
+                        self.change_events[
+                            self.event_index].date_ordinal ==
+                           day_ordinal):
+                        event = self.change_events[self.event_index]
+                        self.process_event(event, day_index,
+                                           scratchpad_dict)
+                        self.event_index -= 1
+                day_ordinal -= 1
+                    
+    def create_daily_information_for_period(self):
+        self.correct_list_to_end_date()
+        self.process_all_events()
+        return (self.all_students_dict, self.active_dicts, 
+                self.event_texts)
+
+#----------------------------------------------------------------------
+class SectionRosterChanges(SchoolDB.assistant_classes.InformationContainer):
+    """
+    This class maintains a list of changes in the status of students in
+    the section. Each change of student in the section is kept as a
+    dated record. The section roster can be determined at any point in
+    time by working from a known roster and processing each of the
+    events. The processing is done from the current roster backwards
+    because this will normally be used from reports for the fairly
+    recent past.
+    """
+    
+    def __init__(self, version_id = 1):
+        SchoolDB.assistant_classes.InformationContainer.__init__(
+            self, version_id)
+        self.change_events = []
+        
+    def clean(self):
+        """
+        Remove all events from the list. This is normally done at the
+        start of the year because the prior years data is unwanted.
+        """
+        self.change_events = []
+        
+    def add_change_event(self, event_date, student_key, cause_name, 
+                         direction):
+        """
+        Create a new change event and add to list of events
+        """
+        event = RosterChangeEvent(event_date, student_key, cause_name, 
+                         direction)
+        self.change_events.append(event)
+        self.change_events.sort(key=lambda event: event.date_ordinal)
+
+    def create_period_information(self, current_student_list, start_date, 
+                                  end_date):
+        """
+        Create a section roster processor object and use it to generate
+        the complete information for the period
+        """
+        processor = SectionRosterProcessor(current_student_list,
+                        start_date, end_date, self.change_events)
+        return processor.create_daily_information_for_period()
+            
+#----------------------------------------------------------------------
 class AttendanceReports:
     """
     Generate tables and reports of student attendance.
@@ -423,7 +626,9 @@ class AttendanceReports:
         self.table_data = []
         self.keys_list = []
         self.error = None
-        self.students = section.get_students()
+        self.students = section.get_inclusive_student_list_for_period(
+            start_date=start_date, end_date=end_date, 
+             sort_by_gender = False)
         
     @staticmethod
     def create_report_table(parameter_dict , primary_object,
@@ -451,7 +656,7 @@ class AttendanceReports:
     
     def return_table_results(self):
         return(self.table_descriptor, self.table_data, self.keys_list, 
-               self.error)
+               None, self.error)
     
     def generate_section_report(self):
         """
@@ -462,6 +667,7 @@ class AttendanceReports:
         day_type_list, dates_list = \
             load_daytypes_lists(self.start_date, self.total_days,
                                 self.section, self.total_days)
+        self.num_schooldays = len(dates_list)
         if len(self.students):
             summary_line[0] = "Averages"
             for i in xrange(0,self.total_days):
@@ -574,3 +780,228 @@ class AttendanceReports:
             line.extend((days_present, percent_present))
                         #days_absent, percent_absent))
         return line
+
+class Form2Report:
+    """
+    Generate the Form 2 attendance report
+    """
+    def __init__(self, section, month, parameter_dict):
+        """Constructor"""
+        self.section = section
+        try:
+            mn, yr = month.split("/")
+            self.start_date = date(int(yr), int(mn), 1)
+            self.end_date = date(int(yr), int(mn)+1, 1) - timedelta(1)
+        except:
+            #if no success with getting month use the most recuent full month
+            tm = date.today().timetuple()
+            self.start_date = date(tm.tm_year,tm.tm_mon-1, 1)
+            self.end_date = date(tm.tm_year, tm.tm_mon, 1) - timedelta(1)
+        self.parameter_dict = parameter_dict
+        self.total_days = (self.end_date - self.start_date).days + 1
+        self.school = \
+            SchoolDB.models.getActiveDatabaseUser().get_active_organization()
+        self.data = {}
+        self.extra_data = ""
+        self.table_descriptor = []
+        self.table_data = []
+        self.keys_list = []
+        self.error = None
+        self.students = section.get_students()
+        
+    @staticmethod
+    def create_report_table(parameter_dict , primary_object,
+            secondary_class, secondary_object):
+        """
+        The standard way to get a report. This will return the report
+        in a manner appropriate for use in a google table for
+        presentation.
+        """
+        if (not primary_object):
+            return (None,None,None,"No class section chosen for report")
+        month = parameter_dict.get("month","")
+        report_generator = Form2Report(primary_object, month,
+                                             parameter_dict)
+        report_generator.generate_main_table()
+        report_generator.generate_extra_data()
+        return report_generator.return_table_results()
+    
+    def return_table_results(self):
+        return(self.table_descriptor, self.table_data, self.keys_list, 
+               self.extra_data, self.error)
+    
+    def generate_extra_data(self):
+        """
+        This table is such a confused mess of multiple lines and
+        irregular datatypes that it is best handled by simply
+        generating the whole block of html code here
+        """
+        self.data["male_initial"], self.data["female_initial"] = \
+            self.get_initial_student_count()
+        
+        date_line = '<p class="report-title"> %s</p>' \
+                  %(self.start_date.strftime("%B %Y"))
+        row1 = """
+        <table>
+        <tr class="tblRow"><td>%s</td><td>Enrollment For Year</td>
+        <td>Male:</td><td>%d</td><td>Female:</td><td>%d</td>
+        <td>Total:</td><td>%d</td></tr>
+        """ %(unicode(self.school), self.data["male_initial"], 
+              self.data["female_initial"], 
+              self.data["male_initial"] + self.data["female_initial"])
+        row2 = """
+        <tr class="tblOddRow"><td>%s</td><td>Enrollment For Month</td>
+        <td>Male:</td><td>%d</td><td>Female:</td><td>%d</td>
+        <td>Total:</td><td>%d</td></tr>
+        """ %(unicode(self.section), self.data["male_current"], 
+              self.data["female_current"],
+              self.data["male_current"] + self.data["female_current"])
+        row3 = """
+        <tr class="tblRow"><td>%s</td><td>Average Attendance</td>
+        <td>Male:</td><td>%.1f</td><td>Female:</td><td>%.1f</td>
+        <td>Total:</td><td>%.1f</td></tr>
+        """ %("Secondary", self.data["aa_male"], self.data["aa_female"] ,
+                                self.data["aa_combined"])
+        row4 ="""
+        <tr class="tblOddRow"><td>%s</td><td>Percentage of Attendance</td>
+        <td>Male:</td><td>%.1f %% </td><td>Female:</td><td>%.1f %% </td>
+        <td>Total:</td><td>%.1f %% </td></tr>
+        """ %(unicode(self.school.municipality), self.data["pa_male"], 
+              self.data["pa_female"], self.data["pa_combined"])
+        row5 = """
+        <tr class="tblRow"><td>School Days: %d</td><td>Percentage of Enrollment</td>
+        <td>Male:</td><td>%.1f %% </td><td>Female:</td><td>%.1f %% </td>
+        <td>Total:</td><td>%.1f %% </td></tr>
+        </table>
+        """ %(self.data["num_school_days"], 
+              self.data["male_current"] * 100.0 / self.data["male_initial"],
+              self.data["female_current"] * 100.0 / 
+              self.data["female_initial"],
+              (self.data["male_current"] + self.data["female_current"]) * 
+              100.0 /
+              (self.data["male_initial"] + self.data["female_initial"]))
+        full_table = date_line + row1 + row2 + row3 + row4 + row5
+        self.extra_data = simplejson.dumps(full_table)
+    
+    def generate_main_table(self):
+        """
+        Generate report for a section with day by day enrollment 
+        and attendance broken out by gender and morning and afternoon.
+        """
+        summary_line = ["No Students in Section",0,0,0,0,0,0,"               "]
+        day_type_list, dates_list = \
+            load_daytypes_lists(self.start_date, self.total_days,
+                                self.section, self.total_days)
+        num_school_days = 0
+        for day in day_type_list:
+            if (((day[0] & \
+                SchoolDB.models.StudentAttendanceRecord.school_day)) or
+                ((day[1] & \
+                  SchoolDB.models.StudentAttendanceRecord.school_day))):
+                    num_school_days +=1 
+        section_roster_changes = self.section.get_section_roster_changes()
+        self.all_students_dict, self.active_students_daily_dicts, \
+            self.event_texts = \
+                        section_roster_changes.create_period_information(
+                            self.students, self.start_date, self.end_date)
+        if len(self.students):
+            summary_line[0] = "Averages"
+            for i in xrange(self.total_days):
+                self.table_data.append(
+                    self._generate_main_table_day(
+                        i, summary_line)[0])
+            if (len(self.table_data)):
+                for i in range(3,7):
+                    if (num_school_days):
+                        summary_line[i] = \
+                                round((float(summary_line[i])/ 
+                                       num_school_days),1)
+                    else:
+                        #If no schooldays in this period then no real
+                        #numbers. Just prevent a divide by 0 error.
+                        summary_line[i] = 0.0
+                for i in range(1,3):
+                    summary_line[i] = \
+                            round((float(summary_line[i])/ 
+                                   self.total_days),1)  
+                summary_line[7] = "               "
+        self.table_data.append(summary_line)
+        final_row = self.table_data[self.total_days - 1]
+        if (num_school_days and len(self.table_data)):
+            self.data["aa_male"] = (summary_line[3] +\
+                                     summary_line[5]) / 2.0
+            self.data["aa_female"] = (summary_line[4] + \
+                                      summary_line[6] )/2.0 
+            self.data["aa_combined"] = (self.data["aa_male"] + \
+                self.data["aa_female"]) /2.0
+            self.data["pa_male"] = \
+                self.data["aa_male"] * 100.0 / summary_line[1]
+            self.data["pa_female"] = \
+                self.data["aa_female"] * 100.0 / summary_line[2]
+            self.data["pa_combined"] = (self.data["pa_male"] + \
+                self.data["pa_female"])/ 2.0
+        else:
+            #If no schooldays in this period then no real
+            #numbers. Just prevent a divide by 0 error.
+            self.data["pa_male"] = 0.0
+            self.data["pa_female"] = 0.0
+            self.data["pa_combined"] = 0.0
+            self.data["aa_male"] = 0.0
+            self.data["aa_female"] = 0.0
+            self.data["aa_combined"] = 0.0
+        self.data["num_school_days"] = num_school_days
+        self.data["male_current"] = final_row[1]
+        self.data["female_current"] = final_row[2]
+        self.table_descriptor = \
+            [('date','string','Date'),
+             ('m_en', 'number', 'Male Enrolled'),
+             ('f_en', 'number', 'Female Enrolled'),
+             ('m_morn', 'number', 'Male Morning'),
+             ('f_morn', 'number', 'Female Morning'),
+             ('m_aft', 'number', 'Male Afternoon'),
+             ('f_aft', 'number', 'Female Afternoon'),
+             ('remarks', 'string', 'Remarks')]
+    
+    def _generate_main_table_day(self, day_index, summary_line):
+        day_name = ("%d" %(day_index + 1))
+        day = self.start_date + timedelta(day_index)
+        registered_totals = [0,0]
+        morning_totals = [0,0]
+        afternoon_totals = [0,0] 
+        for student_key in self.all_students_dict.keys():
+            student = self.active_students_daily_dicts[day_index].get(student_key, None)
+            if (student):
+                morn, aft, valid, schoolday = \
+                    student.attendance.get_days_attendance(day)
+                if valid:
+                    if (student.gender == "Male"):
+                        index = 0
+                    else:
+                        index = 1
+                    registered_totals[index] += 1
+                    morning_totals[index] += morn
+                    afternoon_totals[index] += aft
+        day_line = [day_name,
+                    registered_totals[0],registered_totals[1],
+                    morning_totals[0], morning_totals[1],
+                    afternoon_totals[0],afternoon_totals[1],
+                    self.event_texts[day_index]]
+        for i in range(1, len(day_line)-1):
+            summary_line[i] += day_line[i] 
+        return day_line, summary_line
+                        
+    def get_initial_student_count(self):
+        """
+        Get the number of students in hte section at the beginning of the
+        school year.
+        """
+        #do not return 0 because it will generate a divide by zero in
+        #the calling function
+        male_count = self.section.number_male_students
+        if not male_count:
+            male_count = 1
+        female_count = self.section.number_female_students
+        if not female_count:
+            female_count = 1
+        return male_count, female_count
+        

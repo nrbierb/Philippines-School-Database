@@ -32,6 +32,7 @@ import SchoolDB.choices
 import SchoolDB.assistant_classes
 import SchoolDB.reports
 import SchoolDB.summaries
+import SchoolDB.student_attendance
 # The global object that represents the database user active for this 
 # session
 
@@ -247,7 +248,7 @@ class History(polymodel.PolyModel):
                multiactive=False, isprivate_reference_object=False):
         """
         This is like the __init__ class method but is used becuse the appDB
-        reserves all ""--" definitions for itself. 
+        reserves all "__" definitions for itself. 
         """
         history_obj = History(parent=ownerref, 
                               attribute_name = attributename, 
@@ -288,7 +289,7 @@ class History(polymodel.PolyModel):
         history, not just the current ones. This allows a low cost scan
         for an entity that at one time was associated with the
         histories owner. Example: search for classes that teacher
-        taught by scanning all histories from classes for thaose which
+        taught by scanning all histories from classes for those which
         have the teacher entitiy as a reference.
         """
         if (self.is_reference and info_reference):
@@ -528,6 +529,7 @@ class History(polymodel.PolyModel):
         return entry
     
     def entry_count(self):
+        self.load_list_if_needed()
         return len(self.entries_list)
     
     def is_empty(self):
@@ -712,6 +714,7 @@ class Organization(polymodel.PolyModel):
     postal_address = db.StringProperty(required=False)
     inactive = db.BooleanProperty()
     inactive_date = db.DateProperty()
+    deped_org = db.BooleanProperty(default=True)
     custom_query_function = False
     classname = "Organization"
 
@@ -939,6 +942,12 @@ class National(Organization):
     """
 
     classname = "National DepEd"
+    
+    def post_creation(self):
+        """
+        Mark as a deped organization
+        """
+        self.deped_org = True
 
     def __unicode__(self):
         return self.name
@@ -985,6 +994,12 @@ class Region(Organization):
     area_name = db.StringProperty()
     classname = "DepEd Region"
 
+    def post_creation(self):
+        """
+        Mark as a deped organization
+        """
+        self.deped_org = True
+
     def __unicode__(self):
         return self.name
 
@@ -1026,6 +1041,12 @@ class Province(Organization):
     classname = "Province"
     region = db.ReferenceProperty(Region)
 
+    def post_creation(self):
+        """
+        Mark not a deped organization
+        """
+        self.deped_org = False
+
     def __unicode__(self):
         return self.name
 
@@ -1050,6 +1071,12 @@ class Division(Organization):
     classname = "DepEd Division"
     region = db.ReferenceProperty(Region)
     province = db.ReferenceProperty(Province)
+
+    def post_creation(self):
+        """
+        Mark as a deped organization
+        """
+        self.deped_org = True
 
     @staticmethod
     def get_field_names():
@@ -1091,6 +1118,12 @@ class Municipality(Organization):
     id = db.StringProperty()
     custom_query_function = True
     classname = "Municipality"
+
+    def post_creation(self):
+        """
+        Mark not a deped organization
+        """
+        self.deped_org = False
 
     @staticmethod
     def remove(municipality):
@@ -1146,6 +1179,12 @@ class Community(Organization):
     custom_query_function = False
     #note: this is Philippines specific for display.
     classname = "Barangay"
+
+    def post_creation(self):
+        """
+        Mark not a deped organization
+        """
+        self.deped_org = False
 
     def lowest_level_org(self):
         """
@@ -2004,6 +2043,36 @@ class Person(polymodel.PolyModel):
                 change_instance_key = new_key)
         return current_instances
         
+    def get_history_tuple_by_name(self, name):
+        history_name_dict = {}
+        history_name_dict["organization"] = (self.organization, 
+                                        self.organization_change_date,
+                                        self.organization_history)
+        return history_name_dict[name]
+
+    def update_my_histories(self):
+        """
+        The histories primary fields are changed by form editing.
+        Compare the values of those fields with the current entry in
+        the history. If not equal then a new event has occured so add
+        another history element.
+        """
+        history_names = ["organization"]
+        for name in history_names:
+            history_create_params = self.get_history_create_info(name)
+            _update_history(self, name, history_create_params)
+
+    def get_history_create_info(self, attribute_name):
+        """
+        Return a tuple of the parameters required for the history
+        object creation. These are used as direct arguments in the
+        history create function and are in the order (self,
+        attributename, is_reference, multiactive, is_private_reference)
+        """
+        hist_mapping = {"organization":(self, "organization", True, 
+                                          False, False)}
+        return hist_mapping.get(attribute_name, None)
+
     @staticmethod
     def person_custom_query(organization, leading_value, value_dict,
                             query):
@@ -2023,7 +2092,49 @@ class Person(polymodel.PolyModel):
         if (self.organization_history):
             self.organization_history.remove()
         self.delete()
+    
+    @staticmethod
+    def compare_by_name(person1, person2):
+        """
+        A comparison function for a sort that sorts persons by their last
+        name and then by their first name.
+        """
+        if (person1.last_name < person2.last_name):
+            return -1
+        elif (person1.last_name > person2.last_name):
+            return 1
+        #last_names_same -- compare by first_name
+        elif (person1.first_name < person2.first_name):
+            return -1
+        elif (person1.first_name > person2.first_name):
+            return 1
+        else:
+            return 0
 
+    @staticmethod
+    def compare_by_name_and_gender(person1, person2):
+        """
+        A comparison function for a sort that sorts persons by their gender
+        (male first) then last name and finally by first name.
+        """
+        if ((person1.gender == "Male") and (person2.gender == "Female")):
+            return -1
+        elif ((person1.gender == "Female") and (person2.gender == "Male")):
+            return 1
+        # genders same -- compare by last name
+        elif (person1.last_name < person2.last_name):
+            return -1
+        elif (person1.last_name1 > person2.last_name):
+            return 1
+        #last_names_same -- compare by first_name
+        elif (person1.first_name < person2.first_name):
+            return -1
+        elif (person1.first_name > person2.first_name):
+            return 1
+        else:
+            return 0
+
+            
     @staticmethod
     def get_field_names():
         field_names = \
@@ -2244,44 +2355,52 @@ class StudentSchoolSummary(db.Model):
 
     def update_if_necessary(self):
         """
-        Check the status of the summary. if all are current do nothing.
+        Check the status of the summary. If all are current do nothing.
         If at least one is not current then check the status dict for
         each section. If it is not marked current then update the
         section summary in a unique task. Return a count of the
         sections that will be updated.
         """
-        count = 0
-        is_current = \
-                SchoolDB.summaries.StudentSchoolSectionDict.get_is_current(
-                    self.section_dict)
-        if (not is_current):
-            need_update_list = \
-               SchoolDB.summaries.StudentSchoolSectionDict.get_all_summaries_not_current(
-                   self.section_dict)
-            for section_summary_key in need_update_list:
-                    self.create_update_section_summary_task(
-                        section_summary_key)
-                    count += 1
-        return count
+        try:
+            count = 0
+            school_name = unicode(self.school)
+            logging.info("Starting '%s' student summary update" %school_name)
+            is_current = \
+                    SchoolDB.summaries.StudentSchoolSectionDict.get_is_current(
+                        self.section_dict)
+            if (not is_current):
+                need_update_list = \
+                   SchoolDB.summaries.StudentSchoolSectionDict.get_all_summaries_not_current(
+                       self.section_dict)
+                for section_summary_key in need_update_list:
+                        self.create_update_section_summary_task(
+                            section_summary_key)
+                        count += 1
+            logging.info("Completed '%s' student summary update tasking. %d sections will update." %(school_name, count))
+            return count
+        except StandardError, e:
+            logging.error("Failed school update_if_necessary: %s" %e)
+            return 0
     
     def create_update_section_summary_task(self, section_summary_key):
         """
         Create a task that will request this info_summary to update the
-        specific section. This funciont is called for every section
+        specific section. This function is called for every section
         that requires updating so each section is updated in its own
         task.
         """
-        #try:
-        section_name = db.get(section_summary_key).get_section_name()
-        task_name = section_name + "_update_student_summary" 
-        task_generator = SchoolDB.assistant_classes.TaskGenerator(
-            task_name=task_name,
-            function=
-            "SchoolDB.models.StudentSectionSummary.perform_update_task",
-            function_args=('"' +str(section_summary_key)+ '"'), 
-            organization=str(self.school))
-        task_generator.queue_tasks()
-        #except 
+        try:
+            section_name = db.get(section_summary_key).get_section_name()
+            task_name = section_name + "_update_student_summary" 
+            task_generator = SchoolDB.assistant_classes.TaskGenerator(
+                task_name=task_name,
+                function=
+                "SchoolDB.models.StudentSectionSummary.perform_update_task",
+                function_args=('"' +str(section_summary_key)+ '"'), 
+                organization=str(self.school))
+            task_generator.queue_tasks()
+        except StandardError, e:
+            logging.error("Create update section summary task failed: %s" %e)
         
     def get_section_summaries_list(self):
         """
@@ -2417,8 +2536,11 @@ class StudentSectionSummary(db.Model):
         
     def update(self):
         try:
+            logging.info("starting section update")
             summary_data = self.get_data()
+            logging.info("summary_data ok")
             summary_data.update_student_information(self.section)
+            logging.info("update complete")
             self.data_store = summary_data.put_data()
             self.mark_current()
             self.put()
@@ -2488,6 +2610,7 @@ class School(Organization):
         """
         Create the student summary associated with the school
         """
+        self.deped_org = True
         self.student_summary = StudentSchoolSummaryHistory.create(self)
         self.put()
     
@@ -2522,6 +2645,8 @@ class School(Organization):
             return self.student_summary.update_current_summary(
                     force_update)
         else:
+            logging.info("Creating a student summary for '%s'" 
+                         %unicode(self))
             student_summary = StudentSchoolSummaryHistory.create(self)
             self.student_summary = student_summary
             self.put()
@@ -2558,19 +2683,30 @@ class Teacher(Person):
     secondary_subject = db.ReferenceProperty(Subject,
                                 collection_name="secondary_subject_group")
     paygrade = db.StringProperty(choices = SchoolDB.choices.TeacherPaygrade)
-    employment_history = db.ReferenceProperty(History)
+    employment = db.StringProperty()
+    employment_start_date = db.DateProperty()
+    employment_history = db.ReferenceProperty(History, 
+                                    collection_name="employment_history")
     custom_query_function = False
     classname = "Teacher"
 
     def post_creation(self):
         Person.post_creation(self)
         self.organization = getActiveDatabaseUser().get_active_organization()
-        self.employment = db.StringProperty()
-        self.employment_start_date = db.DateProperty()
-        self.employment_history = History.create(self,
-                                                 "employment_history")
         self.put()
 
+    def get_employment_history(self):
+        """
+        Try to get the emplyment history object. If not available, create one
+        """
+        try:
+            name = self.employment_history.attribute_name
+        except:
+            self.employment_history = History.create(self, "employment_history",
+                                                     False)
+            self.put()
+        return self.employment_history
+            
     @staticmethod
     def get_field_names():
         field_names = Person.get_field_names()
@@ -2603,7 +2739,6 @@ class Classroom(db.Model):
     custom_query_function = False
     classname = "Classroom"
 
-
     @staticmethod
     def create(name):
         organization = \
@@ -2624,6 +2759,7 @@ class Classroom(db.Model):
             self.organization = \
                 getActiveDatabaseUser().get_active_organization()
         self.put()
+        return self
 
     def form_data_post_processing(self):
         """
@@ -2733,11 +2869,36 @@ class StudentGrouping(polymodel.PolyModel):
         self.delete()
 
 #----------------------------------------------------------------------
+class KeysList(db.Model):
+    """
+    This is an absolutely trivial class that keeps two lists of entity
+    keys. This will normally be used with a history. There are two
+    lists so that entities such as male and female students can be kept
+    individiually for susch things as a cache of students in a student
+    grouping ata a particular time. Normally this will not be used in
+    lieu of database queries unless such queries might be extremely
+    expensive such as repeatedly generating lists from a large group at
+    an earlier time.
+    """
+    keylist1 = db.ListProperty(db.Key)
+    keylist2 = db.ListProperty(db.Key)
+    
+    def set_lists(self, keylist1, keylist2):
+        self.keylist1 = keylist1
+        self.keylist2 = keylist2
+        
+    def get_lists(self):
+        return (self.keylist1, self.keylist2)
+    
+#----------------------------------------------------------------------
 class Section(StudentGrouping):
     class_year = db.StringProperty()
     section_type = db.ReferenceProperty(SectionType)
     creation_date = db.DateProperty()
     termination_date = db.DateProperty()
+    number_male_students = db.IntegerProperty()
+    number_female_students = db.IntegerProperty()
+    section_roster_changes_blob = db.BlobProperty()
     classname = "Section"
 
     @staticmethod
@@ -2796,15 +2957,92 @@ class Section(StudentGrouping):
             keystrings.append(str(key))
         return keys, keystrings, names
     
+    def get_inclusive_student_list_for_period(self, start_date, 
+                            end_date, sort_by_gender = False):
+        """
+        Return a list of all students that were in the section for at
+        least part of the period (start_date, end_date). The list is
+        sorted by name and optionally gender. If the list is meant for
+        a single specific date only set the start and end date to the
+        same day.
+        """
+        current_students_list = self.get_students()
+        section_roster_changes = self.get_section_roster_changes()
+        all_students_dict, unused1, unused2 = \
+                section_roster_changes.create_period_information(
+                    current_students_list, start_date, end_date)
+        all_students_list = all_students_dict.values()
+        if (sort_by_gender):
+            compare_function = \
+            Person.compare_by_name_and_gender
+        else:
+            compare_function = \
+                Person.compare_by_name            
+        all_students_list.sort(compare_function)
+        return all_students_list
+
+    def get_section_roster_changes(self):
+        """
+        Return the section_roster_changes_object from the 
+        section_roster_changes blob.
+        """
+        if (self.section_roster_changes_blob):
+            section_roster_changes_object = \
+                SchoolDB.student_attendance.SectionRosterChanges.get_data(
+                    self.section_roster_changes_blob)
+        else:
+            #The blob was never created. Create one and return the newly
+            #created empty object
+            section_roster_changes_object = \
+                    SchoolDB.student_attendance.SectionRosterChanges()
+            self.section_roster_changes_blob = \
+                    section_roster_changes_object.put_data()
+            self.put()
+        return section_roster_changes_object
+
+    def add_section_roster_change(self, student, date, cause_name, direction):
+        """
+        Add a new change event to the section roster change object. This
+        is called by the student record when information about the students
+        status or section is changed.
+        """
+        section_roster_changes_object = self.get_section_roster_changes()
+        section_roster_changes_object.add_change_event(student.key(),
+                                            date, cause_name, direction)
+        self.section_roster_changes_blob = \
+            section_roster_changes_object.put_data()
+        self.put()
+            
     def student_info_changed(self, student):
         """
-        Information in a studant instance that is in this section has
-        changed.. Mark the section's summary for update required.
+        Information in a student instance that is in this section has
+        changed. Mark the section's summary for update required.
         """
         school = self.organization
         school_summary = school.student_summary
         school_summary.mark_section_needs_update(self.key())
+        
+    def save_student_count(self):
+        """
+        Save a count of the number of students in the section. This is
+        done only once each schoolyear at the start of the year to be used in
+        Form 2 attendance reports.
+        """
+        query = Student.all(keys_only=True)
+        active_student_filter(query)
+        query.filter('section = ', self)
+        query.filter("gender =", "Male")
+        self.number_male_students = query.count()
+        query = Student.all(keys_only=True)
+        active_student_filter(query)
+        query.filter('section = ', self)
+        query.filter("gender =", "Female")
+        self.number_female_students = query.count()
+        self.put()
 
+        
+        
+        
     @staticmethod
     def get_field_names():
         field_names = [("class_year", "Class Year"),
@@ -3428,7 +3666,7 @@ class AchievementTest(db.Model):
     def update(self, updated_information):
         """
         Update or create the summary and grading instances for the
-        achivement test.
+        achievement test.
         """
         self.update_grading_instances(updated_information)
         self.update_summary_subjects(updated_information)
@@ -3446,10 +3684,14 @@ class AchievementTest(db.Model):
             summary = SchoolDB.summaries.AchievementTestSummary()
         subject_names, name_to_key_dict, key_to_name_dict = \
                 get_possible_subjects("used_in_achievement_tests =")
+        subjects = {}
         for info_tuple in updated_information:
             classyear_name, subject_name, number_questions = info_tuple
-            subject_keystr = str(name_to_key_dict.get(subject_name, None))
+            subject = name_to_key_dict.get(subject_name, None)
+            subjects[subject] = True
+            subject_keystr = str(subject)
             summary.add_year_and_subject(classyear_name, subject_keystr)
+        self.subjects = subjects.keys()
         self.save_summary(summary)
     
     def in_organization(self, organization,other):
@@ -3840,7 +4082,7 @@ class StudentAttendanceRecord(db.Model):
                initial_array_size = 400):
         """
         This is like the __init__ class method but is used because the
-        appDB reserves all ""--" definitions for itself. 
+        appDB reserves all "__" definitions for itself. 
         """
         initial_array = array.array("B",[0])
         start_date_ordinal = start_date.toordinal()
@@ -4149,7 +4391,7 @@ class StudentAttendanceRecord(db.Model):
         so that the index function will work. Note: the start day may 
         be in the future if a student record is created with a future
         registration date.
-        """        
+        """ 
         self.student_is_active = is_active
         start_index = self._get_index_for_date(day_date)
         self._get_array()
@@ -4221,24 +4463,43 @@ class StudentTransfer(db.Model):
         record.
         """
         school_name = student.transfer_school_name
+        new_transfer_direction = ""
         if school_name:
             new_record = StudentTransfer.create(school_name, student)
             new_record.direction = student.transfer_direction
             new_record.general_info = \
                       student.transfer_other_info
+            if not student.transfer_history:
+                history = History.create(ownerref = student,
+                                  attributename = "transfer_history",
+                                  isreference = True, 
+                                  multiactive = False,
+                                  isprivate_reference_object = True)
+                student.__setattr__("transfer_history", history)
+                student.put()
             current_record, date = \
-                          student.transfer_history.get_current_entry_value_and_date(return_multi=False)
+                    student.transfer_history.get_current_entry_value_and_date(
+                        return_multi=False)
             if (current_record):
                 needs_new_record = \
                                  current_record.needs_new_record(new_record)
+                new_transfer_direction = new_record.direction
             else:
                 needs_new_record = True
             if (needs_new_record):
                 new_record.put()
                 student.transfer_history.add_entry(student.transfer_date,
                                                    "", new_record.key())
+                new_transfer_direction = new_record.direction
+                return {"date":student.transfer_date, 
+                        "value":new_transfer_direction, "prior_value":None}
             else:
+                #new record will have information copied but the
+                #new record will not be "put" so it will not be in database
                 current_record.update_current_record(new_record)
+                return {"date":None, "value":None, "prior_value":None}
+        else:
+            return {"date":None, "value":None, "prior_value":None}
 
     @staticmethod
     def get_field_names():
@@ -4654,7 +4915,6 @@ class Student(Person):
                                                #"transfer", True, True)
         #self.post_graduation_history = History.create(self, "post_graduation",
                                                       #False, True)
-        self.update_my_histories()
         self.put()
 
     def remove(self):
@@ -4671,8 +4931,22 @@ class Student(Person):
         loaded into the model instance so this processing does not need
         the form at all.
         """
-        StudentTransfer.update_school_transfer_history(self)
-        self.update_my_histories()
+        student_changes = {}
+        student_changes["transfer"] = \
+            StudentTransfer.update_school_transfer_history(self)
+        history_changes = self.update_my_histories()
+        student_changes.update(history_changes)
+        self.create_section_change_events(student_changes)
+        #if there has been a student status change then change the 
+        #attendance record as well
+        if (student_changes["student_status"]["value"]):
+            change = student_changes["student_status"]
+            try:
+                status = db.get(change["value"])
+                self.attendance.student_status_changed(
+                    change["date"], status.active_student)
+            except:
+                pass
         self.put()
 
     def age(self, reference_date, age_type_calc = "schoolyear"):
@@ -4722,10 +4996,49 @@ class Student(Person):
         """
         history_names = ["student_status", "class_year", "section", 
                          "student_major", "ranking","special_designation"]
+        history_changes = {}
         for name in history_names:
             history_create_params = self.get_history_create_info(name)
-            _update_history(self, name, history_create_params)
-
+            history_changes[name] =_update_history(self, name, 
+                                                  history_create_params)
+        return history_changes
+                    
+    def create_section_change_events(self, changes):
+        """
+        Create a change event for one or more student sections if there
+        have been changes in the relevant parameters for the student.
+        Test for changes in an order that gives priority to the primary
+        cause.
+        """
+        target_section = self.section
+        if (changes["transfer"]["value"]):
+            change = changes["transfer"]
+            target_section.add_section_roster_change(self, 
+                change["date"], "transfer", change["value"])
+        elif (changes["student_status"]["value"]):
+            change = changes["student_status"]
+            status = db.get(change["value"])
+            if (status.active_student):
+                direction = "In"
+            else:
+                direction = "Out"
+            target_section.add_section_roster_change(self, 
+                change["date"], "student_status", direction)
+        elif (changes["section"]["value"]):
+            change = changes["section"]
+            #A section change that also needs to be recorded in the
+            #old one
+            target_section.add_section_roster_change(self, 
+                change["date"], "reassign", "In")
+            prior_section_key = change["prior"]
+            try:
+                prior_section = db.get(prior_section_key)
+                prior_section.add_section_roster_change(self, 
+                    change["date"], "reassign", "Out")
+            except:
+                pass
+        
+            
     def assign_class_session(self, class_session, subject, start_date = None):
         """
         Create a StudentsClass object for the student with a specified
@@ -4831,6 +5144,12 @@ class Student(Person):
     def get_parents(self):
         if (self.family != None):
             return self.family.get_parents()
+        else:
+            return []
+
+    def get_siblings(self):
+        if (self.family != None):
+            return self.family.get_siblings()
         else:
             return []
 
@@ -4999,13 +5318,62 @@ class Student(Person):
                             ("special_designation", "Special Designation"),
                             ("special_designation_change_date", 
                              "Special Designation Change Date"),
-                            ("birth_prrovince", "Birth Province"),
+                            ("birth_province", "Birth Province"),
                             ("birth_municipality", "Birth Municipality"),
                             ("birth_community", "Birth Barangay"),
                             ("elementary_school", "Elementary School"),
                             ("elementary_gpa", "Elementary GPA"),
                             ("years_in_elementary", "Years in Elementary")])
         return field_names
+
+    #def replace_my_histories(self):
+        #"""
+        #This function is used to completely rebuild all histories for
+        #the student. It should only be used if the histories are
+        #corrupted or are in a form that cannot be easily rebuilt.
+        #Because it is so dangerous and of very rare use the function
+        #will normally be left commented out.
+        #"""
+        #history_value_names = ["student_status", "class_year", "section", 
+                         #"student_major", "ranking","special_designation"]
+        #new_histories_count = 0
+        #try:
+            #for value_name in history_value_names:
+                #create_params = self.get_history_create_info(value_name)
+                #date_name = value_name + "_change_date"
+                #history_name = value_name + "_history"
+                #current_value = \
+                    #self.properties()[value_name].get_value_for_datastore(
+                        #self)
+                #if (current_value):
+                    #current_date_value = \
+                        #self.properties()[date_name].get_value_for_datastore(
+                            #self)
+                    #if current_date_value:
+                        #current_date_value = current_date_value.date()
+                    #history = History.create(ownerref = create_params[0],
+                                #attributename = create_params[1],
+                                #isreference = create_params[2], 
+                                #multiactive = create_params[3],
+                                #isprivate_reference_object = create_params[4])
+                    #if (history.is_reference):
+                        #history.add_entry(current_date_value, "",
+                                          #current_value)
+                    #else:
+                        #history.add_entry(current_date_value, current_value)
+                    #history.put_history()
+                    #new_histories_count += 1
+                    #self.__setattr__(history_name,history)
+                #else:
+                    #self.__setattr__(history_name,None)
+            #self.put()
+            #logging.info("Student '%s' rebuilt %d histories." 
+                         #%(unicode(self), new_histories_count))
+            #return True
+        #except StandardError, e:
+            #logging.error("Failed to replace histories for %s': %s"
+                          #%(unicode(self), e))
+            #return False
 
 #----------------------------------------------------------------------
 
@@ -5608,7 +5976,6 @@ class VersionedTextManager(History):
         manager.entries_list = []
         manager.name = name
         manager.put_history()
-        manager.put_history()
         return manager
 
 
@@ -5621,7 +5988,7 @@ class VersionedTextManager(History):
                         author = getActiveDatabaseUser().get_active_user(),
                         comment = "Initial revision")
         new_page.put()
-        self.add_entry(date.today(), "Initial revision", new_page)
+        self.add_entry(date.today(), "Initial revision", new_page.key())
 
     def form_data_post_processing(self):
         """
@@ -5887,7 +6254,8 @@ class ActiveDatabaseUser:
 
 ######### Utility Functions not associated with a single class for #######
 ######### internal use #######
-def _update_history(instance, value_name, create_params):
+def _update_history(instance, value_name, create_params, 
+                    already_tried = False):
     """
     The history primary fields are changed by form editing. Compare the
     values of those fields with the current entry in the history. If
@@ -5900,21 +6268,33 @@ def _update_history(instance, value_name, create_params):
     date_name = value_name + "_change_date"
     history_name = value_name + "_history"
     value = \
-        instance.properties()[value_name].get_value_for_datastore(instance)
+          instance.properties()[value_name].get_value_for_datastore(instance)
     change_datetime = \
         instance.properties()[date_name].get_value_for_datastore(instance)
     if (value and change_datetime):
         #if no value and time nothing can be set in a history
         change_date = change_datetime.date()
-        history = \
-            instance.properties()[history_name].get_value_for_datastore(
-                instance)
         #confirm that there is a history and create one if not
         key = instance.properties()[history_name].get_value_for_datastore(
                                                             instance)
+        history = None
         if (key):
-            history = db.get(key)
-        else:
+            try:
+                history = db.get(key)
+            except ReferenceError, e:
+                #if a reference errror remove the key and rebuild
+                #the history by calling this function again. Use 
+                #the call count value to prevent an unexpected loop.
+                logging.error("Object '%s' history field '%s' had bad reference. Replaced history."
+                              %(unicode(instance), value_name))
+                instance.__setattr__(history_name,None)
+                if not already_tried:
+                    _update_history(instance, value_name, create_params,
+                                 aready_tried = True)
+                else:
+                    logging.error("_update_history already retried once.")
+                
+        if (not history):
             history = History.create(ownerref = create_params[0],
                               attributename = create_params[1],
                               isreference = create_params[2], 
@@ -5923,17 +6303,21 @@ def _update_history(instance, value_name, create_params):
             instance.__setattr__(history_name,history)
             instance.put()
         needs_update = history.is_empty()
+        prior_value = None
         if not needs_update:
             history_value, history_date = \
                          history.get_current_entry_value_and_date(
                              key_only=True)
+            prior_value = history_value
             needs_update = ((value != history_value) or 
                              (change_date != history_date))
         if needs_update:
             _perform_history_update(instance, history, 
-                                    change_date, value)        
-        
-                                  #the_date, the_value)        
+                                    change_date, value)
+            #return the changes
+            return {"date":change_date, "value":value, "prior":prior_value}
+        else:
+            return {"date":None, "value":None, "prior":prior_value}
 
 def _perform_history_update(instance, history, the_date, the_value):
     if (history.is_reference):
@@ -6294,38 +6678,47 @@ def get_model_class_from_name(name_string):
     """
     if (name_string):
         class_name_map = {"administrator":Administrator, 
-                          "achievement_test":AchievementTest, 
-                          "community":Community,
-                          "class_session":ClassSession, 
-                          "class_period":ClassPeriod,
-                          "classroom":Classroom,
-                          "contact":Contact, "database_user":DatabaseUser,
-                          "division":Division,"family":Family,
-                          "grading_instance":GradingInstance, 
-                          "grading_period":GradingPeriod,
-                          "municipality":Municipality, 
-                          "organization":Organization,
-                          "person":Person,
-                          "parent_or_guardian":ParentOrGuardian,
-                          "province":Province,
-                          "region": Region, "school": School,
-                          "school_day":SchoolDay, 
-                          "school_day_type":SchoolDayType,
-                          "school_year": SchoolYear,
-                          "section": Section, 
-                          "section_type": SectionType, 
-                          "special_designation":SpecialDesignation,
-                          "student": Student, 
-                          "student_grouping":StudentGrouping,
-                          "student_major":StudentMajor,
-                          "grading_period_result":GradingPeriodResult,
-                          "student_status":StudentStatus, 
-                          "student_summary":StudentSchoolSummaryHistory,
-                          "subject": Subject,
-                          "teacher": Teacher,
-                          "versioned_text_manager":VersionedTextManager,
-                          "versioned_text":VersionedText,
-                          "user_type": UserType}
+                "achievement_test":AchievementTest, 
+                "community":Community,
+                "class_session":ClassSession, 
+                "class_period":ClassPeriod,
+                "classroom":Classroom,
+                "contact":Contact, "database_user":DatabaseUser,
+                "division":Division,"family":Family,
+                "history":History,
+                "history_entry":HistoryEntry,
+                "grading_instance":GradingInstance, 
+                "grading_period":GradingPeriod,
+                "municipality":Municipality, 
+                "national":National,
+                "organization":Organization,
+                "person":Person,
+                "parent_or_guardian":ParentOrGuardian,
+                "province":Province,
+                "region": Region, "school": School,
+                "school_day":SchoolDay, 
+                "school_day_type":SchoolDayType,
+                "school_year": SchoolYear,
+                "section": Section, 
+                "section_type": SectionType, 
+                "special_designation":SpecialDesignation,
+                "student": Student, 
+                "student_grouping":StudentGrouping,
+                "student_major":StudentMajor,
+                "student_school_summary":StudentSchoolSummary,
+                "student_school_summary_history":StudentSchoolSummaryHistory,
+                "grading_period_result":GradingPeriodResult,
+                "student_status":StudentStatus, 
+                "student_summary":StudentSchoolSummaryHistory,
+                "students_class":StudentsClass,
+                "student_section_summary":StudentSectionSummary,
+                "student_status":StudentStatus,
+                "student_transfer":StudentTransfer,
+                "subject": Subject,
+                "teacher": Teacher,
+                "versioned_text_manager":VersionedTextManager,
+                "versioned_text":VersionedText,
+                "user_type": UserType}
         model_class = class_name_map.get(name_string, None)
     return model_class
 

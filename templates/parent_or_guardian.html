@@ -8,11 +8,6 @@ $(function() {
     $("#cancel_button").click(function(){
         close();
     });
-	
-//	$("#save_button").click(function(){
-//		close();
-//	});
-
 });
 {% endblock local_javascript_code %}
 {% block extended %}
@@ -21,11 +16,11 @@ $(function() {
 <fieldset>
 <legend>Parent Information</legend>
 <table class="unbordered"> 
-<tr><td><label for="id_relationship">Relationship:</label></td>
+<tr><td><label for="id_relationship" id="id_relationship_label">Relationship:</label></td>
 <td>{{form.relationship}}</td></tr>
-<tr><td><label for="id_contact_order">Order to Contact:</label></td>
+<tr><td><label for="id_contact_order" id="id_contact_order_label">Order to Contact:</label></td>
 <td>{{form.contact_order}}</td></tr>
-<tr><td><label for="id_occupation">Occupation:</label></td>
+<tr><td><label for="id_occupation" id="id_occupation_label">Occupation:</label></td>
 <td>{{form.occupation}}</td></tr>
 </table>
 </fieldset>

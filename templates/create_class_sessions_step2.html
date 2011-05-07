@@ -1,0 +1,71 @@
+{% extends 'forms_base.html' %}
+{% block local_javascript_code %}
+var request_table_info = {{request_table}}; 
+var conflict_table_info = {{conflict_table}};
+var other_info = {{other_info}};
+var start_date = {{start_date}};
+var end_date = {{end_date}};
+var use_classrooms = {{use_classrooms}}; 
+var conflictTable = new StandardTable();
+conflictTable.setDom(document.getElementById('conflicts_table'));
+var createTable = new StandardTable();
+reportTable.setDom(document.getElementById('request_table'));
+
+/*
+function sendRequest(params) {
+	$.ajax({
+		url:"/ajax/create_class_sessions",
+		data: params,
+		success: function(ajaxResponse) {
+			$.loadanim.stop();
+			alert("completed");
+		},
+		error: function(xhr, textStatus, errorThrown){
+			$.loadanim.stop();
+			reportServerError(xhr, textStatus, errorThrown);
+		}
+	});
+}
+
+function sendFormInfo() {
+	var process_data = subjectGatherFormInfo();
+	var start_date = $("#id_start_date").val();
+	var end_date = $("#id_end_date").val();
+	var use_section_classrooms = $("#id_classes_in_section_classrooms").val();
+	var param_dict = {
+	"process_step":1,
+	"process_data":process_data,
+	"start_date":start_date,
+	"end_date":end_date,
+	"use_section_classrooms":use_section_classrooms,
+	"class":"school_year",
+	"key":localParams.school_year_key
+	};	
+	sendRequest(param_dict);
+}
+*/
+$(function() {
+//	$("#save_button").unbind('click');
+//	$("#save_button").click(sendOk);
+});
+
+{% endblock local_javascript_code %}
+{% block extended %}
+<fieldset>
+<legend>Class Sessions That Already Exist</legend>
+<div id="conflicts_table">
+</div>
+</fieldset>
+<fieldset>
+<legend>Class Sessions To Be Created</legend>
+<div id="request_table">
+</div>
+</fieldset>
+{{form.json_final_request}}
+{% endblock extended %}
+	
+	
+	
+	
+	
+	

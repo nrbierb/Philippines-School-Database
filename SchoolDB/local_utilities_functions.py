@@ -18,8 +18,11 @@ Utilities that are normally used as scheduled jobs or called from the
 "Run Utility" web page. 
 """
 
-import cPickle, zlib, datetime, random, logging
+import cPickle, zlib, datetime, random, logging, csv, StringIO, codecs
 from django.utils import simplejson
+from google.appengine.api import mail
+from google.appengine.api import memcache
+
 import SchoolDB.models
 
 
@@ -182,7 +185,32 @@ def update_student_summary_utility(logger, encompassing_organization_name="",
         encompassing_organization = q.get()
     update_student_summary_by_task(encompassing_organization, (force != ""))
     logger.add_line("Queued all")
-    
+ 
+def update_section_initial_student_counts(loggger=None):
+    try:
+        organization = \
+            SchoolDB.models.getActiveOrganization()
+        if (organization.classname == "School"):
+            query = SchoolDB.models.Section.all()
+            query.filter("organization =", organization)
+            query.filter("termination_date =", None)
+            sections = query.fetch(200)
+            for section in sections:
+                section.save_student_count()
+                logging.info("Updated section '%s' students list"
+                             %unicode(section))
+            logging.info("Completed section_prior_list_update for all sections in school '%s'" %unicode(organization))
+            return True
+        else:
+            logging.error("The organization '%s' is not a school so there are no sections to update." %unicode(organization))
+            #It was not successful but should not be run again because it 
+            #will continue to fail.
+            return True
+        #change error type after debugging
+    except EOFError, e:
+        logging.error("Failed Update Student Summary %s" %e)
+        return False
+                    
 #----------------------------------------------------------------------
 # Specific limited purpose utilities
 
@@ -496,4 +524,320 @@ def create_fake_gp_grades(class_year, grading_period_keystr):
                          unicode(class_session))
         logging.info("All fake grades enqueued")
         
+
+
+def dump_student_info_to_email(logger, class_year, email_address):
+    """ 
+    Write the basic student information for all students in a class
+    year at a school to a csv file and mail as an attachment to the
+    email address. This is meant to be used in local applications such
+    as prefilled registration forms. The data has only the string
+    values not the keys. This is performed as a task so that the 30
+    second time limit does not apply. 
+    This function is called by the user to set up the task.
+    """
+    memcache_key = "CSV-Student-Dump-%s-%s-%s" \
+        %( SchoolDB.models.getActiveDatabaseUser().get_active_organization_name(),
+           class_year, datetime.datetime.now().isoformat())
+    memcache.set(memcache_key, "")
+    args = 'class_year="%s", email_address="%s", memcache_key="%s", last_count=%d' %(class_year, email_address,memcache_key,0)
+    task_generator = SchoolDB.assistant_classes.TaskGenerator(
+        task_name = "Dump Student Info to Email", function=
+        "SchoolDB.local_utilities_functions.dump_student_info_to_email_task",
+        function_args=args, rerun_if_failed=False)
+    task_generator.queue_tasks()
     
+    
+def dump_student_info_to_email_task_ascii(class_year, email_address, memcache_key,
+                                    last_count):
+    """ Write the basic student information for all students in a class
+    year at a school to a csv file and mail as an attachment to the
+    email address. This is meant to be used in local applications such
+    as prefilled registration forms. The data has only the string
+    values not the keys. This is performed as a task so that the 30
+    second time limit does not apply.
+    This is the task function that actually does the work. It chains itself to perform the scan across all students.
+    """
+    try:
+        csv_file = StringIO.StringIO()
+        csv_filename = class_year+"StudentInfo.csv"
+        csv_field_names = [
+            "first_name", "middle_name", "last_name", "gender", "address",
+            "municipality", "barangay", "birthdate", 
+            "siblings",
+            "p1name", "p1relationship", "p1occupation", "p1cell_phone",
+            "p1email",
+            "p2name", "p2relationship", "p2occupation", "p2cell_phone",
+            "p2email",
+            "cell_phone", "email", "student_id", "class_year", "student_major",
+            "balik_aral",
+            "birth_province", "birth_municipality", "birth_barangay",
+            "elementary_school", "elementary_graduation_date",
+            "elementary_gpa", "years_in_elementary"]
+        
+        task_count = 0
+        block_size = 30
+        writer = csv.DictWriter(csv_file, csv_field_names)
+        val_dict = {}        
+        if (last_count == 0):
+            #create header row
+            for s in csv_field_names:
+                val_dict[s] = s
+            writer.writerow(val_dict)
+        query = SchoolDB.models.Student.all()
+        query.filter("organization =", SchoolDB.models.getActiveOrganization())
+        query.filter("class_year =", class_year)  
+        students = query.fetch(block_size, offset=last_count)
+        for student in students:
+            for s in csv_field_names:
+                val_dict[s] = ""
+            val_dict["first_name"]=student.first_name
+            val_dict["middle_name"]=student.middle_name
+            val_dict["last_name"]=student.last_name
+            val_dict["gender"]=student.gender
+            val_dict["address"]=unicode(student.address)
+            val_dict["municipality"]=unicode(student.municipality)
+            val_dict["barangay"]=unicode(student.community)
+            val_dict["birthdate"]=unicode(student.birthdate)
+            sib_string = ""
+            for sibling in student.get_siblings():
+                if (sibling.key() != student.key()):
+                    sib_string += (unicode(sibling) + ", ")
+            val_dict["siblings"]=sib_string
+            p_list = student.get_parents()
+            if p_list:
+                p = p_list[0]
+                val_dict["p1name"]=unicode(p)
+                val_dict["p1relationship"]=unicode(p.relationship)
+                val_dict["p1occupation"]=unicode(p.occupation)
+                val_dict["p1cell_phone"]=unicode(p.cell_phone)
+                val_dict["p1email"]=unicode(p.email)
+            if (len(p_list) > 1):
+                p = p_list[1]
+                val_dict["p2name"]=unicode(p)
+                val_dict["p2relationship"]=unicode(p.relationship)
+                val_dict["p2occupation"]=unicode(p.occupation)
+                val_dict["p2cell_phone"]=unicode(p.cell_phone)
+                val_dict["p2email"]=unicode(p.email)
+            val_dict["cell_phone"]=unicode(student.cell_phone)
+            val_dict["email"]=unicode(student.email)
+            val_dict["student_id"]=unicode(student.student_id)
+            val_dict["class_year"]=unicode(student.class_year)
+            val_dict["student_major"]=unicode(student.student_major)
+            val_dict["birth_province"]= unicode(student.birth_province)
+            if student.birth_municipality:
+                val_dict["birth_municipality"]=\
+                        unicode(student.birth_municipality)
+            else:
+                val_dict["birth_municipality"]=unicode(student.birth_municipality_other)
+            if student.birth_community:
+                val_dict["birth_barangay"]=unicode(student.birth_community)
+            else:
+                val_dict["birth_barangay"]=unicode(student.birth_community_other)
+            val_dict["elementary_school"]=unicode(student.elementary_school)
+            val_dict["elementary_graduation_date"]=\
+                    unicode(student.elementary_graduation_date)
+            val_dict["elementary_gpa"]=unicode(student.elementary_gpa)
+            val_dict["years_in_elementary"]=unicode(student.years_in_elementary)
+            writer.writerow(val_dict)
+            task_count += 1
+        memcached_data = memcache.get(memcache_key)
+        memcached_data += csv_file.getvalue()
+        memcache.set(memcache_key, memcached_data)
+        last_count += task_count
+        logging.info("Wrote %d student records to memcache. Total count:%d"
+                     %(task_count, last_count))
+        if (task_count == block_size):
+            #Completely filled request. Probably more left so chain
+            #another task.
+            args = 'class_year="%s", email_address="%s", memcache_key="%s", last_count=%d' \
+                 %(class_year, email_address,memcache_key,last_count)
+            task_generator = SchoolDB.assistant_classes.TaskGenerator(
+                task_name = "Dump Student Info to Email", function=
+                "SchoolDB.local_utilities_functions.dump_student_info_to_email_task",
+                function_args=args, rerun_if_failed=False)
+            task_generator.queue_tasks()             
+        if (task_count < block_size):
+            # we are at the end. Send email
+            logging.info("All completed. Sending mail to %s" %email_address)
+            message = mail.EmailMessage(
+                sender="Philippines School Database <nrbierb@gmail.com>",
+                subject="Requested Student Information for " + class_year)   
+            message.to = email_address
+            message.body = """
+            Here is the information you requested about the %s students
+            at %s. 
+            The attachment is a csv file that can be opened in a spreadsheet.
+            """
+            message.attachments = (csv_filename, memcached_data)
+            message.send()
+            logging.info("Email with file sent to %s" %email_address)
+            memcache.delete(memcache_key)
+        return True
+    except StandardError, e:
+        logging.error("Failed to generate requested student csv info to %s: %s"
+                      %(email_address, e))
+        return False
+    
+class UnicodeWriter:
+    """
+    A CSV writer which will write rows to CSV file "f",
+    which is encoded in the given encoding.
+    """
+
+    def __init__(self, f, dialect=csv.excel, encoding="utf-8", **kwds):
+        # Redirect output to a queue
+        self.queue = StringIO.StringIO()
+        self.writer = csv.writer(self.queue, dialect=dialect, **kwds)
+        self.stream = f
+        self.encoder = codecs.getincrementalencoder(encoding)()
+
+    def writerow(self, row):
+        self.writer.writerow([s.encode("utf-8") for s in row])
+        # Fetch UTF-8 output from the queue ...
+        data = self.queue.getvalue()
+        data = data.decode("utf-8")
+        # ... and reencode it into the target encoding
+        data = self.encoder.encode(data)
+        # write to the target stream
+        self.stream.write(data)
+        # empty queue
+        self.queue.truncate(0)
+
+    def writerows(self, rows):
+        for row in rows:
+            self.writerow(row)
+
+def dump_student_info_to_email_task(class_year, email_address, memcache_key,
+                                    last_count):
+    """ Write the basic student information for all students in a class
+    year at a school to a csv file and mail as an attachment to the
+    email address. This is meant to be used in local applications such
+    as prefilled registration forms. The data has only the string
+    values not the keys. This is performed as a task so that the 30
+    second time limit does not apply.
+    This is the task function that actually does the work. It chains itself to perform the scan across all students.
+    """
+    try:
+        csv_file = StringIO.StringIO()
+        csv_filename = class_year+"StudentInfo.csv"
+        csv_field_names = [
+            "first_name", "middle_name", "last_name", "gender", "address",
+            "municipality", "barangay", "birthdate", 
+            "siblings",
+            "p1name", "p1relationship", "p1occupation", "p1cell_phone",
+            "p1email",
+            "p2name", "p2relationship", "p2occupation", "p2cell_phone",
+            "p2email",
+            "cell_phone", "email", "student_id", "class_year", "student_major",
+            "balik_aral",
+            "birth_province", "birth_municipality", "birth_barangay",
+            "elementary_school", "elementary_graduation_date",
+            "elementary_gpa", "years_in_elementary"]
+        
+        task_count = 0
+        block_size = 30
+        writer = UnicodeWriter(csv_file, csv_field_names)
+        val_dict = {}        
+        if (last_count == 0):
+            #create header row
+            row = []
+            for s in csv_field_names:
+                row.append(s)
+            writer.writerow(row)
+        query = SchoolDB.models.Student.all()
+        query.filter("organization =", SchoolDB.models.getActiveOrganization())
+        query.filter("class_year =", class_year)  
+        students = query.fetch(block_size, offset=last_count)
+        for student in students:
+            for s in csv_field_names:
+                val_dict[s] = ""
+            val_dict["first_name"]=student.first_name
+            val_dict["middle_name"]=student.middle_name
+            val_dict["last_name"]=student.last_name
+            val_dict["gender"]=student.gender
+            val_dict["address"]=unicode(student.address)
+            val_dict["municipality"]=unicode(student.municipality)
+            val_dict["barangay"]=unicode(student.community)
+            val_dict["birthdate"]=unicode(student.birthdate)
+            sib_string = ""
+            for sibling in student.get_siblings():
+                if (sibling.key() != student.key()):
+                    sib_string += (unicode(sibling) + ", ")
+            val_dict["siblings"]=sib_string
+            p_list = student.get_parents()
+            if p_list:
+                p = p_list[0]
+                val_dict["p1name"]=unicode(p)
+                val_dict["p1relationship"]=unicode(p.relationship)
+                val_dict["p1occupation"]=unicode(p.occupation)
+                val_dict["p1cell_phone"]=unicode(p.cell_phone)
+                val_dict["p1email"]=unicode(p.email)
+            if (len(p_list) > 1):
+                p = p_list[1]
+                val_dict["p2name"]=unicode(p)
+                val_dict["p2relationship"]=unicode(p.relationship)
+                val_dict["p2occupation"]=unicode(p.occupation)
+                val_dict["p2cell_phone"]=unicode(p.cell_phone)
+                val_dict["p2email"]=unicode(p.email)
+            val_dict["cell_phone"]=unicode(student.cell_phone)
+            val_dict["email"]=unicode(student.email)
+            val_dict["student_id"]=unicode(student.student_id)
+            val_dict["class_year"]=unicode(student.class_year)
+            val_dict["student_major"]=unicode(student.student_major)
+            val_dict["birth_province"]= unicode(student.birth_province)
+            if student.birth_municipality:
+                val_dict["birth_municipality"]=\
+                        unicode(student.birth_municipality)
+            else:
+                val_dict["birth_municipality"]=unicode(student.birth_municipality_other)
+            if student.birth_community:
+                val_dict["birth_barangay"]=unicode(student.birth_community)
+            else:
+                val_dict["birth_barangay"]=unicode(student.birth_community_other)
+            val_dict["elementary_school"]=unicode(student.elementary_school)
+            val_dict["elementary_graduation_date"]=\
+                    unicode(student.elementary_graduation_date)
+            val_dict["elementary_gpa"]=unicode(student.elementary_gpa)
+            val_dict["years_in_elementary"]=unicode(student.years_in_elementary)
+            row = [val_dict[name].strip() for name in csv_field_names]
+            writer.writerow(row)
+            task_count += 1
+        memcached_data = memcache.get(memcache_key)
+        memcached_data += csv_file.getvalue()
+        memcache.set(memcache_key, memcached_data)
+        last_count += task_count
+        logging.info("Wrote %d student records to memcache. Total count:%d"
+                     %(task_count, last_count))
+        if (task_count == block_size):
+            #Completely filled request. Probably more left so chain
+            #another task.
+            args = 'class_year="%s", email_address="%s", memcache_key="%s", last_count=%d' \
+                 %(class_year, email_address,memcache_key,last_count)
+            task_generator = SchoolDB.assistant_classes.TaskGenerator(
+                task_name = "Dump Student Info to Email", function=
+                "SchoolDB.local_utilities_functions.dump_student_info_to_email_task",
+                function_args=args, rerun_if_failed=False)
+            task_generator.queue_tasks()             
+        if (task_count < block_size):
+            # we are at the end. Send email
+            logging.info("All completed. %d students processed.Sending mail to %s" %(last_count, email_address))
+            message = mail.EmailMessage(
+                sender="Philippines School Database <nrbierb@gmail.com>",
+                subject="Requested Student Information for " + class_year)   
+            message.to = email_address
+            message.body = """
+            Here is the information you requested about the %s students
+            at %s. 
+            The attachment is a csv file that can be opened in a spreadsheet.
+            """ %(class_year, unicode(SchoolDB.models.getActiveOrganization()))
+            message.attachments = (csv_filename, memcached_data)
+            message.send()
+            logging.info("Email with file sent to %s" %email_address)
+            memcache.delete(memcache_key)
+        return True
+    except StandardError, e:
+        logging.error("Failed to generate requested student csv info to %s: %s"
+                      %(email_address, e))
+        return False
+   

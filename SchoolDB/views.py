@@ -55,12 +55,14 @@ from SchoolDB.utilities.add_student_major_history import \
      assign_student_majors_for_test_database
 from SchoolDB.utilities.create_schooldays import create_schooldays
 from SchoolDB.utilities.createStudents import create_students_for_school
+from SchoolDB.utilities.replace_histories import replace_histories
+
 import SchoolDB.utilities
 result_string = ""
 __http_request__ = None
 __processed_request__ = None
 __revision_id__ = \
-"Version: 1--0-11 " + datetime.now().strftime("%m/%d/%y %I:%M%p")
+"Version: 1--0-12 " + datetime.now().strftime("%m/%d/%y %I:%M%p")
 
 
 site_description = [("Main Menu", "index", ""), 
@@ -713,12 +715,15 @@ def showReports(request):
     elif (report_type == "section_list"):
         formname = SectionListReportForm
         report_title = "Section List"
-    elif (report_type == "school_register"):
-        formname = SchoolRegisterReportForm
-        report_title = 'School Register'
     elif (report_type == "student_record_check"):
         formname = StudentRecordsCheckForm
         report_title = 'Student Record Check'
+    elif (report_type == "form1"):
+        formname = Form1ReportForm
+        report_title = 'Form 1'
+    elif (report_type == "form2"):
+        formname = Form2ReportForm
+        report_title = 'Form 2'
     elif (report_type == "form14"):
         formname = Form14ReportForm
         report_title = 'Form 14'
@@ -3600,7 +3605,7 @@ class AchievementTestGradesForm(BaseStudentDBForm):
         """
         if (getprocessed()):
             if (getprocessed().return_page == "%2Fmy_work"):
-                section_keystr = getprocessed().cookies["active_section"]
+                section_keystr = getprocessed().cookies["aS"]
                 if section_keystr:
                     section = SchoolDB.models.get_instance_from_key_string(section_keystr, 
                                                     SchoolDB.models.Section)
@@ -3660,7 +3665,7 @@ class GradingPeriodResultsForm(BaseStudentDBForm):
                         
     def modify_params(self, param_dict):
         param_dict["id_right_btn"] = "save_grades_btn"
-        class_session_name = getprocessed().cookies["active_class_session_name"]
+        class_session_name = getprocessed().cookies["aCn"]
         name = class_session_name.replace("%20"," ")
         param_dict["class_session_name"] = name
         param_dict["initial_title"] = \
@@ -3677,7 +3682,7 @@ class GradingPeriodResultsForm(BaseStudentDBForm):
         if (getprocessed()):
             if (getprocessed().return_page == "%2Fmy_work"):
                 class_session_keystr = \
-                    getprocessed().cookies["active_class_session"]
+                    getprocessed().cookies["aC"]
                 if class_session_keystr:
                     class_session = SchoolDB.models.get_instance_from_key_string(
                         class_session_keystr, SchoolDB.models.ClassSession)
@@ -4025,7 +4030,7 @@ class MyWorkForm(BaseStudentDBForm):
             activeDbUser.get_active_organization_name()
         self.users_section = self.dbuser.get_preference("active_section")
         self.users_class_session = self.dbuser.get_preference(
-            "active_class_session")
+            "active_class")
         self.users_section_name = ""
         self.users_class_session_name = ""
         if (self.users_section):
@@ -4075,7 +4080,7 @@ class MyWorkForm(BaseStudentDBForm):
         sect.set_local_choices_list(self.build_choice_list(SchoolDB.models.Section))
         cls_handler = """
         select: function(event, data) {
-            setChoiceValue("id_users_class_session", data, "active_class_session");} """
+            setChoiceValue("id_users_class_session", data, "aC");} """
         cls = javascript_generator.add_autocomplete_field(
             class_name = "class_session",
             field_name = "id_users_class_session_name",
@@ -4172,26 +4177,6 @@ class AttendanceReportForm(BaseStudentDBForm):
         return javascript_generator
 
 #----------------------------------------------------------------------  
-class SchoolRegisterReportForm(BaseStudentDBForm):
-    """
-    This form presents a page to generate a school register form.
-    """
-    section_name = forms.CharField(required = False, label="Section",
-                    widget=forms.TextInput(attrs= 
-                        {'class':'autofill required', "size":11}))
-    section = forms.CharField(required=False, widget=forms.HiddenInput)
-    gender = forms.ChoiceField(required=False, label="Gender",
-            choices=(("Male","Male"), ("Female","Female")), initial="Male")
-
-    def modify_params(self, params):
-        params["title_prefix"] = "Create"
-        
-    def generate_javascript_code(self, javascript_generator):
-        sect = javascript_generator.add_autocomplete_field(
-            class_name = "section")
-        return javascript_generator
-
-#----------------------------------------------------------------------  
 class StudentAgeReportForm(BaseStudentDBForm):
     """
     This form presents a page to generate a school register form.
@@ -4274,10 +4259,56 @@ class StudentRecordsCheckForm(BaseStudentDBForm):
         return javascript_generator
 
 #----------------------------------------------------------------------  
+class Form1ReportForm(BaseStudentDBForm):
+    """
+    This form presents a page to generate a school register form.
+    """
+    section_name = forms.CharField(required = False, label="Section",
+                    widget=forms.TextInput(attrs= 
+                        {'class':'autofill required', "size":11}))
+    section = forms.CharField(required=False, widget=forms.HiddenInput)
+    gender = forms.ChoiceField(required=False, label="Gender",
+            choices=(("Male","Male"), ("Female","Female")), initial="Male")
+
+    def modify_params(self, params):
+        params["title_prefix"] = "Create"
+        
+    def generate_javascript_code(self, javascript_generator):
+        sect = javascript_generator.add_autocomplete_field(
+            class_name = "section")
+        return javascript_generator
+
+#----------------------------------------------------------------------  
+class Form2ReportForm(BaseStudentDBForm):
+    """
+    This form presents a page to generate a Form 2 Monthly Attendance
+    Report
+    """
+    section_name = forms.CharField(required=False,
+            widget=forms.TextInput(attrs={'class':'autofill entry-field required'}))
+    section = forms.CharField(required=False, widget=forms.HiddenInput)
+    month = forms.DateField(required=False, 
+            widget=forms.DateInput(format="%m/%Y", attrs={"size":7,
+            "class":"month-mask required entry-field"}))
+
+    def modify_params(self, params):
+        params["title_prefix"] = "Create"
+        school = SchoolDB.models.getActiveDatabaseUser().get_active_organization()
+        division = school.division
+        region = division.region
+        params["schoolname"] = unicode(school)
+        params["division"] = unicode(division)
+        params["region"] = unicode(region)
+        
+    def generate_javascript_code(self, javascript_generator):
+        sect = javascript_generator.add_autocomplete_field(
+            class_name = "section")
+        
+#----------------------------------------------------------------------  
 class Form14ReportForm(BaseStudentDBForm):
     """
-    This form presents a page to generate a several student record
-    error forms.
+    This form is the standard report form for the school for
+    achievement tests.
     """
     section_name = forms.CharField(required=False, label="Section",
             widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
@@ -4309,6 +4340,7 @@ class Form14ReportForm(BaseStudentDBForm):
             class_name = "achievement_test", 
             field_name = "id_achievement_test_name",
             key_field_name = "id_achievement_test")
+
 
 #----------------------------------------------------------------------  
 class BaseSummaryForm(BaseStudentDBForm):
@@ -4371,25 +4403,33 @@ class AchievementTestSummaryForm(BaseSummaryForm):
             widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
     achievement_test = forms.CharField(required=False,
                               widget=forms.HiddenInput, initial = "")   
+    subject_name = forms.CharField(required=False, 
+            label="Subject",
+            widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
+    subject = forms.CharField(required=False,
+                              widget=forms.HiddenInput, initial = "")   
     parent_form = BaseSummaryForm
     
     def modify_params(self, params):
         self.parent_form.modify_params(self, params)
         params["title_bridge"] = " An "
         params["title_suffix"] = "Achievement Test Summary Report"
+        params["report_title"] = "Achievement Test Summary"
         params["show_choose_fields_block"] = True
         params["achievement_test"] = True
 
     def generate_javascript_code(self, javascript_generator):
         achtest = javascript_generator.add_autocomplete_field(
-            class_name = "achievement_test", 
-            field_name = "id_achievement_test_name",
-            key_field_name = "id_achievement_test")
+            class_name = "achievement_test")
         field_choices_table = self.parent_form.generate_javascript_code(
             self, javascript_generator)
         field_choices_table.LoadData(
             SchoolDB.reports.AchievementTestReport.get_report_field_choices())
         field_choices_descriptor = "(%s)" %field_choices_table.ToJSon()
+        sub = javascript_generator.add_autocomplete_field(
+            class_name = "subject",
+            ajax_root_path = "/ajax/get_subjects_for_achievement_test")
+        sub.add_dependency(achtest)
         javascript_generator.add_javascript_params({
             "field_choices_table":field_choices_descriptor,
             "report_type":"achievementTest"})
@@ -4400,7 +4440,8 @@ class StudentSummaryForm(BaseSummaryForm):
     
     def modify_params(self, params):
         self.parent_form.modify_params(self, params)
-        params["title_suffix"] = "Student Information Summary Report"
+        params["title_suffix"] = "Student Statistics Summary Report"
+        params["report_title"] = "Student Statistics Summary"
         params["show_choose_fields_block"] = True
 
     def generate_javascript_code(self, javascript_generator):
@@ -4749,7 +4790,7 @@ def create_section_students_table(parameter_dict, primary_object,
                 table_entry.append("Not yet assigned")            
         selection_table.append(table_entry)
         selection_keys.append(str(student.key()))
-    return(table_description, selection_table, selection_keys, "")
+    return(table_description, selection_table, selection_keys, None, "")
 
 #----------------------------------------------------------------------
 
@@ -4779,7 +4820,7 @@ def create_class_session_students_table(parameter_dict, primary_object,
                 ('middle_name', 'string', 'Middle Name')]
     if include_section_column:
         table_description.append(('section','string', 'Section'))
-    return(table_description, selection_table, selection_keys, "")
+    return(table_description, selection_table, selection_keys, None, "")
 
 #----------------------------------------------------------------------
 
@@ -4809,7 +4850,7 @@ def create_section_classes_table(parameter_dict, primary_object,
                 ('name', 'string', 'Class Name'),
                 ('teacher', 'string', 'Teacher'),
                 ('subject', 'string', 'Subject')]
-    return(table_description, selection_table, selection_keys, "")
+    return(table_description, selection_table, selection_keys, None, "")
 
 #----------------------------------------------------------------------
 
@@ -4865,7 +4906,7 @@ def create_students_eligible_for_class_table(parameter_dict, primary_object,
                 ('first_name', 'string', 'First Name'),
                 ('middle_name', 'string', 'Middle Name'),
                 ('section', 'string', 'Section')]
-    return(table_description, selection_table, selection_keys, "")
+    return(table_description, selection_table, selection_keys, None, "")
 
 #----------------------------------------------------------------------
 

@@ -217,6 +217,7 @@ function loadHelpDialog(helpDialogHtml) {
 
 function loadHelpBalloonTexts(balloonHelp){
 	var DomID;
+	modifyHelpBalloonText(balloonHelp);
 	for (DomID in balloonHelp) {
 		$("#"+DomID).attr({
 			"title": balloonHelp[DomID]
@@ -260,11 +261,12 @@ function getHelpInfo(pagename, testText) {
 $(function() {
     $('input.popup-calendar').datepicker({ });
 	$('input.date-mask').mask("99/99/9999");
+	$('input.month-mask').mask("99/9999");
 	$('input.time-mask').mask("99:99");
 	$('input.year-mask').mask("9999");
-	$('.input.percentage-mask').mask("999.9");
-	$('.input.integer-mask').mask("99999")
-
+	$('input.percentage-mask').mask("999.9");
+	$('input.integer-mask').mask("99999")
+	
 
 	validator = $('#form1').validate({
 		invalidHandler: function(e, validator){
@@ -296,8 +298,6 @@ $(function() {
 	
 	$('#help_button').click(function() {
 		displayHelpDialog(pageHelpText);
-		//var helpPage = $('#help_pagename_div').text();
-		//requestHelpDialog(helpPage, "");
 	});		
 	
 	getHelpInfo( $('#help_pagename_div').text());
@@ -335,25 +335,28 @@ function setupTooltips(){
 	$(".btn[title]").tooltip({
 		effect: "slide",
 		opacity: 0.9,
-		predelay: 400,
-		delay: 0
+		predelay: 600,
+		delay: 0,
+		events: {
+			input: 'mouseover, mouseout mousedown click',
+			def: 'mouseover, mouseout mousedown click'
+		}
 	}).dynamic();
 	$("[title]").tooltip({
 		effect: "slide",
 		opacity: 0.9,
 		predelay: 600,
-		delay: 0}).dynamic();
+		delay: 0,
+		events: {
+			input: 'mouseover, mouseout click',
+			def: 'mouseover, mouseout click'
+		}
+}).dynamic();
 }
 
-/*
-window.onload=function(){
-	$("[title]").tooltip({
-		effect: "slide",
-		opacity: 0.8,
-		predelay: 600,
-		delay: 0}).dynamic();
-	};
-*/
+function modifyHelpBalloonText(balloonHelp){
+	return (balloonHelp)
+}
 
 $.datepicker.setDefaults({
 	changeMonth: true,
@@ -417,8 +420,8 @@ function openEditWindow(requestUrl, requestKey, notSavedAction, otherGetParamTex
 }
 
 function setActiveSectionIfCookieAvailable() {
-	var sectionName = $.cookie("active_section_name");
-	var sectionKey = $.cookie("active_section");
+	var sectionName = $.cookie("aSn");
+	var sectionKey = $.cookie("aS");
 	if ((sectionName !== null) && (sectionKey !== null)) {
 		$("#id_section_name").val(sectionName);
 		$("#id_section").val(sectionKey);
@@ -426,8 +429,8 @@ function setActiveSectionIfCookieAvailable() {
 }
 
 function setActiveClassSessionIfCookieAvailable() {
-	var classSessionName = $.cookie("active_class_session_name");
-	var classSessionKey = $.cookie("active_class_session");
+	var classSessionName = $.cookie("aCn");
+	var classSessionKey = $.cookie("aC");
 	if ((classSessionName !== null) && (classSessionKey !== null)) {
 		$("#id_class_session_name").val(classSessionName);
 		$("#id_class_session").val(classSessionKey);

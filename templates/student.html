@@ -125,14 +125,6 @@
 {{form.student_major_change_date.errors}}
 {{form.student_major_change_date|safe}}
 {{student_major_button|safe}}
-<!-- ranking history -->
-{{ranking_change_warning|safe}}
-{{ranking_field_label|safe}}
-{{form.ranking}}
-{{ranking_date_label|safe}}
-{{form.ranking_change_date.errors}}
-{{form.ranking_change_date|safe}}
-{{ranking_button|safe}}
 <!-- special status history -->
 {{special_designation_change_warning|safe}}
 {{special_designation_field_label|safe}}
@@ -142,6 +134,14 @@
 {{form.special_designation_change_date.errors}}
 {{form.special_designation_change_date|safe}}
 {{special_designation_button|safe}}
+<!-- ranking history -->
+{{ranking_change_warning|safe}}
+{{ranking_field_label|safe}}
+{{form.ranking}}
+{{ranking_date_label|safe}}
+{{form.ranking_change_date.errors}}
+{{form.ranking_change_date|safe}}
+{{ranking_button|safe}}
 <tr><td><label title="Information about the student&#x27s birth and elementary schooling. This information is required.">Childhood History:</label></td>
 			<td colspan="4"><input type="button" id="childhood_btn" 
 			value="Show Childhood History"

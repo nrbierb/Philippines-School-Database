@@ -3,18 +3,19 @@
  * Perform specially focused actions for teachers with predefined targets
  */
 
-
+var hideString = "Hide Other Tasks " + String.fromCharCode(8657);
+var showString = "Show Other Tasks " + String.fromCharCode(8659);
 function saveSelectedInCookie() {
 	//active values are used in all other pages
-	$.cookie("active_section_name", $("#id_users_section_name").val());
-	$.cookie("active_section", $("#id_users_section").val());
-	$.cookie("active_class_session_name", $("#id_users_class_session_name").val());
-	$.cookie("active_class_session", $("#id_users_class_session").val());
+	$.cookie("aSn", $("#id_users_section_name").val());
+	$.cookie("aS", $("#id_users_section").val());
+	$.cookie("aCn", $("#id_users_class_session_name").val());
+	$.cookie("aC", $("#id_users_class_session").val());
 	//selected values are used in return to the my_work page
-	$.cookie("selected_section_name", $("#id_users_section_name").val());
-	$.cookie("selected_section", $("#id_users_section").val());
-	$.cookie("selected_class_session_name", $("#id_users_class_session_name").val());
-	$.cookie("selected_class_session", $("#id_users_class_session").val());
+	$.cookie("sSn", $("#id_users_section_name").val());
+	$.cookie("sS", $("#id_users_section").val());
+	$.cookie("sCn", $("#id_users_class_session_name").val());
+	$.cookie("sC", $("#id_users_class_session").val());
 	$.cookie("return_to_page", "/my_work");
 }
 
@@ -54,11 +55,11 @@ function setChoiceValue(field_id, data, parameter){
 
 function toggleSectionExpansion() {
 		$('#section_task1').slideToggle(50,function(){
-			if ($('#sect_expand_button').val() == "Show Other Tasks") {
-				$('#sect_expand_button').val("Hide Other Tasks");
+			if ($('#sect_expand_button').val() == showString) {
+				$('#sect_expand_button').val(hideString);
 			}
 			else {
-				$('#sect_expand_button').val("Show Other Tasks");
+				$('#sect_expand_button').val(showString);
 			}
 		});
 		$('#section_task2').slideToggle(50);
@@ -66,11 +67,11 @@ function toggleSectionExpansion() {
 
 function toggleClassExpansion() {
 		$('#class_task1').slideToggle(50, function(){
-			if ($('#class_expand_button').val() == "Show Other Tasks") {
-				$('#class_expand_button').val("Hide Other Tasks");
+			if ($('#class_expand_button').val() == showString) {
+				$('#class_expand_button').val(hideString);
 			}
 			else {
-				$('#class_expand_button').val("Show Other Tasks");
+				$('#class_expand_button').val(showString);
 			}
 		});
 		$('#class_task2').slideToggle(50);	
