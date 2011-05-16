@@ -611,7 +611,25 @@ class History(polymodel.PolyModel):
         else:
             changed_during_year = (start_date >= period_start_date)
         return value, changed_during_year
-                                           
+    
+    def end_multiactive_entry(self, end_date, info_string, info_reference):
+        """
+        Search for an active entry with the same info string or info
+        reference and set the end date to end_date. This is meant only
+        for multiactive histories. Return True if entry found and ended.
+        """
+        if not self.multi_active:
+            return False
+        found = False
+        active_entries = self.get_active_entries()
+        for entry in active_entries:
+            if entry.same_values(info_string, info_reference):
+                found = True
+        if found:
+            entry.set_end_date(end_date)
+            self.put_history()
+        return found
+                
     #********************* History Utility Actions ******************
     #The following numerous methods provide externally simple means for
     #for viewing the history in a variety of text, list, and selection 
@@ -1872,6 +1890,7 @@ class SectionType (MultiLevelDefined):
 class StudentMajor (MultiLevelDefined):
 
     classname = "Student Major"
+    name_abbreviation = db.StringProperty()
 
     @staticmethod
     def create(name, organization):
@@ -2687,6 +2706,10 @@ class Teacher(Person):
     employment_start_date = db.DateProperty()
     employment_history = db.ReferenceProperty(History, 
                                     collection_name="employment_history")
+    section_advisor_history = db.ReferenceProperty(History, 
+                                collection_name="section_advisor_history")
+    class_session_teacher_history = db.ReferenceProperty(History, 
+                        collection_name="class_session_teacher_history")
     custom_query_function = False
     classname = "Teacher"
 
@@ -2697,16 +2720,65 @@ class Teacher(Person):
 
     def get_employment_history(self):
         """
-        Try to get the emplyment history object. If not available, create one
+        Try to get the employment history object. If not available, create one
         """
         try:
             name = self.employment_history.attribute_name
         except:
-            self.employment_history = History.create(self, "employment_history",
-                                                     False)
+            self.employment_history = History.create(self,
+                                "employment_history", False)
             self.put()
         return self.employment_history
+    
+    def get_student_group_history(self, classname):
+        """
+        Get the history associated with the student group type.
+        If it does not exist create it.
+        """
+        if ("classname" == "Section"):
+            if not self.section_advisor_history:
+                self.section_advisor_history = History.create(
+                    ownerref = self, attributename="section_advisor",
+                    isreference=True, multiactive=True)
+                self.put()
+            return(self.section_advisor_history)
+        else:
+            if not self.class_session_teacher_history:
+                self.class_session_teacher_history = History.create(
+                    ownerref = self, attributename="class_session_teacher",
+                    isreference=True, multiactive=True)
+                self.put()
+            return(self.class_session_teacher_history)
             
+            
+    def end_student_group(self, date, student_group, classname):
+        """
+        End association with student group.
+        """
+        the_history = self.get_student_group_history(classname)
+        the_history.end_multiactive_entry(date, student_group)
+    
+    def start_student_group(self,  date, student_group, classname):
+        """
+        Start an association with a student group.
+        """
+        the_history = self.get_student_group_history(classname)
+        the_history.add_entry(date, student_group)
+    
+    def get_student_grouping_history_list(self, classname):
+        """
+        Get a list of all classes taught or sections advised with start
+        and end dates.
+        """
+        the_history = self.get_student_group_history(classname)
+        return the_history.get_entries_tuples_list()
+        
+    def get_sections_advised(self):
+        """
+        Get a history list of all sections that the teacher has been an
+        advisor of with start and end times.
+        """
+        
     @staticmethod
     def get_field_names():
         field_names = Person.get_field_names()
@@ -2719,8 +2791,10 @@ class Teacher(Person):
 
     def remove(self):
         self.employment_history.remove()
+        self.section_advisor_history.remove()
+        self.class_session_teacher_history.remove()
         self.delete()
-            
+    
 #----------------------------------------------------------------------
 class Classroom(db.Model):
     """
@@ -2837,12 +2911,22 @@ class StudentGrouping(polymodel.PolyModel):
         The histories primary fields are changed by form editing.
         Compare the values of those fields with the current entry in
         the history. If not equal then a new event has occured so add
-        another history element.
+        another history element. If the teacher has changed then add
+        the change to the teachers student_groupings history.
         """
         history_names = ["teacher"]
         for name in history_names:
             history_create_params = self.get_history_create_info(name)
-            _update_history(self, name, history_create_params)
+            change_dict = _update_history(self, name, history_create_params)
+            if (name == "Teacher"):
+                if (change_dict['prior'] != change_dict['value']):
+                    if change_dict['prior']:
+                        prior_teacher= Teacher.get(change_dict['prior'])
+                        if prior_teacher:
+                            prior_teacher.end_student_group(
+                                change_dict["date"],self.key, self.classname)
+                        self.teacher.start_student_group(
+                            change_dict["date"],self.key, self.classname)            
 
     def get_history_create_info(self, attribute_name):
         """
@@ -2936,26 +3020,31 @@ class Section(StudentGrouping):
         else:
             return False
 
-    def get_student_list(self):
+    def get_student_list(self, gender = None):
         """
-        Return a list of student keys, keystrings, and student names in
-        the form used in nearly all section-based forms and reports.
+        Return a list of student keys, keystrings, student names, and gender in
+        the form used in nearly all section-based forms and reports. If gender
+        is specified then filter by it.
         """
         names = []
+        genders = []
         keys = []
         keystrings = []
         query = Student.all()
         active_student_filter(query)
         query.filter('section = ', self)
-        query.order('gender')
+        if gender:
+            query.filter(gender)
         query.order('last_name')
         query.order('first_name')
-        for student  in query:
+        students = query.fetch(300)
+        for student in students:
             names.append(student.full_name_lastname_first())
+            genders.append(student.gender)
             key = student.key()
             keys.append(key)
             keystrings.append(str(key))
-        return keys, keystrings, names
+        return keys, keystrings, names, genders
     
     def get_inclusive_student_list_for_period(self, start_date, 
                             end_date, sort_by_gender = False):
@@ -3038,10 +3127,25 @@ class Section(StudentGrouping):
         query.filter('section = ', self)
         query.filter("gender =", "Female")
         self.number_female_students = query.count()
-        self.put()
-
-        
-        
+        self.put()        
+    
+    def get_all_subjects(self):
+        """
+        Return a dictionary of subjects keyed by name that the students
+        in the class are taking. For now this includes all subjects
+        that the section has for classes and TLE.
+        """
+        query = ClassSession.all()
+        #query.filter("end_date =", None)
+        query.filter("section =", self)
+        subjects_dict = {}
+        for session in query:
+            subject = session.subject
+            subjects_dict[unicode(subject)] = subject.key()
+        # arbitrary but good for the moment
+        subjects_dict["TLE"] = SchoolDB.utility_functions.get_entities_by_name(
+            Subject, "TLE")
+        return subjects_dict
         
     @staticmethod
     def get_field_names():
@@ -3086,11 +3190,14 @@ class ClassSession(StudentGrouping):
 
     def detailed_name(self):
         return ("%s - %s - %s" %(unicode(self.name), 
-                                 unicode(self.class_period), unicode(self.teacher)))
+                unicode(self.class_period), unicode(self.teacher)))
+    
+    def __unicode__(self):
+        return self.detailed_name()
     
     @staticmethod
     def create(name,school):
-        return ClassSession(name=name, parent=school)
+        return ClassSession(name=name, parent=school, organization=school)
 
     @staticmethod
     def create_if_necessary(name, subject_keystring, section_keystring, 
@@ -3177,12 +3284,8 @@ class ClassSession(StudentGrouping):
         argument. This should be used for a limited number of classes
         because it is fairly expensive in queries.
         """
-        cls_and_periods = []
-        #sort first by name so that same period classes are ordered
-        #by name (secondary sort)
-        class_sessions.sort(key=lambda cls: cls.name)
-        #now sort by period time (primary sort)
-        class_sessions.sort(key=lambda cls: cls.class_period.start_time)
+        class_sessions.sort(
+            SchoolDB.utility_functions.compare_class_session_by_time_and_name)
         return class_sessions
 
     @staticmethod
@@ -3199,7 +3302,7 @@ class ClassSession(StudentGrouping):
             keys = class_session_keys
         try:
             class_sessions = ClassSession.get(keys)
-            class_sessions = ClassSession.sort_by_time(class_sessions)
+            ClassSession.sort_by_time(class_sessions)
         except db.BadKeyError:
             error = "Wrong key type in class_sessions list"
         result_list = []
@@ -3227,7 +3330,7 @@ class ClassSession(StudentGrouping):
         return students
 
     def get_students_and_records(self, status_filter="", sorted = False,
-                                 record_by_key=False):
+                                 record_by_key = False, gender = None):
         """
         The most efficient way to get all students and student records.
         This returns a list of student class records, a list of
@@ -3241,6 +3344,12 @@ class ClassSession(StudentGrouping):
         student_records = self.get_student_class_records(status_filter=
                                                          status_filter)
         students = self.get_students_from_records(student_records)
+        if (gender):
+            filtered = []
+            for student in students:
+                if (student.gender == gender):
+                    filtered.append(student)
+            students = filtered                    
         student_record_dict = {}
         for i in xrange(0,len(students)):
             if record_by_key:
@@ -3729,10 +3838,15 @@ class AchievementTest(db.Model):
                     if (self.date):
                         gd_events.add_grading_event(self.date)
                     gd_events_blob=gd_events.put_data()
+                    #percent_grade may not be set or of wrong type
+                    try:
+                        percent_grade=float(self.percent_grade)
+                    except:
+                        percent_grade = 0.0
                     grading_instance = GradingInstance(name=gi_name, 
                                     subject=subject_key,
                                     grading_type=self.grading_type,
-                                    percent_grade=float(self.percent_grade),
+                                    percent_grade=percent_grade,
                                     extra_credit=False,
                                     multiple=False,
                                     events=gd_events_blob,
@@ -5141,6 +5255,19 @@ class Student(Person):
                         break
         return record_by_subject
 
+    def get_grading_period_results(self, grading_period):
+        """
+        Get all grading period results for the student for the
+        specified grading period
+        """
+        try:
+            query = GradingPeriodResult.all()
+            query.filter("grading_period = ", grading_period)
+            query.ancestor(self)
+            return query.fetch(50)
+        except:
+            return []
+        
     def get_parents(self):
         if (self.family != None):
             return self.family.get_parents()
@@ -5630,7 +5757,8 @@ class DatabaseUser(db.Model):
     guidance_counselor = db.BooleanProperty(default=False)
     last_access_time = db.DateTimeProperty(auto_now=True)
     usage_time = db.IntegerProperty(default=0)
-    preferences = db.BlobProperty()
+    preferences = db.BlobProperty() #obsolete
+    private_info = db.BlobProperty()
     interesting_instances = db.ListProperty(db.Key)
     other_information = db.StringProperty(multiline=True)
     custom_query_function = False
@@ -5653,7 +5781,8 @@ class DatabaseUser(db.Model):
         """
         self.user = users.User(self.email)
         self.name = unicode(self)
-        self.preferences=pickle.dumps({})
+        store = SchoolDB.assistant_classes.InformationStoreDict()        
+        self.private_info = store.put_data()
         self.usage = 0
         self.put()
 
@@ -5668,6 +5797,42 @@ class DatabaseUser(db.Model):
             self.organization = \
                 getActiveDatabaseUser().get_active_organization()
             self.put()
+    
+    @staticmethod
+    def get_candidate_persons(organization=None):
+        """
+        Return a list of persons who could be used as the person
+        associated with a database user. Candidates must be of class
+        teacher or administrator, be in the organization specified by
+        organization, default the active users organization, and not
+        already be associated with a database user. The list is
+        returned as a list of keys and names for use in a selection
+        field
+        """
+        if not organization:
+            organization = getActiveDatabaseUser().get_active_organization()
+        #no "or" in filtering so get two lists and combine.
+        query = Teacher.all()
+        query.filter("organization =", organization)
+        possible_candidates = query.fetch(500)
+        query = Administrator.all()
+        query.filter("organization =", organization)
+        possible_candidates.extend(query.fetch(500))
+        #list now includes all teachers and administrators in the organization
+        # now choose only those that have no current reference
+        candidates = []
+        for person in possible_candidates:
+            try:
+                if not person.databaseuser_set.get():
+                    candidates.append(person)
+            except:
+                pass
+        candidate_selection_list = []
+        for person in candidates:
+            name = person.full_name_lastname_first()
+            entry = {"value":name, "label":name, "key": person.key()}
+            candidate_selection_list.append(entry)
+        return candidate_selection_list
 
     def in_organization(self, organization_key, requested_action):
         return (self.organization.key() == organization_key)
@@ -5766,46 +5931,91 @@ class DatabaseUser(db.Model):
             self.put()
         return list_changed
 
-    def get_preference(self, preferenceName):
+    def _get_private_info(self):
+        """
+        Return the dictionary of private information values
+        """
+        if (self.preferences):
+            #clear out old database value
+            self.preferences = None
+            self.put()
+        if not self.private_info:
+            info_store = \
+                 SchoolDB.assistant_classes.InformationStoreDict()
+            self.private_info = info_store.put_data()
+            self.put()
+        store = \
+            SchoolDB.assistant_classes.InformationStoreDict.get_data(self.private_info)
+        return store, store.get_dict()
+
+    def get_private_info_value(self, key):
         """
         Get the value of the preference associated with the name. This is a
         safe action because it does not change anything.
         """
-        #temporary fix for current users. Take out after all have been 
-        #updated.
-        if (self.preferences == None):
-            self.post_creation()
-        preference_dict = pickle.loads(self.preferences)
-        return preference_dict.get(preferenceName, "")
-
-
-    def _set_preference(self, name, value):
+        info, info_dict = self._get_private_info()
+        return info_dict.get(key,None)
+    
+    def _set_private_info_value(self, key, value):
         """
         Set a single preference value. To prevent an attack by
         setting too many or too long preferences a maximum of
         50 preferences will be allowed. Each preference can 
         only be a maximum of 500 bytes.
         """
-        preference_dict = pickle.loads(self.preferences)
-        if (name != ""):
-            if (len(preference_dict) < 51):
-                preference_dict[name] = value[:500]
-                self.preferences = pickle.dumps(preference_dict)
-                self.put()
-
-    def _remove_preference(self, name):
-        """
-        Set a single preference value. To prevent an attack by
-        setting too many or too long preferences. A maximum of
-        50 preferences will be allowed. Each preference can 
-        only be a maximum of 500 bytes.
-        """
-        preference_dict = pickle.loads(self.preferences)
-        if (name != ""):
-            preference_dict.pop(name)
-            self.preferences = pickle.dumps(preference_dict)
+        info, info_dict = self._get_private_info()
+        if (info_dict.get(key,None) != value):
+            info_dict[key] = value
+            self.private_info = info.put_data()
             self.put()
 
+    def _remove_private_info_value(self, name):
+        """
+        Set a single preference value. To prevent an attack by
+        setting too many or too long preferences, amaximum of
+        50 preferences will be allowed and each preference can 
+        only be a maximum of 500 bytes.
+        """
+        if not self.private_info:
+            self.private_info = \
+                SchoolDB.assistant_classes.InformationStoreDict()
+        self.private_info = \
+            SchoolDB.assistant_classes.InformationStoreDict.clear_stored_value(
+                self.private_info, name)
+        self.put()
+    
+            
+    def get_private_info_multiple_values(self, keys_list):
+        """
+        Return a dict of values and keys using the data from
+        private info. This is more efficient for multiple
+        values than the _get_private_info. It will return a dict
+        with all keys and a value of None for all keys not found
+        in the store.
+        """
+        info, info_dict = self._get_private_info()
+        return_dict = {}
+        for key in keys_list:
+            return_dict[key] = info_dict.get(key, None)
+        return return_dict
+        
+        
+    def set_private_info_multiple_values(self, values_dict):
+        """
+        An optimization to minimize the number of gets and puts.
+        It tests each value to confirm that a put is required.
+        """
+        info, info_dict = self._get_private_info()
+        needs_put = False
+        for (key, value) in values_dict.items():
+            if (not info_dict
+.get(key,None) == value):
+                info_dict[key] = value
+                needs_put = True
+        if (needs_put):
+            self.private_info = info.put_data()
+            self.put()
+                
     #The following wrappers are for security. They use the current
     #user so only that record can be read
     @staticmethod
@@ -5813,21 +6023,21 @@ class DatabaseUser(db.Model):
         #set user preference value for the active user
         activeDbUser = getActiveDatabaseUser()
         dbuser = activeDbUser.get_active_user()
-        dbuser._set_preference(value_name,value)
+        dbuser._set_private_info_value(value_name,value)
 
     @staticmethod
     def get_single_value(unused, value_name):
         #get user preference value for the active user
         activeDbUser = getActiveDatabaseUser()
         dbuser = activeDbUser.get_active_user()
-        return dbuser.get_preference(value_name)
+        return dbuser.get_private_info_value(value_name)
 
     @staticmethod
     def remove_single_value(unused, value_name):
         #get user preference value for the active user
         activeDbUser = getActiveDatabaseUser()
         dbuser = activeDbUser.get_active_user()
-        return dbuser._remove_preference(value_name)
+        return dbuser._remove_private_info_value(value_name)
 
     @staticmethod    
     def custom_query(organization, leading_value, value_dict):
