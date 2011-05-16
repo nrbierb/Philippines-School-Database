@@ -6,12 +6,14 @@
 {% block local_javascript_code %}
 var classRosterTable = new StandardTable();
 classRosterTable.maxHeight = 400;
-classRosterTable.sortColumns = 0;
+classRosterTable.initialSortColumn = 3;
+classRosterTable.sortActionColumns = [{column:2},{column:3},{column:0}];
 classRosterTable.initializeTableParams();
 
 var eligibleStudentsTable = new StandardTable();
 eligibleStudentsTable.maxHeight = 400;
-eligibleStudentsTable.sortColumns = 0;
+eligibleStudentsTable.initialSortColumn = 3;
+eligibleStudentsTable.sortActionColumns = [{column:2},{column:3},{column:0}];
 eligibleStudentsTable.initializeTableParams();
 
 var assigned_students_params = {
@@ -28,9 +30,25 @@ var eligible_students_params = {
 	"class_year":localParams.class_year
 };
 
+function classYearChanged(data){
+	//get new set of students if year has changed
+	if (data) {
+		var newClassYear = data.item.value;
+		if ($("#id_class_year").val() != newClassYear) {
+			$("#id_class_year").val(newClassYear); 
+			eligible_students_params.class_year = newClassYear;
+			$.loadanim.start({
+				message:"Loading New Eligible Students for " + data.item.value
+			});
+			requestTable("/ajax/calculated_table", eligible_students_params, eligibleStudentsTable);
+		}
+	}
+}
+	
 function updateRosterFormField() {
 	var key_list ="";
-	for (var i = 0; i < classRosterTable.keysArray.length; i++) {
+	var i;
+	for (i = 0; i < classRosterTable.keysArray.length; i++) {
 		if (i > 0) {
 			key_list += ",";
 		}
@@ -39,12 +57,18 @@ function updateRosterFormField() {
 	$('#id_assigned_students').val(key_list);
 }
 
+function sortTables() {
+	eligibleStudentsTable.sort();
+	classRosterTable.sort();
+}
+
 var classRosterTableFillFunctions = {};
 function addStudent() {
 	// Simple move of selected students from eligible table to class roster.
 	var selectedRowsData = eligibleStudentsTable.removeSelectedRows();
 	classRosterTable.putRows(selectedRowsData, classRosterTableFillFunctions);
-	updateRosterFormField();		
+	updateRosterFormField();
+	sortTables();		
 }
 	
 var eligibleStudentsTableFillFunctions = {};
@@ -56,7 +80,8 @@ function removeStudent() {
 	 */
 	var selectedRowsData = classRosterTable.removeSelectedRows();
 	eligibleStudentsTable.putRows(selectedRowsData, eligibleStudentsTableFillFunctions);
-	updateRosterFormField();		
+	updateRosterFormField();
+	sortTables();		
 }
 
 $(function(){
@@ -108,4 +133,5 @@ $(function(){
 </table>
 </fieldset>
 {{ form.assigned_students }}
+<div id="help_pagename_div" class="hidden">AssignStudentsPageHelp</div>
 {% endblock extended %}

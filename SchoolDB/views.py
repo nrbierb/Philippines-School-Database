@@ -17,6 +17,8 @@
 Primary file internet direct view pages. It makes extensive use of the
 Django web software.
 """
+import binascii
+
 import os, urlparse, sys, re, datetime
 import cPickle, zlib, base64
 from datetime import date, datetime
@@ -62,70 +64,7 @@ result_string = ""
 __http_request__ = None
 __processed_request__ = None
 __revision_id__ = \
-"Version: 1--0-12 " + datetime.now().strftime("%m/%d/%y %I:%M%p")
-
-
-site_description = [("Main Menu", "index", ""), 
-    ("School Home", "schoolhome", ""),
-    ("Student Home", "studenthome", ""),
-    ("School Administration Home", "schooladminhome", ""),
-    ("Upper Level User Home", "uplevelhome", ""),
-    ("Upper Level DB Admin Home", "upleveladminhome", ""),
-    ("My Work", "my_work", "School Home"),
-    ("My Choices", "my_choices", "My Work"),
-    ("Section Students", "choose/section_students", "My Work"),
-    ("Class Students", "choose/class_session_students", "My Work"),
-    ("Section Class Schedule", "choose/section_classes", "My Work"),
-    ("Student Emergency", "studentemergency", "School Home"),
-    ("Select", "select", "Main Menu"),
-    ("Student", "student", "Main Menu"),
-    ("View Student", "viewstudent", "Main Menu"),
-    ("Attendance", "attendance", "Main Menu"),
-    ("Special Information", "othertypes", "Main Menu"),
-    ("Teacher", "teacher", "Special Information"),
-    ("Administrator", "administrator", "Special Information"),
-    ("Class", "class_session", "Main Menu"),
-    ("Subject", "subject", "Special Information"),
-    ("Section Type", "section_type", "Special Information"),
-    ("Student Major", "student_major", "Special Information"),
-    ("Special Designation", "special_designation", 
-     "Special Information"),
-    ("Section", "section", "Special Information"),
-    ("School", "school", "Special Information"),
-    ("Region", "region", "Special Information"),
-    ("Division", "division", "Special Information"),
-    ("Province", "province", "Special Information"),
-    ("Municipality", "municipality", "Special Information"),
-    ("Barangay", "community", "Special Information"),
-    ("Other Work", "otherwork", "Main Menu"),
-    ("Database User", "database_user", "Other Work"),
-    ("User Type", "user_type", "Other Work"),
-    ("School Year", "school_year", "Special Information"),
-    ("School Calendar", "calendar", "Special Information"),
-    ("School Day", "schoolday", "School Calendar"),
-    ("School Day Type", "school_day_type", "Special Information"),
-    ("Class Period", "class_period", "Special Information"),
-    ("Acheivement Test", "achievement_test", "Special Information"),
-    ("Achievement Test Grades", "achievement_test_grades", "Main Menu"),
-    ("Text Manager", "versioned_text_manager","Other Work"),
-    ("Choose a Report Type", "choose_report", "Main Menu"),
-    ("Attendance Report", "reports", "Choose a Report Type"),
-    ("Student Age Distribution Report", "reports",
-     "Choose a Report Type"),
-    ("Section List", "reports", "Choose a Report Type"),
-    ("School Register", "reports", "Choose a Report Type"),
-    ("Choose a Custom Report", "choose_custom_report",
-     "Choose a Report Type"),
-    ("Custom Report", "custom_report","Choose a Custom Report"),
-    ("Student Record Check", "reports", "Choose a Report Type"),
-    ("Grades", "grades", "Main Menu"),
-    ("Grading Instance", "grading_instance", "Main Menu"),
-    ("Enter Grades", "entergrades", "Main Menu"),
-    ("Grading Period Grades", "grading_period_results", "Main Menu"),
-    ("Gradebook Entry Calendar", "gradebook_entry_calendar", "Main Menu"),
-    ("Run Utility","utilrequest", "Main Menu"),
-    ("Utility Response", "utilresponse", "Main Menu")]
-
+"Version: 1--0-13 " + datetime.now().strftime("%m/%d/%y %I:%M%p")
 
 def validate_user(request, auto_task=False):
     """
@@ -239,7 +178,8 @@ def create_standard_params_dict(title_suffix, url_name,
                                 javascript_code = "",
                                 submit_action = None,
                                 breadcrumb_title = None,
-                                full_title = None):
+                                full_title = None,
+                                page_path_action = "Pop"):
     global __revision_id__
     if (not submit_action):
         submit_action = url_name
@@ -250,7 +190,7 @@ def create_standard_params_dict(title_suffix, url_name,
     if (not breadcrumb_title):
         breadcrumb_title = title_suffix
     if (full_title):
-        # if a full title has already been built usse that as the 
+        # if a full title has already been built use that as the 
         # suffix and clear out the prefix and bridge
         title_suffix = full_title
         title_prefix = ""
@@ -261,9 +201,9 @@ def create_standard_params_dict(title_suffix, url_name,
                   "title_bridge":" a ",
                   'url_name':url_name, 
                   'submit_action':submit_action,
-                  "breadcrumbs":generate_breadcrumb_line(site_description,
-                                                         breadcrumb_title),
-                  "javascript_code":javascript_code}
+                  "breadcrumbs":generate_breadcrumb_line(),
+                  "javascript_code":javascript_code,
+                  "page_path_action":page_path_action}
     active_db_user = SchoolDB.models.getActiveDatabaseUser()
     if (active_db_user.get_active_user()):
         param_dict["username"] = active_db_user.get_active_user_name()
@@ -273,93 +213,153 @@ def create_standard_params_dict(title_suffix, url_name,
             active_db_user.get_active_person())
     return param_dict
 
-def showStatic(request, page_name, title, further_params = None):
+def showStatic(request, page_name, title_suffix, 
+               extra_params = None,
+               page_path_action = "Push",
+               perform_mapping = True):
     try:
         validate_user(request)
+        if perform_mapping:
+            page_name = map_page_to_usertype(page_name)
         template_name = page_name + ".html"    
-        params = create_standard_params_dict(title, template_name)
+        params = create_standard_params_dict(title_suffix=title_suffix, 
+            url_name=template_name, 
+            page_path_action= page_path_action)
         params["title_prefix"] = ""
-        if further_params:
-            params.update(further_params)
+        if extra_params:
+            params.update(extra_params)
         return shortcuts.render_to_response(template_name, params)
     except ProhibitedError, e:
         return e.response
 
 
-def showStaticTop(request, page_name, title, extra_params = None):
-    logout_url = users.create_logout_url("http://www.google.com")
-    if (not extra_params):
-        extra_params = {}
-    extra_params["logout_url"] = logout_url
-    return showStatic(request, page_name, title, extra_params)
+def showStaticTop(request, page_name, title_suffix, extra_params = {},
+                  page_path_action = "Index"):
+        logout_url = users.create_logout_url("http://www.google.com")
+        extra_params["logout_url"] = logout_url
+        return showStatic(request = request, page_name = page_name, 
+                          title_suffix = title_suffix, 
+                          extra_params = extra_params,
+                          page_path_action=page_path_action)
+#def showIndex(request):
+    #try:
+        #validate_user(request)
+        #title = "%s Home Page" \
+              #%getActiveDatabaseUser().get_active_organization()
+        #showStaticTop(request, "index", title)
+        ##home_page = SchoolDB.models.getActiveDatabaseUser().get_active_user_type().home_page
+        ##if not home_page:
+            ##home_page = "adminhome"
+        ##return showStaticTop(request, home_page, "Main Menu")
+    #except ProhibitedError, e:
+        #return e.response
+
+#def showSpecialInformation(request):
+    #try:
+        #validate_user(request)
+        #special_info_page = SchoolDB.models.getActiveDatabaseUser().get_active_user_type().special_info_page
+        #if not special_info_page:
+            #special_info_page = "othertypes"
+        #return showStaticTop(request, special_info_page, 
+                             #"Special Information")
+    #except ProhibitedError, e:
+        #return e.response
 
 def showIndex(request):
     try:
         validate_user(request)
-        home_page = SchoolDB.models.getActiveDatabaseUser().get_active_user_type().home_page
-        if not home_page:
-            home_page = "adminhome"
-        return showStaticTop(request, home_page, "Main Menu")
+        return showStaticTop(request, "index", "Main Page", 
+                             page_path_action="Index")
     except ProhibitedError, e:
         return e.response
+    
+def showMaint(request):
+    return showStatic(request, "maint", "Special Information", 
+                      page_path_action="Push")
 
-def showSpecialInformation(request):
+def showAdmin(request):
+    """
+    'admin' is a special url that allows the master user to access any page without remapping. The url is of the form "admin/realurl"
+    """
+    if (users.is_current_user_admin()):
+        splitpath  = request.path.split("/")
+        real_path = splitpath[2]
+        result = showStatic(request, real_path, "Admin Remap", 
+                   perform_mapping = False)
+        return result
+    else:
+        raise ProhibitedURLError
+    
+def showDynamic(request):
+    """
+    This is a direct redirect by the next page value in the cookie.
+    It is used by the "Cancel and "Finish" button actions.
+    """
     try:
         validate_user(request)
-        special_info_page = SchoolDB.models.getActiveDatabaseUser().get_active_user_type().special_info_page
-        if not special_info_page:
-            special_info_page = "othertypes"
-        return showStaticTop(request, special_info_page, 
-                             "Special Information")
+        return_page = get_return_page_from_cookie()
+        return_page = map_page_to_usertype(return_page)
+        return http.HttpResponseRedirect(return_page)
     except ProhibitedError, e:
         return e.response
 
-def showAdminHome(request):
-    return showStaticTop(request, "adminhome", "Admin Home")
+#def showAdminHome(request):
+    #return showStaticTop(request, "adminhome", "Admin Home")
 
-def showSchoolHome(request):
-    return showStaticTop(request, "schoolhome", "My School")
+#def showSchoolHome(request):
+    #return showStaticTop(request, "schoolhome", "My School")
 
-def showStudentHome(request):
-    return showStaticTop(request, "studenthome", "My School")
+#def showStudentHome(request):
+    #return showStaticTop(request, "studenthome", "My School")
 
-def showUpperLevelHome(request):
-    #Hack for name <<<<<<<<<<fix>>>>>>>>>
-    return showStaticTop(request, "upperlevelhome", "Region VII")
+#def showUpperLevelHome(request):
+    ##Hack for name <<<<<<<<<<fix>>>>>>>>>
+    #return showStaticTop(request, "upperlevelhome", "Region VII")
 
-def showUpperLevelAdminHome(request):
-    #Hack for name <<<<<<<<<<fix>>>>>>>>>
-    return showStaticTop(request, "upperlevel_adminhome", "Region VII")
+#def showUpperLevelAdminHome(request):
+    ##Hack for name <<<<<<<<<<fix>>>>>>>>>
+    #return showStaticTop(request, "upperlevel_adminhome", "Region VII")
     
-def showOtherTypes(request):
-    return showStatic(request, "othertypes", "Special Information")
+#def showOtherTypes(request):
+    #return showStatic(request, "othertypes", "Special Information")
 
-def showSchoolMaint(request):
-    return showStatic(request, "school_maint", "Special Information")
+#def showSchoolMaint(request):
+    #return showStatic(request, "school_maint", "Special Information")
 
-def showSchoolAdminMaint(request):
-    return showStatic(request, "schooladmin_maint", "Special Information")
+#def showSchoolAdminMaint(request):
+    #return showStatic(request, "schooladmin_maint", "Special Information")
 
 def showOtherWork(request):
     return showStatic(request, "otherwork", "Other Work")
 
 def showChooseReport(request):
-    return showStatic(request, "choose_report", "Choose a Report Type")
+    return showStatic(request, "choose_report", 
+                      "Choose a Report Type")
     
 def showChooseCustomReport(request):
-    return showStatic(request, "choose_custom_report", "Choose a Custom Report")
-    
+    return showStatic(request, "choose_custom_report", 
+                      "Choose a Custom Report")
+
+def showChooseErrorReport(request):
+    return showStatic(request, "choose_error_report", 
+                      "Choose an Error Report Type")
+
 def showCalendar(request):
     return showStatic(request, "calendar", "School Calendar")
 
 def showGradebookEntriesCalendar(request):
-    return showStatic(request, "gradebook_entries_calendar", "Gradebook Entries Calendar")
+    return showStatic(request, "gradebook_entries_calendar",
+                      "Gradebook Entries Calendar")
 
 def standardShowAction(request, classname, formname, title_suffix,
-                       template = "generic", return_url = 
-                       "/index", further_params = None):
+                       template = "generic", page_path_action = 
+                       "Pop", extra_params = None, full_title = "",
+                        perform_mapping = False):
     try:
         validate_user(request)
+        if perform_mapping:
+            classname = map_page_to_usertype(classname)
+            formname = map_form_to_usertype(formname)
         req_action = getprocessed().requested_action
         if (req_action == "Save"):
             req_object = getprocessed().current_instance
@@ -371,20 +371,27 @@ def standardShowAction(request, classname, formname, title_suffix,
         if ((not legal_action) and view_ok):
             getprocessed().requested_action = "View"
         form, javascript_code = buildForm(formname) 
-        params = create_standard_params_dict(title_suffix, classname,
-                                             javascript_code)
+        params = create_standard_params_dict(
+            title_suffix=title_suffix, url_name=classname,
+            javascript_code= javascript_code, 
+            page_path_action=page_path_action,
+            full_title=full_title,
+        )
         params['form'] = form
-        if further_params:
-            params.update(further_params)
+        if extra_params:
+            params.update(extra_params)
         form.modify_params(params)
+        return showForm(template=template, form=form,
+                    page_path_action=page_path_action, 
+                    params=params)
     except ProhibitedError, e:
         return e.response
-    return showForm(template, form,
-                    return_url, params)
 
-def specialShowAction(instance, requested_action, classname, formname, title_suffix,
-                       template = "generic", return_url = 
-                       "/index", further_params = None):
+def specialShowAction(instance, requested_action, classname, 
+                      formname, title_suffix,
+                       template = "generic", 
+                       page_path_action="Pop", 
+                       extra_params = None):
     try:
         getprocessed().requested_instance = instance
         getprocessed().requested_action = requested_action
@@ -397,34 +404,34 @@ def specialShowAction(instance, requested_action, classname, formname, title_suf
         params = create_standard_params_dict(title_suffix, classname,
                                              javascript_code)
         params['form'] = form
-        if further_params:
-            params.update(further_params)
+        if extra_params:
+            params.update(extra_params)
         form.modify_params(params)
+        return showForm(template=template, form=form,
+                page_path_action="NoAction", extra_params=params)
     except ProhibitedError, e:
         return e.response
-    return showForm(template, form,
-                    return_url, params)
 
     
 def showPerson(request):
     return standardShowAction(request, "person", PersonForm, "Person",
-                    "person", "/othertypes", 
+                    "person", "Pop", 
                     {'show_title':True, 'show_gender':True,
                      'show_community':True, 'show_municipality':True})
 
 def showTeacher(request):
     return standardShowAction(request, "teacher", TeacherForm, "Teacher",
-                              "teacher", "/index", 
+                              "teacher", "Pop", 
                 {'show_title':True, 'show_gender':True,
                  'show_community':True, 'show_municipality':True})
 
 def showMyChoices(request):
     return standardShowAction(request, "teacher", MyChoicesForm, "My Choices",
-                              "my_choices", "/my_work")
+                              "my_choices", "Pop")
 
 def showStudent(request):
     return standardShowAction(request, "student", StudentForm, "Student",
-                              "student", "/index", 
+                              "student", "Pop", 
                 {'show_title':False, 'show_gender':True,'show_community':True,
                                'show_municipality':True})
 
@@ -434,21 +441,22 @@ def showParentOrGuardian(request):
     """
     return standardShowAction(request, "parent_or_guardian",
                               ParentOrGuardianForm, 
-            "Parent or Guardian","parent_or_guardian", "/static_pages/close_window.html", 
-            {'show_title':True, 'show_gender':True,'show_community':True,
-                               'show_municipality':True})  
+            "Parent or Guardian","parent_or_guardian", "NoAction", 
+            {'show_title':True, 'show_gender':True,
+             'show_community':True,'show_municipality':True,
+             "fixed_return_url":"/static_pages/close_window.html"})  
 
 def showAdministrator(request):
     return standardShowAction(request, "administrator", AdministratorForm, 
-                "Administrator","administrator", "/othertypes", 
+                "Administrator","administrator", "Pop", 
                 {'show_title':True, 'show_gender':False,
                  'show_community':False})  
 
 def showGradingEvent(request):
     return standardShowAction(request, "grading_event",
                               GradingInstanceForm, 
-            "Gradebook Entry","grading_instance", 
-            "/static_pages/close_window.html")  
+            "Gradebook Entry","grading_instance", "FixedUrl",
+            {"fixed_return_url":"/static_pages/close_window.html"})  
 
 def showAchievementTest(request):
     return standardShowAction(request, "achievement_test", 
@@ -484,7 +492,8 @@ def showDivision(request):
 
 def showContact(request):
     return standardShowAction(request, "contact", ContactForm,
-                    "Contact", "contact", "/static_pages/close_window.html")
+                    "Contact", "contact", "FixedUrl",
+            {"fixed_return_url":"/static_pages/close_window.html"})
 
 def showStudentEmergency(request):
     return showStatic(request, "underconstruction", 
@@ -508,7 +517,7 @@ def showGradingInstance(request):
 
 def showSchoolDay(request):
     return standardShowAction(request, "school_day", SchoolDayForm,
-                              "School Day", "school_day", "/calendar")
+                              "School Day", "school_day")
 
 def showGrades(request):
     return standardShowAction(request, "grade", GradesForm, "Grades",
@@ -522,12 +531,24 @@ def showAchievementTestGrades(request):
 def showGradingPeriodResults(request):
     return standardShowAction(request, "grading_period_results",
                               GradingPeriodResultsForm, "Grading Period Grades",
-                              "grading_period_results", "/my_work")
+                              "grading_period_results")
 
+#revert for moment
 def showDatabaseUser(request):
-    return standardShowAction(request, "database_user", DatabaseUserForm, 
+    return standardShowAction(request, "master_database_user", 
+                              MasterDatabaseUserForm, 
                               "Database User", "generic")
 
+#def showMasterDatabaseUser(request):
+    #return standardShowAction(request, "master_database_user", 
+                              #MasterDatabaseUserForm, 
+                              #"Database User", "generic")
+
+#def showDatabaseUser(request):
+    #return standardShowAction(request, "database_user", 
+                              #StandardDatabaseUserForm,
+                              #"Database User", "generic",
+                              #perform_mapping = True)
 def showUserType(request):
     return standardShowAction(request, "user_type", UserTypeForm,
                               "User Type", "generic")
@@ -606,21 +627,26 @@ def showAssignStudents(request):
     """
     #validation must be done early to obtain filled processed information
     validate_user(request)
+    #requested instance will be set during selection
     class_session = getprocessed().requested_instance
+    #current_instance set in page itself
+    if not class_session:
+        class_session = getprocessed().current_instance
     if (class_session and (not class_session.students_assigned_by_section)):
         return standardShowAction(request, "assign_students",
                                   AssignStudentsForm, "Assign Students",
-                                  "assign_students", "/my_work")
+                                  "assign_students", "Push")
     else:
         #if there is no class session this form will display an error
         #message so it is always safe to call
         return standardShowAction(request, "assign_students",
                               AssignSectionStudentsForm, "Assign Students",
-                              "assign_section_students", "/my_work")
+                              "assign_section_students","Push")
 
 def showMyWork(request):
     return standardShowAction(request, "my_work",  MyWorkForm,
-                              "My Work", "my_work", "/my_work")
+                              "My Work", "my_work", "Push", 
+                              full_title = "My Work Page")
 
 def showChoose(request):
     """
@@ -655,10 +681,7 @@ def showChoose(request):
             if (not class_session):
                 raise RequestError, "Unknown Class"
             form_title = "Class " + class_session.name + " Students"
-            if class_session.user_is_class_session_teacher():
-                choose_action = "Edit"
-            else:
-                choose_action = "View"
+            choose_action = "View"
             breadcrumb_title = "Class Students"
             chosen_object_class = "student"
             choose_object_class = "class_session"
@@ -681,10 +704,10 @@ def showChoose(request):
         javascript_generator = SchoolDB.assistant_classes.JavascriptGenerator()
         form.generate_javascript_code(javascript_generator)
         javascript_code = javascript_generator.get_final_code()
-        params = create_standard_params_dict(form_title, 
-                                             request.path, javascript_code,
-                                             "/" + chosen_object_class, 
-                                             breadcrumb_title)
+        params = create_standard_params_dict(title_suffix=form_title, 
+            url_name=request.path, javascript_code=javascript_code,
+            page_path_action = "Push", breadcrumb_title=breadcrumb_title,
+            submit_action ='/' + chosen_object_class)
         form.modify_params(params)
     except ProhibitedError, e:
         return e.response
@@ -718,6 +741,9 @@ def showReports(request):
     elif (report_type == "student_record_check"):
         formname = StudentRecordsCheckForm
         report_title = 'Student Record Check'
+    elif(report_type == "section_grading_period_grades"):
+        formname = SectionGradingPeriodGradesForm
+        report_title = "Section Grading Period Grades Report"
     elif (report_type == "form1"):
         formname = Form1ReportForm
         report_title = 'Form 1'
@@ -789,8 +815,6 @@ def showAttendance(request):
                 'title_name':'Attendance', 'school_name':
                 SchoolDB.models.getActiveDatabaseUser().get_active_organization_name(), 
                 'section':section_name,
-                "breadcrumbs":generate_breadcrumb_line(
-                    site_description,'Attendance'),
                 "username":SchoolDB.models.getActiveDatabaseUser().get_active_user_name()}
             return respond("attendance.html", params)
         else:
@@ -934,7 +958,8 @@ def showSelectDialog(request):
             javascript_code = javascript_code,
             submit_action = return_url, 
             breadcrumb_title ="Select",
-            full_title = full_title)
+            full_title = full_title,
+            page_path_action="Push")
         params["template_requested_action"] = template_requested_action
     except ProhibitedError, e:
         return e.response
@@ -984,9 +1009,10 @@ def showDataBrowser(request):
                     SchoolDB.assistant_classes.JavascriptGenerator()
         form.generate_javascript_code(javascript_generator)
         javascript_code = javascript_generator.get_final_code()
-        params = create_standard_params_dict(title, 
-                "/custom_report/" + select_class_name + return_url,
-                javascript_code, return_url, "Custom Report")
+        params = create_standard_params_dict(title_suffix=title, 
+            url_name="/custom_report/" + select_class_name + return_url,
+            javascript_code=javascript_code, submit_action=return_url, 
+            breadcrumb_title = "Custom Report", page_path_action="Push")
         params["template_requested_action"] = template_requested_action
     except ProhibitedError, e:
         return e.response
@@ -1133,7 +1159,8 @@ def runUtil(request):
             function = getprocessed().values["util"]
         else:
             params_dict = create_standard_params_dict(
-                "Request Utility","utilrequest")
+                "Request Utility","utilrequest", 
+                page_path_action="Push")
             params_dict.update({"value_right_btn":"Run", 
                         "title_right_btn":"Click to run the function"})
             return shortcuts.render_to_response("utilrequest.html", 
@@ -1149,7 +1176,9 @@ def runUtil(request):
             result = eval(command)
         except StandardError, e:
             logger.add_line("Failed to run command: %s" %e)
-        params = create_standard_params_dict("Utility Response", "utilresponse")
+        params = create_standard_params_dict(
+            title_suffix="Utility Response", 
+            url_name="utilresponse", page_path_action="Pop")
         params["command"] = command
         logger.add_line("-------------------------------------------------")
         logger.add_line(">>>Util response complete<<<")
@@ -1203,7 +1232,7 @@ def buildForm(class_form):
 
 #----------------------------------------------------------------------
 
-def showForm(template, form, return_page, params, 
+def showForm(template, form, page_path_action, params, 
              reload_form_type = None):
     """
     Create or edit a model instance. 
@@ -1229,11 +1258,14 @@ def showForm(template, form, return_page, params,
                 errors['__all__'] = unicode(err)
         if errors:
             return respond(template, params)
+    return_page = get_return_page_from_cookie()
+    return_page = map_page_to_usertype(return_page)
     if (return_page != "NoReturnPage"):
         return http.HttpResponseRedirect(return_page)
     else:
         return None
 
+#----------------------------------------------------------------------
 def respond(template, params=None):
     """
     Helper to render a response, passing standard stuff to the response.
@@ -1434,11 +1466,11 @@ class TeacherForm(PersonForm):
 
     primary_subject_name = forms.CharField(required=False, label="Primary Subject",
             widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
-    primary_subject = forms.CharField(required=True,
+    primary_subject = forms.CharField(required=False,
                               widget=forms.HiddenInput, initial = "")
     secondary_subject_name = forms.CharField(required=False, label="Secondary Subject",
             widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
-    secondary_subject = forms.CharField(required=True,
+    secondary_subject = forms.CharField(required=False,
                               widget=forms.HiddenInput, initial = "")
     paygrade = forms.CharField(required=False,
             widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
@@ -2076,7 +2108,7 @@ class SectionForm(StudentGroupingForm):
         select_field.add_dependency(clsyr, is_key = False)
         select_field.add_dependency(clsrm, False)
         select_field.add_extra_params({"filter_school":"false",
-                                        "extra_fields":"class_year"})
+                                    "extra_fields":"class_year|teacher"})
 
     @staticmethod
     def initialize(data):
@@ -2651,8 +2683,11 @@ class SectionTypeForm(MultiLevelDefinedForm):
 
 #----------------------------------------------------------------------  
 class StudentMajorForm(MultiLevelDefinedForm):
-    parent_form = MultiLevelDefinedForm
 
+    name_abbreviation = forms.CharField(required=False, label="Name Abbreviation")
+    parent_form = MultiLevelDefinedForm
+    element_names = ["name_abbreviation"]
+    
     def create_new_instance(self):
         return SchoolDB.models.StudentMajor.create(self.cleaned_data["name"], 
                               db.Key(self.cleaned_data["organization"]))
@@ -2998,18 +3033,17 @@ class CreateClassSessionsForm(BaseStudentDBForm):
             request_table, conflict_table, other_info = \
                          creator.process_request()
             #now report the initial result
-            specialShowAction(instance=None, requested_action="save", 
-                    classname="", formname=CreateClassSessionsFormStep2,
-                    title_suffix="Confirm Multiple Class Sessions Creation",
-                    template="create_class_sessions_step2",
-                    return_url="create_class_session_step2",
-                    further_params={"request_table":request_table, 
-                                    "conflict_table":conflict_table,
-                                    "other_info":other_info,
-                                    "start_date":str(start_date.toordinal()),
-                                    "end_date":str(end_date.toordinal()),
-                                    "use_classrooms":str(
-                                        classes_in_section_classrooms)})
+            #specialShowAction(instance=None, requested_action="save", 
+                    #classname="", formname=CreateClassSessionsFormStep2,
+                    #title_suffix="Confirm Multiple Class Sessions Creation",
+                    #template="create_class_sessions_step2",
+                    #extra_params={"request_table":request_table, 
+                                    #"conflict_table":conflict_table,
+                                    #"other_info":other_info,
+                                    #"start_date":str(start_date.toordinal()),
+                                    #"end_date":str(end_date.toordinal()),
+                                    #"use_classrooms":str(
+                                        #classes_in_section_classrooms)})
 
     @staticmethod
     def process_request(data):
@@ -3047,7 +3081,7 @@ class CreateClassSessionsFormStep2(BaseStudentDBForm):
     This form displays two tables "Class Session Creation Conflicts" and
     "Class Sessions to be Created". These show the problems in in the
     initial request and the actions to be performed. It is not initiated in
-    the normal manner by a web request but rather by a funciton call from
+    the normal manner by a web request but rather by a function call from
     the first step form CreateClassSessionsForm.
     """
     json_final_request = forms.CharField(required = False, 
@@ -3083,21 +3117,28 @@ class AssignStudentsForm(BaseStudentDBForm):
         params["title_prefix"] = ""
         params["title_bridge"] = ""
         params["title_details"] = " to<br/>" + \
-              getprocessed().requested_instance.detailed_name()
-        params["value_right_btn"] = "Assign"
+              self.class_session.detailed_name()
+        #params["value_right_btn"] = "Assign"
                 
     def generate_javascript_code(self, javascript_generator):
+        self.class_session = getprocessed().requested_instance
+        #current_instance set in page itself
+        if not self.class_session:
+            self.class_session = getprocessed().current_instance
+        cy_handler = """
+        select: function(event, data) {
+            classYearChanged(data);} """
         clsyr = javascript_generator.add_autocomplete_field(
-            class_name = "class_year", field_name = "id_class_year")
+            class_name = "class_year", field_name = "id_class_year",
+        custom_handler = cy_handler)
         clsyr.set_local_choices_list(SchoolDB.choices.ClassYearNames)
-        class_session = getprocessed().requested_instance
-        if class_session :
+        if self.class_session :
             javascript_generator.add_javascript_params ({
-                "class_session_key":getprocessed().selection_key,
+                "class_session_key":str(self.class_session.key()),
                 "student_major_key":
                 str(SchoolDB.models.get_key_from_instance(
-                    class_session.student_major)),
-                "class_year":class_session.class_year
+                    self.class_session.student_major)),
+                "class_year":self.class_session.class_year
                 })
 
     @staticmethod                                                 
@@ -3107,6 +3148,9 @@ class AssignStudentsForm(BaseStudentDBForm):
         date.
         """
         class_session = getprocessed().requested_instance
+        #current_instance set in page itself
+        if not class_session:
+            class_session = getprocessed().current_instance
         data["class_year"] = class_session.class_year
         data["assignment_date"] = class_session.school_year.start_date
     
@@ -3122,7 +3166,8 @@ class AssignStudentsForm(BaseStudentDBForm):
         assigned_students_text = self.cleaned_data["assigned_students"]
         #Get the instance again to assure that it is the correct class
         class_session_instance = SchoolDB.models.get_instance_from_key_string(
-            self.cleaned_data["object_instance"], SchoolDB.models.ClassSession)
+            self.cleaned_data["object_instance"], 
+            SchoolDB.models.ClassSession)
         assigned_students_list = []
         if (assigned_students_text):
             assigned_students_text_list = assigned_students_text.split(",")
@@ -3162,8 +3207,8 @@ class AssignSectionStudentsForm(BaseStudentDBForm):
         details = ""
         if class_session:
             details = " from<br/>%s to<br/>Section %s" \
-                  %(class_session.detailed_name(), 
-                    unicode(class_session.section))
+                  %(unicode(class_session.section),
+                            unicode(class_session))
             section_name = unicode(class_session.section)
         else:
             details = "<br/><p class='title_warning'>" + \
@@ -3175,8 +3220,6 @@ class AssignSectionStudentsForm(BaseStudentDBForm):
                     " has no Section."
             details = "</p>"
         params["title_details"] = details
-        params["value_right_btn"] = "Assign"
-        params["id_right_btn"] = "assign_button"
              
     def generate_javascript_code(self, javascript_generator):
         class_session = getprocessed().requested_instance
@@ -3596,23 +3639,36 @@ class AchievementTestGradesForm(BaseStudentDBForm):
         achtest.add_dependency(sect, True)
         
         
+    #@staticmethod
+    #def initialize(data):
+        #"""
+        #Initialize the class year and section to the users section.
+        #Note: This should be done only when coming from the teacher's       
+        #My Work page.
+        #"""
+        #if (getprocessed()):
+            #if (getprocessed().return_page == "my_work"):
+                #section_keystr = getprocessed().cookies["aS"]
+                #if section_keystr:
+                    #section = SchoolDB.models.get_instance_from_key_string(section_keystr, 
+                                                    #SchoolDB.models.Section)
+                    #if section:
+                        #data["section"] = section_keystr
+                        #data["section_name"] = unicode(section)
+                        #data["class_year"] = section.class_year
+
     @staticmethod
-    def initialize(data):
-        """
-        Initialize the class year and section to the users section.
-        Note: This should be done only when coming from the teacher's       
-        My Work page.
-        """
-        if (getprocessed()):
-            if (getprocessed().return_page == "%2Fmy_work"):
-                section_keystr = getprocessed().cookies["aS"]
-                if section_keystr:
-                    section = SchoolDB.models.get_instance_from_key_string(section_keystr, 
-                                                    SchoolDB.models.Section)
-                    if section:
-                        data["section"] = section_keystr
-                        data["section_name"] = unicode(section)
-                        data["class_year"] = section.class_year
+    def process_request(data):
+        try:
+            if (getprocessed().path_page_stack[-1] == "/my_work"):
+                active_section_key = \
+                    DatabaseUser.get_single_value(None, "active_section")
+                active_section = Section.get(active_section_key)
+                data["section"] = str(active_section_key)
+                data["section_name"] = unicode(active_section)
+                data["class_year"] = active_section.class_year
+        except:
+            pass
                             
 #---------------------------------------------------------------------- 
 class GradingPeriodResultsForm(BaseStudentDBForm):
@@ -3620,11 +3676,11 @@ class GradingPeriodResultsForm(BaseStudentDBForm):
     This form is used to set the class session grades for the end of
     the grading period.
     """
-    class_session = forms.CharField(required=False,
+    object_instance = forms.CharField(required=False,
                               widget=forms.HiddenInput, initial = "") 
     parent_form = BaseStudentDBForm
     
-    def build_periods_checkboxes(self):
+    def build_periods_checkboxes(self, user_is_teacher):
         """
         Generate the html code to display the block of grading periods
         that can be used. Each grading period has the name, a checkbox
@@ -3645,8 +3701,11 @@ class GradingPeriodResultsForm(BaseStudentDBForm):
             html_string = """
     <table class="unbordered">
     <tr><td>Grading Period</td><td class="centered-object">Dates</td>
-    <td >View</td><td>Edit</td></tr>
+    <td >View</td>
             """
+            if user_is_teacher:
+                html_string += "<td>Edit</td>"
+            html_string += "</tr>"
             period_keystrs = [str(p.key()) for p in valid_grading_periods]
             period_names = [unicode(p) for p in valid_grading_periods]
             period_dates = [p.get_date_string() for p in valid_grading_periods]
@@ -3656,39 +3715,60 @@ class GradingPeriodResultsForm(BaseStudentDBForm):
         <tr><td>%s</td><td>%s</td>
         <td><input name="period-checkbox" id="%s-view" 
         class="period-view centered-object" type="checkbox" value=%s></td>
+        """ %(period_names[i], period_dates[i], id_string, 
+                  period_keystrs[i])
+        if user_is_teacher :
+            html_string += """
         <td><input name="period-checkbox" id="%s-edit" 
-        class="period-edit centered_object" type="checkbox" value=%s></td></tr>
-            """ %(period_names[i], period_dates[i], id_string, 
-                  period_keystrs[i], id_string, period_keystrs[i])
-            html_string += "</table>"
+        class="period-edit centered_object" type="checkbox" value=%s></td>
+            """  %(id_string, period_keystrs[i])
+        html_string += "</tr></table>"
         return html_string
                         
     def modify_params(self, param_dict):
         param_dict["id_right_btn"] = "save_grades_btn"
-        class_session_name = getprocessed().cookies["aCn"]
-        name = class_session_name.replace("%20"," ")
-        param_dict["class_session_name"] = name
-        param_dict["initial_title"] = \
-                  "Edit or View Grading Periods for " + name
-        param_dict["period_checkboxes"] = self.build_periods_checkboxes()
-                            
-    @staticmethod
-    def initialize(data):
-        """
-        Initialize the class year and section to the users section.
-        Note: This should be done only when coming from the teacher's       
-        My Work page.
-        """
-        if (getprocessed()):
-            if (getprocessed().return_page == "%2Fmy_work"):
-                class_session_keystr = \
-                    getprocessed().cookies["aC"]
-                if class_session_keystr:
-                    class_session = SchoolDB.models.get_instance_from_key_string(
-                        class_session_keystr, SchoolDB.models.ClassSession)
-                    if class_session:
-                        data["class_session"] = class_session_keystr
-        data["requested_action"] = "Ignore"
+        param_dict["user_is_teacher"] = self.user_is_teacher
+        param_dict["class_session_name"] = self.name
+        prefix = ""
+        if self.user_is_teacher:
+            prefix = "Edit or "
+        param_dict["form_title"] = \
+                  "%sView Grading Periods for %s" %(prefix, self.name)
+        param_dict["period_checkboxes"] = self.build_periods_checkboxes(
+            self.user_is_teacher)
+     
+    def generate_javascript_code(self, javascript_generator):
+        keystring = self.data["object_instance"]
+        class_session = \
+            SchoolDB.utility_functions.get_instance_from_key_string(
+                keystring, ClassSession)
+        if (class_session.teacher):
+            self.user_is_teacher = (class_session.teacher.key() == 
+                               getActiveDatabaseUser().get_active_person().key())
+        else:
+            self.user_is_teacher = False
+        self.name = unicode(class_session)
+        javascript_generator.add_javascript_params (
+            {"class_session_name":self.name, 
+             "user_is_teacher":self.user_is_teacher})
+
+    #@staticmethod
+    #def initialize(data):
+        #"""
+        #Initialize the class year and section to the users section.
+        #Note: This should be done only when coming from the teacher's       
+        #My Work page.
+        #"""
+        #if (getprocessed()):
+            #if (getprocessed().return_page == "Fmy_work"):
+                #class_session_keystr = \
+                    #getprocessed().cookies["aC"]
+                #if class_session_keystr:
+                    #class_session = SchoolDB.models.get_instance_from_key_string(
+                        #class_session_keystr, SchoolDB.models.ClassSession)
+                    #if class_session:
+                        #data["class_session"] = class_session_keystr
+        #data["requested_action"] = "Ignore"
             
 #---------------------------------------------------------------------- 
 class AttendanceForm(BaseStudentDBForm):
@@ -3789,7 +3869,13 @@ class UserTypeForm(BaseStudentDBForm):
 
 #----------------------------------------------------------------------     
 
-class DatabaseUserForm(BaseStudentDBForm):
+class MasterDatabaseUserForm(BaseStudentDBForm):
+    """
+    This is a wide open form for creating database users. It allows database
+    users to be built for any organization and even without a person record.
+    Not easy to use but flexible. This can only be used by the master admin
+    user.
+    """
     first_name = forms.CharField(required=True, max_length=60,
                                  label="First Name*",
             widget=forms.TextInput(attrs={'class':'required entry-field', 
@@ -3822,8 +3908,7 @@ class DatabaseUserForm(BaseStudentDBForm):
     organization = forms.CharField(required=False, widget=forms.HiddenInput)
     person_type = forms.ChoiceField(required=False, 
                                 choices=(("teacher","Teacher"), 
-                                ("administrator", "Administrator"),
-                                ("student", "Student")),
+                                ("administrator", "Administrator")),
                                 label="Database Identity Type")
     person_name = forms.CharField(required=False, 
             label="Database Identity:", widget=forms.TextInput(attrs=
@@ -3862,7 +3947,7 @@ class DatabaseUserForm(BaseStudentDBForm):
         return org,per,usr_type
     
     def generate_javascript_code(self, javascript_generator):
-        DatabaseUserForm.generate_class_javascript_code(javascript_generator)
+        MasterDatabaseUserForm.generate_class_javascript_code(javascript_generator)
         
     @staticmethod
     def generate_select_javascript_code(javascript_generator,
@@ -3876,7 +3961,7 @@ class DatabaseUserForm(BaseStudentDBForm):
                          "field_type":"view"}]})
         #>>>>>>needs rethinking!!<<<<<<<<
         org, per, user_type = \
-           DatabaseUserForm.generate_class_javascript_code(
+           MasterDatabaseUserForm.generate_class_javascript_code(
             javascript_generator)
         select_field.add_dependency(org, True)
         select_field.add_extra_params({
@@ -3889,6 +3974,41 @@ class DatabaseUserForm(BaseStudentDBForm):
         initialize_fields([("user_type","user_type_name"), 
                             ("organization", "organization_name"),
                            ("person", "person_name")], data)
+
+#----------------------------------------------------------------------  
+
+class StandardDatabaseUserForm(BaseStudentDBForm):
+    """
+    The simple database user form for db admins in an organization. This has
+    controls built in to always use the current users organization and to use
+    values from a person that has already been created.
+    """
+    email = forms.EmailField(required=True, max_length=60, 
+                    label="Gmail Address*", widget=forms.TextInput(attrs=
+                         {'class':'required email entry-field',
+                          "minlength":"7"}))
+    person_name = forms.CharField(required=False, 
+            label="Person*:", widget=forms.TextInput(attrs=
+                                {'class':'required autofill entry-field'}))
+    person = forms.CharField(required=False, widget=forms.HiddenInput)
+    guidance_counselor = forms.BooleanField(required=False, initial=False)
+    other_information = forms.CharField(required=False,
+        max_length=1000, widget=forms.Textarea( 
+                    attrs={'cols':50, 'rows':2, 'class':'entry-field'}))
+    element_names = ["email", "guidance_counselor",
+                     "person", "other_information"]
+    parent_form = BaseStudentDBForm
+
+    def generate_javascript_code(self, javascript_generator):
+        pers = javascript_generator.add_autocomplete_field(
+            class_name = "paygrade", field_name = "id_paygrade")
+        pers.set_local_choices_list(
+            SchoolDB.models.DatabaseUser.get_candidate_persons())
+        pers.add_extra_params({"use_key":"!true!"})
+    
+    @staticmethod
+    def initialize(data):
+        initialize_fields([("person", "person_name")], data)
         
 #----------------------------------------------------------------------  
 class SelectForm(BaseStudentDBForm):
@@ -3911,6 +4031,8 @@ class SelectForm(BaseStudentDBForm):
             self.requested_action = "View"
         self.return_url = "/" + select_class_name
         self.submit_action = submit_action
+        self.page_path_action = "Push"
+        self.breadcrumbs = generate_breadcrumb_line()
         self.select_class.initialize_form_params(self)
 
     def set_submit_action(self, submit_action):
@@ -4009,10 +4131,10 @@ class MyWorkForm(BaseStudentDBForm):
     is generated by an ajax request only when needed.
     """
     users_section_name = forms.CharField(required = False, label="Section",
-                    widget=forms.TextInput(attrs= {'class':'autofill'}))
+                    widget=forms.TextInput(attrs= {'class':'autofill entry-field'}))
     users_section = forms.CharField(required=False, widget=forms.HiddenInput)
     users_class_session_name = forms.CharField(required = False, label = "Class",
-                    widget=forms.TextInput(attrs= {'class':'autofill'}))
+                    widget=forms.TextInput(attrs= {'class':'autofill entry-field'}))
     users_class_session = forms.CharField(required=False, 
                                     widget=forms.HiddenInput)
     def __init__(self, data):
@@ -4022,65 +4144,86 @@ class MyWorkForm(BaseStudentDBForm):
         and may be a section advisor. Attach a list of keys of both
         sections and class sessions to be used by javascript.
         """
+        BaseStudentDBForm.__init__(self)
         activeDbUser = SchoolDB.models.getActiveDatabaseUser()
         self.dbuser = activeDbUser.get_active_user()
         self.person = activeDbUser.get_active_person()
         self.organization_key = activeDbUser.get_active_organization_key()
         self.organization_name = \
             activeDbUser.get_active_organization_name()
-        self.users_section = self.dbuser.get_preference("active_section")
-        self.users_class_session = self.dbuser.get_preference(
-            "active_class")
+        self.keys_list = ["active_section", "active_class_session"]
+        self.values_dict = self.dbuser.get_private_info_multiple_values(
+            self.keys_list)
+        self.users_section = self.values_dict["active_section"]
+        self.users_class_session = self.values_dict["active_class_session"]
         self.users_section_name = ""
         self.users_class_session_name = ""
+        self.user_is_section_advisor = False
+        self.user_is_class_session_teacher = False
+        session = None
         if (self.users_section):
             section = SchoolDB.models.get_instance_from_key_string(
                 self.users_section, SchoolDB.models.StudentGrouping)
             if section :
                 self.users_section_name = unicode(section)
-        if (self.users_class_session):
-            session = SchoolDB.models.get_instance_from_key_string(
-                self.users_class_session, 
-                SchoolDB.models.StudentGrouping)
+                if section.teacher:
+                    self.user_is_section_advisor = \
+                        (section.teacher.key()== self.person.key())
+            if (self.users_class_session):
+                session = SchoolDB.models.get_instance_from_key_string(
+                    self.users_class_session, 
+                    SchoolDB.models.StudentGrouping)
             if session:
                 self.users_class_session_name = session.detailed_name()
+                if session.teacher:
+                    self.user_is_class_session_teacher = \
+                        (session.teacher.key() == self.person.key())
            
     def build_choice_list(self, choices_class):
         """
-        Create a choice list for the form
-        that will be shown in a autofill field.
+        Create a choice list for the form that will be shown in a
+        autofill field. The key has a special use here. THe keystring
+        is prefixed by a '=' or '-' to indicate if the user is the
+        teacher for the section or class. This must be stripped in the
+        javascript on the webpage before sending as a key to the
+        database.
         """
         choices = []
         instances_list = \
                 self.dbuser.get_interesting_instances_class_list(choices_class)
-        for instance in instances_list:
+        for instance in instances_list:            
             if (choices_class == SchoolDB.models.ClassSession):
                 name = instance.detailed_name()
             else:
                 name = unicode(instance)
+            keystr = str(instance.key())
+            if (instance.teacher and (instance.teacher.key() == self.person.key())):
+                keystr = '+' + keystr
+            else:
+                keystr = '-' + keystr
             choice = ({'label':name, \
                        'value':name, \
-                       'key':str(instance.key())})
+                       'key':keystr})
             choices.append(choice)
         return choices
             
-    def modify_params(self, params):
-        params['title_bridge'] = ""
-        params['title_prefix'] = ""
-        params['title_suffix'] = "My Work Page"
+    #def modify_params(self, params):
+        #params['title_bridge'] = ""
+        #params['title_prefix'] = ""
+        #params['title_suffix'] = "My Work Page"
         
     def generate_javascript_code(self, javascript_generator):
         sect_handler = """
         select: function(event, data) {
-            setChoiceValue("id_users_section", data, "active_section");} """
+            setActiveSection(data);} """
         sect = javascript_generator.add_autocomplete_field(
             class_name = "section", field_name = "id_users_section_name",
-            key_field_name = "id_users_section", 
+            key_field_name = "id_users_section",
             custom_handler = sect_handler)
         sect.set_local_choices_list(self.build_choice_list(SchoolDB.models.Section))
         cls_handler = """
         select: function(event, data) {
-            setChoiceValue("id_users_class_session", data, "aC");} """
+            setActiveClassSession(data);} """
         cls = javascript_generator.add_autocomplete_field(
             class_name = "class_session",
             field_name = "id_users_class_session_name",
@@ -4106,6 +4249,8 @@ class MyWorkForm(BaseStudentDBForm):
             "users_class_session":self.users_class_session,
             "users_section_name":self.users_section_name,
             "users_class_session_name":self.users_class_session_name,
+            "user_is_section_advisor":self.user_is_section_advisor,
+            "user_is_class_session_teacher":self.user_is_class_session_teacher,
             "school":str(SchoolDB.models.getActiveDatabaseUser().get_active_organization().key())
             })
         return javascript_generator
@@ -4114,10 +4259,24 @@ class MyWorkForm(BaseStudentDBForm):
         #"""
         #Set the selected section and class session in the user data
         #"""
-        #self.dbuser.set_preference("active_section", 
-                            #self.cleaned_data["active_section"])
-        #self.dbuser.set_preference("active_class_session", 
-                            #self.cleaned_data["active_class_session"])
+        #saved_values = {"active_section": 
+                            #self.cleaned_data["users_section"],
+            #"active_section_name":self.cleaned_data["users_section_name"],
+            #"active_class_session":self.cleaned_data["users_class_session"],
+            #"active_class_session_name":
+            #self.cleaned_data["users_class_session_name"]}
+        #self.dbuser.set_private_info_multiple_values(
+            #saved_values)
+
+    @staticmethod
+    def process_request(data):
+        activeDbUser = SchoolDB.models.getActiveDatabaseUser()
+        dbuser = activeDbUser.get_active_user()
+        keys_list = ["active_section","active_class_session"]
+        values_dict = dbuser.get_private_info_multiple_values(keys_list)
+        data["users_section"] = values_dict["active_section"]
+        data["users_class_session"] = values_dict["active_class_session"]
+
 #----------------------------------------------------------------------  
 class ChooseForm(BaseStudentDBForm):
     """
@@ -4234,7 +4393,46 @@ class SectionListReportForm(BaseStudentDBForm):
             class_name = "section")
         return javascript_generator
 
-#----------------------------------------------------------------------  
+#----------------------------------------------------------------------
+
+class SectionGradingPeriodGradesForm(BaseStudentDBForm):
+    """
+    This form presents a table of grades for all students in a section for
+    a single grading period.
+    """
+    section_name = forms.CharField(required = False, label="Section:",
+                    widget=forms.TextInput(attrs= 
+                        {'class':'autofill required', "size":11}))
+    section = forms.CharField(required=False, widget=forms.HiddenInput)
+    grading_period_name = forms.CharField(required = False, label="Grading Period:",
+                    widget=forms.TextInput(attrs= 
+                        {'class':'autofill required', "size":11}))
+    grading_period = forms.CharField(required=False, widget=forms.HiddenInput)
+
+    def modify_params(self, params):
+        params["title_prefix"] = "Create"
+        
+    def generate_javascript_code(self, javascript_generator):
+        sect = javascript_generator.add_autocomplete_field(
+            class_name = "section")
+        gdprd = javascript_generator.add_autocomplete_field(
+            class_name = "grading_period")
+        gdprd.add_extra_params({"use_class_query":"!true!"})
+        return javascript_generator
+    
+    @staticmethod
+    def process_request(data):
+        try:
+            if (getprocessed().path_page_stack[-1] == "/my_work"):
+                active_section_key = \
+                    DatabaseUser.get_single_value(None, "active_section")
+                active_section = Section.get(active_section_key)
+                data["section"] = str(active_section_key)
+                data["section_name"] = unicode(active_section)
+        except:
+            pass
+
+#----------------------------------------------------------------------
 class StudentRecordsCheckForm(BaseStudentDBForm):
     """
     This form presents a page to generate a several student record
@@ -4319,6 +4517,8 @@ class Form14ReportForm(BaseStudentDBForm):
             widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
     achievement_test = forms.CharField(required=False,
                               widget=forms.HiddenInput, initial = "")   
+    gender = forms.ChoiceField(required=False, label="Gender",
+            choices=(("Male","Male"), ("Female","Female")), initial="Male")
     parent_form = BaseStudentDBForm
     
     def modify_params(self, params):
@@ -4668,6 +4868,97 @@ def name_is_in_model(instance, name):
     properties_dict = instance.properties()
     return properties_dict.has_key(name)
 
+#----------------------------------------------------------------------
+def get_return_page_from_cookie():
+    """
+    Use the information from the "return_to_page" value in the current
+    cookie to choose the next page to be displayed. The value will have
+    '/' char replaced by '%02f' so they must be reconverted
+    """
+    return_page = getprocessed().return_page
+    if (not return_page):
+        return_page = "/index"
+    return return_page
+
+#----------------------------------------------------------------------
+def map_page_to_usertype(page, perform_mapping = True):
+    """
+    Some pages are different for each type of user. All top level pages
+    and some others are different. This function performs the mapping
+    from the generic name to the specific name. This also helps
+    security by mapping away from restricted pages. Pages which are
+    common to all users are passed through unchanged. The mapping
+    dictionaries are included within this function. 
+    """
+    #Again perform legal mapping to assure that a bad page cannot be
+    #accessed. This blocks attempts to use edited cookie.
+    if (not users.is_current_user_admin()):
+        if (not getActiveDatabaseUser().get_active_user_type().legal_url(
+            page)):
+            #this will end all further processing of the request
+            raise ProhibitedURLError, page  
+
+    teacher = {"":"schoolhome",
+               "index":"schoolhome",
+               "maint":"school_maint" 
+               }
+    school_db_administrator = {"":"schoolhome",
+               "index":"schoolhome",
+               "maint":"schooladmin_maint",
+               "database_user":"standard_database_user"}
+    upper_level_user = {"":"upperlevel_home", 
+                   "index":"upperlevel_home", 
+                   "maint":"upperlevel_maint"}
+    upper_level_db_administrator = {"":"upperlevel_adminhome",
+                                    "index":"upperlevel_adminhome",
+                                    "maint":"upperleveladmin_maint",
+                                    "database_user":"standard_database_user"}
+    master = {"":"masterhome",
+              "index":"masterhome",
+              "maint":"othertypes",
+              "database_user":"master_database_user"
+              } 
+    dict_map = {"Master":master,"Teacher":teacher, 
+              "SchoolDbAdministrator":school_db_administrator, 
+              "UpperLevelUser":upper_level_user,
+              "UpperLevelDbAdministrator":upper_level_db_administrator}
+    page_map = dict_map[unicode(getActiveDatabaseUser().get_active_user_type())]
+    # strip leading slash if present
+    page = page.lstrip('/')
+    if perform_mapping:
+        return_page = page_map.get(page, page)
+    else:
+        return_page = page
+    return return_page
+#----------------------------------------------------------------------
+def map_form_to_usertype(formname, perform_mapping = True):
+    """
+    Some pages are different for each type of user. All top level pages
+    and some others are different. This function performs the mapping
+    from the generic name to the specific name. This also helps
+    security by mapping away from restricted pages. Pages which are
+    common to all users are passed through unchanged. The mapping
+    dictionaries are included within this function. 
+    """
+    teacher = {}
+    school_db_administrator = {
+        "StandardDatabaseUserForm":"StandardDatabaseUserForm"}
+    upper_level_user = {}
+    upper_level_db_administrator = {
+        "StandardDatabaseUserForm":"StandardDatabaseUserForm"}
+    master = {"StandardDatabaseUserForm":"MasterDatabaseUserForm"}
+    dict_map = {"Master":master,"Teacher":teacher, 
+              "SchoolDbAdministrator":school_db_administrator, 
+              "UpperLevelUser":upper_level_user,
+              "UpperLevelDbAdministrator":upper_level_db_administrator}
+    form_map = dict_map[unicode(getActiveDatabaseUser().get_active_user_type())]
+    if perform_mapping:
+        return_form = form_map.get(formname, formname)
+    else:
+        formname = formname
+    return formname
+#----------------------------------------------------------------------
+
 def perform_utilities():
     """
     Perform misc utilities for database maintainance 
@@ -4803,23 +5094,22 @@ def create_class_session_students_table(parameter_dict, primary_object,
     The primary_object is the class session.
     """
     students, student_records, student_record_dict =\
-            primary_object.get_students_and_records(status_filter="Active")
+            primary_object.get_students_and_records(status_filter="Active",
+                                                    sorted=True)
     selection_table = []
     selection_keys = []
-    include_section_column = parameter_dict.get("include_section_column",
-                                                False)
     for student in students:
-        table_entry = [student.last_name, student.first_name, 
-                student.middle_name]
-        if include_section_column:
-            table_entry.append(unicode(student.section))
+        name = student.full_name_lastname_first()
+        gender = student.gender
+        class_year = student.class_year
+        section = unicode(student.section)        
+        table_entry = [name, gender, class_year, section]
         selection_table.append(table_entry)
         selection_keys.append(str(student.key()))
-    table_description = [('last_name', 'string', 'Family Name'),
-                ('first_name', 'string', 'First Name'),
-                ('middle_name', 'string', 'Middle Name')]
-    if include_section_column:
-        table_description.append(('section','string', 'Section'))
+    table_description = [('name', 'string', 'Name'),
+                ('gender', 'string', 'Gender'),
+                ('class_year','string','Class Year'),
+                ('section', 'string', 'Section')]
     return(table_description, selection_table, selection_keys, None, "")
 
 #----------------------------------------------------------------------
@@ -4898,14 +5188,26 @@ def create_students_eligible_for_class_table(parameter_dict, primary_object,
     selection_table = []
     selection_keys = []
     for student in eligible_students:
-        table_entry = (student.last_name, student.first_name, 
-                student.middle_name, unicode(student.section))
+        name = student.full_name_lastname_first()
+        gender = student.gender
+        class_year = student.class_year
+        section = unicode(student.section)        
+        table_entry = [name, gender, class_year, section]
         selection_table.append(table_entry)
         selection_keys.append(str(student.key()))
-    table_description = [('last_name', 'string', 'Family Name'),
-                ('first_name', 'string', 'First Name'),
-                ('middle_name', 'string', 'Middle Name'),
+    table_description = [('name', 'string', 'Name'),
+                ('gender', 'string', 'Gender'),
+                ('class_year','string','Class Year'),
                 ('section', 'string', 'Section')]
+    #for student in eligible_students:
+        #table_entry = (student.last_name, student.first_name, 
+                #student.middle_name, unicode(student.section))
+        #selection_table.append(table_entry)
+        #selection_keys.append(str(student.key()))
+    #table_description = [('last_name', 'string', 'Family Name'),
+                #('first_name', 'string', 'First Name'),
+                #('middle_name', 'string', 'Middle Name'),
+                #('section', 'string', 'Section')]
     return(table_description, selection_table, selection_keys, None, "")
 
 #----------------------------------------------------------------------
@@ -4919,6 +5221,8 @@ def initialize_fields(fields_list, data):
             linked_object = convert_string_to_key(key_string)
             if (linked_object):
                 data[data_value[1]] = unicode(linked_object)
+
+#----------------------------------------------------------------------
 
 def get_form_from_class_name(class_name_string):
     """
@@ -4937,7 +5241,7 @@ def get_form_from_class_name(class_name_string):
             "class_session":(ClassSessionForm),
             "class_period":(ClassPeriodForm),
             "contact":(ContactForm),
-            "database_user":(DatabaseUserForm),
+            "database_user":(StandardDatabaseUserForm),
             "division":(DivisionForm),
             "grading_instance":(GradingInstanceForm),
             "grading_period":(GradingPeriodForm),
@@ -4967,6 +5271,8 @@ def get_form_from_class_name(class_name_string):
         }
         form_class = class_formname_map.get(class_name_string, None)
     return form_class
+
+#----------------------------------------------------------------------
 
 def filter_keystring(keystring):
     """
@@ -5045,7 +5351,18 @@ class ProcessedRequest:
                 self.current_instance_valid = (self.current_instance != None)
             self.cookies = request.COOKIES
             if (self.cookies):
-                self.return_page = self.cookies.get("return_to_page","/index")
+                # limit size of return page text to prevent
+                # attack
+                rptext = \
+                    self.cookies.get("nP","/index")[:150]
+                self.return_page = \
+                    SchoolDB.utility_functions.cleanup_django_escaped_characters(
+                        rptext)
+                self.bc_page_stack = self.get_path_stack("bcSt")
+                self.path_page_stack = self.get_path_stack("pgSt")
+                logging.info("-----------next:'%s'" %self.return_page)
+                logging.info("-----------bc stack: '%s'" %self.bc_page_stack)
+                logging.info("-----------path stack: '%s'" %self.path_page_stack)
             #filter for unkown or illegal values
             self.state = self.values.get("state","New")
             if (["New","Exists"].count(self.state) == 0):
@@ -5057,6 +5374,15 @@ class ProcessedRequest:
                 self.requested_action = "Ignore"
             self.prior_selection = filter_keystring(
                 self.values.get("prior_selection", None))
+    def get_path_stack(self, cookie_name):
+        text = self.cookies.get(cookie_name,"[]")[:200]
+        cleaned = \
+            SchoolDB.utility_functions.cleanup_django_escaped_characters(text)
+        try:
+            page_stack = simplejson.loads(cleaned)
+        except:
+            page_stack = []
+        return page_stack
 
 #----------------------------------------------------------------------
 
@@ -5094,28 +5420,125 @@ class BreadcrumbGenerator:
     More usefully, a completely formatted webpage entry for a page
     can be generated with command generate_breadcrumb.
     """
-    title_tree = {}
-    url_dict = {}
+    #title_tree = {}
+    #url_dict = {}
 
-    def add_page(self, title, url, parent_title):
-        self.url_dict[title] = url
-        self.title_tree[title] = parent_title
+    #def add_page(self, title, url, parent_title):
+        #self.url_dict[title] = url
+        #self.title_tree[title] = parent_title
 
-    def add_pages(self, pages_list):
-        for page in pages_list:
-            self.add_page(page[0],page[1],page[2])
+    #def add_pages(self, pages_list):
+        #for page in pages_list:
+            #self.add_page(page[0],page[1],page[2])
 
-    def get_breadcrumb_list(self, title):
-        breadcrumb_list = []
-        while self.title_tree.has_key(title):
-            breadcrumb_list.insert(0,((self.url_dict[title], title)))
-            title = self.title_tree[title]       
-        return breadcrumb_list
+    #def get_breadcrumb_list(self, title):
+        #breadcrumb_list = []
+        #while self.title_tree.has_key(title):
+            #breadcrumb_list.insert(0,((self.url_dict[title], title)))
+            #title = self.title_tree[title]       
+        #return breadcrumb_list
 
-    def has_page(self, title):
-        return self.url_dict.has_key(title)
-
-    def generate_breadcrumb(self, title, separator=" &raquo; "):
+    #def has_page(self, title):
+        #return self.url_dict.has_key(title)
+    name_map = {
+        "index":"Main Menu",
+        "upperlevel_adminhome":"Main Menu",
+        "upperlevel_home":"Main Menu",
+        "schoolhome":"Main Menu",
+        "my_work":"My Work",
+        "student":"Student",
+        "section":"Section",
+        "choose_report":"Choose a Report Type",
+        "attendance":"Enter Attendance",
+        "section_students":"Section Students",
+        "class_session_students":"Class Students",
+        "section_classes":"Section Class Schedule",
+        "student_emergency":"Student Emergency",
+        "othertypes":"Special Information",
+        "teacher":"Teacher",
+        "administrator":"Administrator",
+        "class_session":"Class",
+        "subject":"Subject",
+        "section_type":"Section Type",
+        "student_major":"Student Major",
+        "special_designation":"Special Designation",
+        "school":"School",
+        "region":"Region",
+        "division":"Division",
+        "province":"Province",
+        "municipality":"Municipality",
+        "community":"Barangay",
+        "otherwork":"Other Work",
+        "database_user":"Database User",
+        "master_database_user":"Database User",
+        "standard_database_user":"Database User",
+        "user_type":"User Type",
+        "school_year":"School Year",
+        "calendar":"School Calendar",
+        "schoolday":"School Day",
+        "school_day_type":"School Day Type",
+        "class_period":"Class Period",
+        "achievement_test":"Achievement Test",
+        "achievement_test_grades":"Achievement Test Grades",
+        "versioned_text_manager":"Text Manager",
+        "attendance_report":"Attendance Report",
+        "assign_students":"Assign Students",
+        "student_age":"Student Age Distribution",
+        "section_list":"Section List",
+        "school_register":"School Register",
+        "section_grading_period_grades":"Grading Period Grades",
+        "choose_custom_report":"Choose a Custom Report",
+        "custom_report":"Custom Report", 
+        "student_record_check":"Student Record Check",
+        "grades":"Grades", 
+        "grading_instance":"Grading Instance",
+        "enter_grades":"Enter Grades",
+        "grading_period_results":"Grading Period Grades",
+        "gradebook_entry_calendar":"Gradebook Entry Calendar",
+        "utilrequest":"Run Utility",
+        "utilresponse":"Utility Response"
+    }
+    
+    def get_breadcrumb_list(self, cookies):
+        """
+        Create a list of breadcrumb names from the breadcrumb path
+        cookie created by the web page. The path names are mapped via
+        the name_map_dict to the breadcrumb name for each path name.
+        """
+        page_stack = ["index"]
+        if (cookies):
+            bctext = cookies.get("bcSt","[]")[:200]
+            bccleaned = \
+                SchoolDB.utility_functions.cleanup_django_escaped_characters(
+                            bctext)
+            try:
+                page_stack = simplejson.loads(bccleaned)
+            except:
+                pass
+        path_list = [ path.lstrip("/") for path in page_stack]
+        name_list = []
+        for path in path_list:
+            name = ""
+            name_end = ""
+            full_path = path
+            if (path.startswith("select/")):
+                path = path.replace("select/", "")
+                name = "Select "
+            if (path.startswith("initialselect/")):
+                path = path.replace("initialselect/", "")
+                name = "Select "
+                path = path.split("/")[0]
+            if (path.startswith("choose/")):
+                path = path.replace("choose/", "")
+                name = "Choose "
+            if (path.startswith("reports/")):
+                path = path.replace("reports/", "")
+            map_name = self.name_map.get(path, "Current Page")
+            name = name + map_name + name_end
+            name_list.append((full_path,name))
+        return name_list
+    
+    def generate_breadcrumb(self, cookies, separator=" &raquo; "):
         """
         Generate the full html text for the bread crumb line for
         the page titled "title". All except the final entry are 
@@ -5126,27 +5549,25 @@ class BreadcrumbGenerator:
         separator value. The default value is the most commonly used.
         """
         breadcrumb_text = ''
-        if self.has_page(title):
-            breadcrumb_list = self.get_breadcrumb_list(title)
-            breadcrumb_text = '<div class="breadcrumb print-hidden">'
-            for page in breadcrumb_list:
-                if (page[1] == title):
-                    # the current page -- do not add separator and url
-                    page_text = '%s</div>' %title
-                else:
-                    page_text = '<a class="initial_breadcrumb print-hidden" href="/%s">%s</a>%s' \
-                              %(page[0], page[1], separator)
-                breadcrumb_text += page_text
+        breadcrumb_list = self.get_breadcrumb_list(cookies)
+        breadcrumb_text = '<div class="breadcrumb print-hidden">'
+        for i in range(len(breadcrumb_list)):
+            if (i == len(breadcrumb_list)-1):
+                # the current page -- do not add separator and url
+                page_text = '%s</div>' %breadcrumb_list[i][1]
+            else:
+                page_text = '<a class="initial_breadcrumb print-hidden" href="/%s">%s</a>%s' \
+                          %(breadcrumb_list[i][0], breadcrumb_list[i][1], separator)
+            breadcrumb_text += page_text
         return breadcrumb_text
 
-def generate_breadcrumb_line(site_description, current_page):
+def generate_breadcrumb_line(cookies = None):
     """
     Create a full html breadcrumb line for the current_page from
     the site_description and page_title.
     """
     generator = BreadcrumbGenerator()
-    generator.add_pages(site_description)
-    return generator.generate_breadcrumb(current_page)
+    return generator.generate_breadcrumb(cookies)
 
 def return_error_page(error_string_suffix):
     error_string = "Sorry, you may not " + error_string_suffix
@@ -5186,11 +5607,12 @@ class ProhibitedUserError(ProhibitedError):
     def __init__(self, args=None):
         template_name = "invaliduser.html"
         params = {}
+        logging.warning("Unknown user: %s", args.email())
         params["account_name"] = args.email()
         params["database_name"] = "Philippines School Database"
         params["retry_url"] = users.create_logout_url("/")
         self.response = shortcuts.render_to_response(template_name, params)
-    
+        
 class ProhibitedURLError(ProhibitedError):
     """
     The url was valid but access is prohibited to the user. Log attempt
@@ -5202,7 +5624,7 @@ class ProhibitedURLError(ProhibitedError):
             "User: %s  Organization: %s Prohibited URL: '%s'." \
             %(SchoolDB.models.getActiveDatabaseUser().get_active_user_name(),
               SchoolDB.models.getActiveDatabaseUser().get_active_organization_name(), url)
-        #log(log_string)
+        logging.warning(log_string)
         raise http.Http404
     
 class ClassActionProhibitedError(ProhibitedError):
@@ -5250,4 +5672,3 @@ class InstanceActionProhibitedError(ProhibitedError):
         self.response = error_report_function(response_string_suffix)
         
     
-                   

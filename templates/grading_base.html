@@ -9,9 +9,9 @@
 {% block content %}
 {{ block.super }}
 <form id="form" action="{{submit_action}}" method="post" >
+<p id="form_title" class="form-title">
+{{form_title}}</p>
 <div id="initial_div">
-<p id="initial_title" class="form-title print-hidden">
-{{initial_title}}</p>
 {% block extended %}
 {% endblock extended %}
 {% include 'get_grades_buttons.html' %}

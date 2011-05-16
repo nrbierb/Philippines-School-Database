@@ -34,6 +34,107 @@ function showQueryError(domElement) {
 var controlNowPressed = false;
 var pageHelpText = "";
 
+function pagePathIsSamePage(pageStack){
+	var parsedUri = parseUri(document.baseURI);
+	var path = parsedUri.path;
+	return (path === pageStack[pageStack.length - 1]);
+}
+
+function cleanPriorSamePage(pageStack) {
+	//search for same pag already and truncate it.
+	var parsedUri = parseUri(document.baseURI);
+	var thisPath = parsedUri.path;
+	for (i = 0; i < pageStack.length; i++) {
+		if (pageStack[i] == thisPath) {
+			pageStack.length = i;
+			break;
+		}		
+	}	
+}
+
+function pagePathPush(cookieName, setNp) {
+	var pageStack = JSON.parse($.cookie(cookieName));	
+	cleanPriorSamePage(pageStack);
+	var parsedUri = parseUri(document.baseURI);
+	var current_path = parsedUri.path;
+	pageStack.push(current_path);
+	$.cookie(cookieName, JSON.stringify(pageStack), { path: '/' });
+	if (setNp) {
+		$.cookie("nP", "", {path: '/'});
+	}		
+}
+
+function pagePathIndex(cookieName, setNp) {
+	$.cookie(cookieName, null);
+	$.cookie("nP", null);
+	$.cookie(cookieName, JSON.stringify(["/index"]), {path:'/'});
+	$.cookie("nP", "", { path: '/' });
+}
+
+function pagePathPop(cookieName, setNp) {
+	var pageStack = JSON.parse($.cookie(cookieName));
+	// assure no loops
+	while (pagePathIsSamePage(pageStack)) {
+		pageStack.pop();
+	}
+	var nextPage = pageStack.pop();
+	$.cookie(cookieName, JSON.stringify(pageStack));
+	if (setNp) {
+		$.cookie("nP", nextPage, { path:'/' });	
+	}
+}
+
+function pagePathNoAction(cookieName, setNp) {
+	if (setNp) {
+		$.cookie("nP", "", {path: '/'});
+	}
+}
+
+function pagePathFixedUrl(cookieName, setNp, setPath){
+	if (setNp) {
+		$cookie("nP", fixedReturnUrl, {path: '/'});
+	}
+	if (setPath) {
+		var path = fixedReturnUrl.split("/").slice(1);
+		$.cookie(cookieName, path, {path: '/'});
+	}	
+}
+
+function assurePgStCookieExists(cookieName){
+	if (JSON.parse($.cookie(cookieName)) === null) {
+		pagePathIndex(cookieName);
+	}	
+}
+
+function performPagePathActionSetup(action){
+	assurePgStCookieExists("pgSt");
+	assurePgStCookieExists("bcSt");
+	switch (action) {
+		case "Pop":
+			pagePathPop("pgSt",true);
+			pagePathPush("bcSt",false);
+			break;
+		case "Push":
+			pagePathPush("pgSt",true);
+			pagePathPush("bcSt",false);
+			break;
+		case "Index":
+			pagePathIndex("pgSt",true);
+			pagePathIndex("bcSt",false);
+			break;
+		case "NoAction":
+			pagePathNoAction("pgSt",true);
+			break;
+		case "FixedUrl":
+			pagePathFixedUrl("pgSt",true,true);
+			pagePathFixedUrl("bcSt",false,true);
+			break;
+		default:
+			pagePathPop("pgSt",true);
+			pagePathPush("bcSt",false);
+	}
+}
+
 function setupEntryFields(){
 	var entryFields = $(".entry-field");
 	
@@ -97,14 +198,25 @@ function standardSave() {
 	}
 }
 
-function return_to_active_page() {
-		var next_page = $.cookie("return_to_page");
-		if (next_page !== null) {
-			location = next_page;
-		} else {
-			location = "/index";
-		}		
-	}	
+function standardFinish() {
+	//A simple way to return to the nextmost upper page wihout
+	//further action. While the url is set to "/index" the actual
+	//page will be determined by the pagePathPop result
+	pagePathPop("pgSt", true);
+	pagePathPop("bcSt", false);
+	location.href = "/dynamic";
+}
+
+//empty function for local redefinition
+function cleanupForCancel() {}
+
+function standardCancel() {
+	cleanupForCancel();
+	pagePathPop("pgSt", true);
+	pagePathPop("bcSt", false);
+	location.href = "/dynamic";	
+}
+
 /*
  * A simple function for counting clicks on an dom element. This can be used
  * to emulate a multiple click event on any element. Each click extends the
@@ -131,26 +243,18 @@ function cleanupForCancel() {}
  */
 function initializeBottomButtons() {
 	
-	$("#cancel_button").click(function(){
-		//redefine this funcion as needed locally
-		cleanupForCancel();
-		history.back();
-	});
 	
 	$("#back_button").click(function(){
 		history.back();
 	});
 
-	$("#return_active_button").click(function(){
-		return_to_active_page();
-		});
-		
-	
     $("#close_button").click(function(){
         close();
     });
-
-	$("#save_button").click(standardSave);
+	
+	$("#cancel_button").click(standardCancel);
+	$("#finish_button").click(standardFinish);
+	$("#save_button").click(standardSave);	
 }
 
 function openHelpManual(){
@@ -215,6 +319,11 @@ function loadHelpDialog(helpDialogHtml) {
 	pageHelpText = helpDialogHtml;
 }
 
+function modifyHelpBalloonText(balloonHelp){
+	//empty placeholder function
+	return (balloonHelp);
+}
+
 function loadHelpBalloonTexts(balloonHelp){
 	var DomID;
 	modifyHelpBalloonText(balloonHelp);
@@ -223,6 +332,34 @@ function loadHelpBalloonTexts(balloonHelp){
 			"title": balloonHelp[DomID]
 		});
 	}
+}
+
+function loadBreadcrumbLine(breadcrumbLine) {
+	$("#breadcrumbs_div").html(breadcrumbLine);
+}
+
+//setup tooltips
+function setupTooltips(){
+	$(".btn[title]").tooltip({
+		effect: "slide",
+		opacity: 0.9,
+		predelay: 600,
+		delay: 0,
+		events: {
+			input: 'mouseover, mouseout mousedown click',
+			def: 'mouseover, mouseout mousedown click'
+		}
+	}).dynamic();
+	$("[title]").tooltip({
+		effect: "slide",
+		opacity: 0.9,
+		predelay: 600,
+		delay: 0,
+		events: {
+			input: 'mouseover, mouseout click',
+			def: 'mouseover, mouseout click'
+		}
+}).dynamic();
 }
 
 function getHelpInfo(pagename, testText) {
@@ -241,9 +378,11 @@ function getHelpInfo(pagename, testText) {
 					var helpData = ajaxResponse;					
 					var helpDialogHtml = helpData.dialog_help;
 					var balloonHelp = helpData.balloon_help;
+					var breadcrumbLine = helpData.breadcrumb_line;
 					loadHelpDialog(helpDialogHtml);
 					loadHelpBalloonTexts(balloonHelp);					
 					setupTooltips();
+					loadBreadcrumbLine(breadcrumbLine);
 	                },
 			error: function(ajaxResponse) {
 				var helpDialogHtml = 
@@ -265,7 +404,7 @@ $(function() {
 	$('input.time-mask').mask("99:99");
 	$('input.year-mask').mask("9999");
 	$('input.percentage-mask').mask("999.9");
-	$('input.integer-mask').mask("99999")
+	$('input.integer-mask').mask("99999");
 	
 
 	validator = $('#form1').validate({
@@ -284,7 +423,7 @@ $(function() {
 			form.submit();
 		}
 	});
-
+	performPagePathActionSetup(pagePathAction);
 	initializeBottomButtons();
 	
 	$(".history-entry").change(function(){
@@ -330,33 +469,6 @@ $(function() {
 	});
 });
 
-//setup tooltips
-function setupTooltips(){
-	$(".btn[title]").tooltip({
-		effect: "slide",
-		opacity: 0.9,
-		predelay: 600,
-		delay: 0,
-		events: {
-			input: 'mouseover, mouseout mousedown click',
-			def: 'mouseover, mouseout mousedown click'
-		}
-	}).dynamic();
-	$("[title]").tooltip({
-		effect: "slide",
-		opacity: 0.9,
-		predelay: 600,
-		delay: 0,
-		events: {
-			input: 'mouseover, mouseout click',
-			def: 'mouseover, mouseout click'
-		}
-}).dynamic();
-}
-
-function modifyHelpBalloonText(balloonHelp){
-	return (balloonHelp)
-}
 
 $.datepicker.setDefaults({
 	changeMonth: true,
@@ -395,12 +507,6 @@ function addCommaIfNeeded(resString, count, max){
     return resString;
 }
 
-function edit_history(field_name, display_name) {
-	var otherGetParamText = "&field_name=" + field_name + "&display_name=" + display_name;
-	var current_object = $('#id_object_instance').val();
-	openEditWindow("history", current_object, null, otherGetParamText);
-}
-
 function openEditWindow(requestUrl, requestKey, notSavedAction, otherGetParamText) {
 	var instanceArgument = "";
 	if (!otherGetParamText) {
@@ -417,6 +523,12 @@ function openEditWindow(requestUrl, requestKey, notSavedAction, otherGetParamTex
 	var childWindow = window.open(windowUrl,
     "temp_data_window", "scrollbars=yes,resizable=yes,height=600,width=800,left=40,top=40,status=yes,alwaysRaised=yes,dependent=yes,menubar=no,directories=no");
     return childWindow;
+}
+
+function edit_history(field_name, display_name) {
+	var otherGetParamText = "&field_name=" + field_name + "&display_name=" + display_name;
+	var current_object = $('#id_object_instance').val();
+	openEditWindow("history", current_object, null, otherGetParamText);
 }
 
 function setActiveSectionIfCookieAvailable() {
@@ -461,10 +573,11 @@ function defaultDeleteConfirm(dialogDiv, dialogInfo, deleteAction, deleteObjectK
 
 function changeBottomButtonsToFinished() {
 	var finishButtonHtml = '<tr><td class="buttons centered">' +
-		'<input value="Finished" id="return_active_button" name="action" title="Click to return back to your work" class="btn tb action"/>' +
+		'<input value="Finished" id="finish_button" name="action" title="Click to return back to your work" class="btn tb action"/>' +
 		'</td></tr>';
 	$("#cancel_save_button_fieldset tr").replaceWith(finishButtonHtml);
 	$("#cancel_save_button_fieldset").removeClass("one-col-buttons").addClass("single-button");
+	setupTooltips();
 	initializeBottomButtons();
 }
 
@@ -625,25 +738,12 @@ function successfulSave(returnData) {
 //No form save, go back to requesting page
 function successfulAjaxOnlySave(returnData){
 	$.loadanim.stop();
-		var next_page = $.cookie("return_to_page");
+		var next_page = $.cookie("nP");
 		if (next_page !== null) {
 			location = next_page;
 		} else {
 			location = "/index";
 		}			
-}
-
-function warnSaveFailure(ajaxRequest, textStatus, error) {
-	$.loadanim.stop();
-	if (textStatus === "timeout") {
-		reportError("The server has not confirmed that the save was completed.", "No Response From Server.");
-	}
-	else {
-		var warningText = 'The save failed with the error "' + status +
-		'" The reason was: ' +
-		error;
-		reportError(warningText, "Save Failed");
-	}
 }
 
 function reportError(errorText, title) {
@@ -657,6 +757,19 @@ function reportError(errorText, title) {
 					$(this).dialog("close");}}
 		});
 	errorDialog.dialog('open');
+}
+
+function warnSaveFailure(ajaxRequest, textStatus, error) {
+	$.loadanim.stop();
+	if (textStatus === "timeout") {
+		reportError("The server has not confirmed that the save was completed.", "No Response From Server.");
+	}
+	else {
+		var warningText = 'The save failed with the error "' + textStatus +
+		'" The reason was: ' +
+		error;
+		reportError(warningText, "Save Failed");
+	}
 }
 
 function reportServerError(xhr, textStatus, errorThrown){
@@ -781,4 +894,40 @@ function requestTable(url, params, targetTable){
 		}
 	});
 }
-		
+
+// The following code is a copy from other freely available sources.
+// If the license on this code is different from the GPL then it is
+// the one that is effective.
+// parseUri 1.2.2
+// (c) Steven Levithan <stevenlevithan.com>
+// MIT License
+
+function parseUri (str) {
+	var	o   = parseUri.options,
+		m   = o.parser[o.strictMode ? "strict" : "loose"].exec(str),
+		uri = {},
+		i   = 14;
+	while (i--) {
+		uri[o.key[i]] = m[i] || "";
+	}
+	uri[o.q.name] = {};
+	uri[o.key[12]].replace(o.q.parser, function ($0, $1, $2) {
+		if ($1) {
+			uri[o.q.name][$1] = $2;
+		}
+	});
+	return uri;
+}
+
+parseUri.options = {
+	strictMode: false,
+	key: ["source","protocol","authority","userInfo","user","password","host","port","relative","path","directory","file","query","anchor"],
+	q:   {
+		name:   "queryKey",
+		parser: /(?:^|&)([^&=]*)=?([^&]*)/g
+	},
+	parser: {
+		strict: /^(?:([^:\/?#]+):)?(?:\/\/((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?))?((((?:[^?#\/]*\/)*)([^?#]*))(?:\?([^#]*))?(?:#(.*))?)/,
+		loose:  /^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/
+	}
+};

@@ -22,7 +22,8 @@ function StandardTable() {
 	this.maxHeight = 400;
 	this.rowHeight = 25;
 	this.padHeight = 40;
-	this.sortColumns = null;
+	this.initialSortColumn = null;
+	this.sortActionColumns = null;
 }
 
 StandardTable.prototype.initializeTableParams = function() {
@@ -37,10 +38,9 @@ StandardTable.prototype.initializeTableParams = function() {
 			rowNumberCell: "row-number-cell"
 		}
 	};
-	if (this.sortColumns !== null) {
-		this.tableParameters.sortColumn = this.sortColumns;
+	if (this.initialSortColumn !== null) {
+		this.tableParameters.sortColumn = this.initialSortColumn;
 	}
-	
 };
 
 StandardTable.prototype.setDom = function(domElement) {
@@ -71,6 +71,14 @@ StandardTable.prototype.setWidth = function(pixelsWide){
 StandardTable.prototype.draw = function() {
 	this.theTable.draw(this.dataTable,this.tableParameters);  
 };
+
+StandardTable.prototype.sort = function() {
+	// use the preset value to re-sort
+	if (this.sortActionColumns !== null) {
+		this.dataTable.sort(this.sortActionColumns);
+		this.draw();
+	}
+}
 	
 StandardTable.prototype.finalizeTable = function() {
 	this.dataTable = new google.visualization.DataTable(this.tableDescriptor, 0.6);
@@ -80,7 +88,8 @@ StandardTable.prototype.finalizeTable = function() {
 	}	
 	if (this.readyFunction !== null) {
 		google.visualization.events.addListener(this.theTable, 'ready', this.readyFunction);
-	}	
+	}
+	this.sort();	
 	this.draw();
 };
 

@@ -8,7 +8,7 @@ $(function(){
 		var show_string = "Show Numbered Forms " + String.fromCharCode(8659);
 			$('#report_form1').slideToggle(50,function(){
 			if ($('#form_expand_button').val() == show_string) {
-				$('#form_expand_button').val(show_string);
+				$('#form_expand_button').val(hide_string);
 			}
 			else {
 				$('#form_expand_button').val(show_string);
@@ -30,10 +30,6 @@ $(function(){
 <table  >
   <tbody>
 	  <tr>
-      <td class="width200"><a id="attendance" class="btn blue menu-button" 
-	  	href="/reports/attendance">Attendance</a></td>
-	  </tr>
-	  <tr>
       <td ><a id="student_age" class="btn blue menu-button" 
 	  	href="/reports/student_age">Student Age Summary</a></td>
 	  </tr>
@@ -42,8 +38,16 @@ $(function(){
 	  	href="/reports/section_list">Section List</a></td>
 	  </tr>
 	  <tr>
+      <td class="width200"><a id="attendance" class="btn blue menu-button" 
+	  	href="/reports/attendance">Attendance</a></td>
+	  </tr>
+	  <tr>
       <td ><a id="student_records_check" class="btn blue menu-button" 
 	  	href="/reports/student_record_check">Student Records Check</a></td>
+	  </tr>
+	  <tr>
+      <td ><a id="grading_period_grades_reports" class="btn blue menu-button" 
+	  	href="/reports/section_grading_period_grades">Grading Period Grades</a></td>
 	  </tr>
 	  <tr>
       <td ><a id="custom_reports" class="btn blue menu-button" 
@@ -81,6 +85,6 @@ $(function(){
 </table>
 </fieldset>
 <br/>
-<div id="help_pagename_div" class="hidden">MyWorkPageHelp</div>
+<div id="help_pagename_div" class="hidden">ChooseReportPageHelp</div>
 {% include "finish_button.html" %}
 {% endblock %}

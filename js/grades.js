@@ -152,6 +152,11 @@ function showGradesDiv() {
 	$("#grades_div").show();
 }
 
+function setGradingPeriodChanges() {
+	titleString = "Quarterly Grades for " + localParams["class_session_name"];
+	$("#form_title").html(titleString);
+}
+
 function loadAchievementTestGrades() {
 	var section = $("#id_section").val();
 	var achievementTest = $("#id_achievement_test").val();
@@ -182,11 +187,14 @@ function loadAchievementTestGrades() {
 }
 
 function loadGradingPeriodGrades(editGradingPeriods, viewGradingPeriods) {
-	var class_session = $("#id_class_session").val();
+	var class_session = $("#id_object_instance").val();
 	json_edit_grading_periods = JSON.stringify(editGradingPeriods);
 	json_view_grading_periods = JSON.stringify(viewGradingPeriods);
 	var student_list = [];
 	json_student_list = JSON.stringify(student_list);
+	if (! localParams["user_is_teacher"]) {
+		changeBottomButtonsToFinished();		
+	}
 	showGradesDiv();
 	gradesTable.setDom(document.getElementById('id_grades_table'));
 	$.loadanim.start({
@@ -208,6 +216,7 @@ function loadGradingPeriodGrades(editGradingPeriods, viewGradingPeriods) {
 			tableName = ajaxResponse.tableName;
 			buildGradesTable(ajaxResponse);
 			editedGradingPeriodsArray = jQuery.parseJSON(ajaxResponse.editedGradingPeriods);
+			setGradingPeriodChanges();
 			cleanupFormActions();				
 		},
 		error: function(ajaxResponse, textStatus){
@@ -222,7 +231,7 @@ function saveGradingPeriodGrades(){
 	});
 	//block multiple save attempts
 	$("#save_grades_btn").unbind("click");
-	var class_session = $("#id_class_session").val();
+	var class_session = $("#id_object_instance").val();
 	var json_grades_data = gradesTable.marshallInputFieldsResults(
 				tableName, editedGradingPeriodsArray);
 	var json_edited_grading_periods = JSON.stringify(editedGradingPeriodsArray);

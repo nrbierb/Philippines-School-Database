@@ -1,6 +1,5 @@
 {% extends 'base.html' %}
 {% block local_javascript_code %}
-$.cookie("return_to_page", "/index");
 {% endblock local_javascript_code %}
 {% block content %}
 <p class="form-title centered-object">{{school_name}}</p>
@@ -30,7 +29,7 @@ $.cookie("return_to_page", "/index");
 					Gradebook Items</a></td>
 			</tr>
 			<tr>
-				<td class="width200" ><a id="other_button" class="btn blue tb" href="/schooladmin_maint"
+				<td class="width200" ><a id="other_button" class="btn blue tb" href="/maint"
 				title="Work with all types of information except students, grades, and attendance">
 					Maintenance</a></td>
 			</tr>

@@ -78,6 +78,76 @@ class InformationContainer():
             stored_data = None
         return stored_data
 
+
+#----------------------------------------------------------------------
+class InformationStoreDict(InformationContainer):
+    """
+    A simple use of an information container that contains a single
+    dictionary. This is useful for storing a set of values in a database
+    blob.
+    """
+    
+    def __init__(self, version_id = 1):
+        InformationContainer.__init__(self, version_id)
+        self.data_dict = {}
+    
+    @staticmethod
+    def get_stored_value(blob, key):
+        """
+        A static method that performs a get_data to expand the blob and
+        then directly references the dictionary. No save is needed.
+        """
+        store_dict = blob.get_data()
+        return store_dict.get_value(key)
+    
+
+    @staticmethod
+    def set_stored_value(blob, key, value):
+        """
+        A static method that performs a get_data to expand the blob.
+        Then the value is set in the dictinonary and it is recompressed.
+        All internal action is hidden. Warning: perform a put on the 
+        database object afterward to save the value.
+        """
+        store_dict = blob.get_data()
+        store_dict.set_value(key, value)
+        store_dict.put_data()
+        return store_dict
+
+    @staticmethod
+    def clear_stored_value(blob, key):
+        """
+        A static method that performs a get_data to expand the blob.
+        Then the value is set in the dictinonary and it is recompressed.
+        All internal action is hidden. Warning: perform a put on the 
+        database object afterward to save the value.
+        """
+        store_dict = blob.get_data()
+        store_dict.clear_value(key)
+        store_dict.put_data()
+        return store_dict
+
+    def get_value(self, key):
+        """
+        Used on an already expanded object.
+        """
+        return self.data_dict.get(key, None)
+    
+    def set_value(self, key, value):
+        """
+        Used on an already expanded object
+        """
+        self.data_dict[key] = value
+        
+    def clear_value(self, key):
+        """
+        Used on an already expanded object. Remove the 
+        keyed value.
+        """
+        del self.data_dict[key]
+    
+    def get_dict(self):
+        return self.data_dict
     
 #------------------------------------------------------------------
 class KeyedStore():
@@ -735,7 +805,7 @@ class AjaxGetGradeHandler:
       grades not yet entered for a student
     *valid_grades: return a table similar to the grades_table for all 
       instances that are valid (have grades entered for some students)
-      and, optionally, in a a certain time period. 
+      and, optionally, in a certain time period. 
 
     Note: security is highly important here. No information should be
     returned to the browser if it is not meant for display or access. 
@@ -746,10 +816,13 @@ class AjaxGetGradeHandler:
     def __init__(self, student_group, json_data):
         self.student_group = student_group
         try:
-            data = simplejson.loads(json_data)
-            self.requested_action = data["requested_action"]
-            self.achievement_test = data["achievement_test"]
-            grading_instances_key_strings = simplejson.loads(data["gi_keys"])
+            self.data = simplejson.loads(json_data)
+            self.requested_action = self.data["requested_action"]
+            self.achievement_test = self.data.get(
+                "achievement_test", None)
+            self.gender = self.data.get("gender", None)
+            grading_instances_key_strings = simplejson.loads(
+                self.data["gi_keys"])
         except StandardError, e:
             raise StandardError, ("Failed in init for get_grades: " + str(e))
         (self.grading_instances_key_strings, self.grading_instances_keys, 
@@ -782,7 +855,7 @@ class AjaxGetGradeHandler:
         """
         self.student_keys, student_record_keys, student_record_keys_dict = \
             self.student_group.get_students_and_records(
-                sorted = True, record_by_key=True)
+                sorted = True, record_by_key=True, gender=self.gender)
         for student in self.students:
             record_key = student_record_keys_dict[student]
             student_record_by_grading_instance = {}
@@ -822,7 +895,9 @@ class AjaxGetGradeHandler:
             self.student_record_keys_dict[student.key()] = \
                 student_record_by_gd_inst_key
 
-    def create_class_roster_and_json(self, keys_only=False):
+            
+    def create_class_roster_and_json(self, keys_only=False, 
+                                     show_gender=False):
         """
         Create a single array of (student class record key, 
         student name) for all students in the class. If keys_only        
@@ -835,6 +910,8 @@ class AjaxGetGradeHandler:
             if not keys_only:
                 name = student.full_name_lastname_first()
                 element = (student_keystr, name)
+                if show_gender:
+                    element = (student_keystr, name, student.gender)
                 roster_list.append(element)
             else:
                 roster_list.append(student_keystr)
@@ -1475,6 +1552,7 @@ class GradingPeriodGradesHandler:
         return simplejson.dumps("%d grades set." %sets_count)
 
 
+
 #----------------------------------------------------------------------
 class QueryDescriptor:
     """
@@ -1704,7 +1782,7 @@ class AutoCompleteField():
     the javascript for a single autocomplete field.
     """
     def __init__(self, class_name, field_name, key_field_name,
-                 ajax_root_path, response_command, custom_handler):
+                 ajax_root_path, response_command, custom_handler, use_key):
         self.class_name = class_name
         self.field_name = field_name
         self.key_field_name = key_field_name
@@ -1715,6 +1793,7 @@ class AutoCompleteField():
         self.dependent_fields = []
         self.local_choices_list = None
         self.use_local_choices = False
+        self.use_key = use_key
         self.ajax_root_path = ajax_root_path
         self.local_data_name = self.class_name + "_value"
         self.local_data_text = ""
@@ -1859,7 +1938,7 @@ class AutoCompleteField():
             further_actions = """	
     select: function(event, ui) {
 	$("#%s").val(ui.item.value);""" %self.field_name
-            if not self.use_local_choices:
+            if ((not self.use_local_choices) or (self.use_key)):
                 further_actions += """
 				$("#%s").val(ui.item.key);
                 """ %self.key_field_name				
@@ -1961,16 +2040,18 @@ $(function(){
                                key_field_name="", 
                                ajax_root_path="/ajax/select",
                                response_command="response(ajaxResponse);",
-                               custom_handler=""):
+                               custom_handler="",
+                               use_key=False):
         if (not field_name):
             field_name = "id_" + class_name + "_name"
         if (not key_field_name):
             key_field_name = "id_" + class_name
         autocomplete_field = AutoCompleteField(class_name=class_name,
-                                               field_name=field_name,key_field_name= key_field_name, 
-                                               ajax_root_path=ajax_root_path,
-                                               response_command=response_command,
-                                               custom_handler=custom_handler)
+                        field_name=field_name,key_field_name= key_field_name, 
+                        ajax_root_path=ajax_root_path,
+                        response_command=response_command,
+                        custom_handler=custom_handler,
+                        use_key=use_key)
         self.autocomplete_fields.append(autocomplete_field)
         return autocomplete_field
 

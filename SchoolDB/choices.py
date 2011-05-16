@@ -66,7 +66,8 @@ GradingInstanceType = [
 AchievementTestType = [
     "National Test",
     "Regional Test",
-    "Division Test"]
+    "Division Test",
+    "School Based"]
     
 StudentClassStatus = [
     "Active",

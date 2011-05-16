@@ -325,8 +325,7 @@ class AjaxServer():
         """
         if self.argsDict.has_key("user_preferences"):
             prefs = simplejson.loads(self.argsDict["user_preferences"])
-            for pref in prefs.iteritems():
-                SchoolDB.models.DatabaseUser.set_single_value(pref(0),pref(1))
+            SchoolDB.models.getActiveDatabaseUser().get_active_user().set_private_info_multiple_values(prefs)
                    
     def _get_user_preferences(self):
         preferences = {}
@@ -809,14 +808,17 @@ class AjaxServer():
         text in the stored version so that the text may be tested
         before saving.
         """
+        breadcrumb_text = SchoolDB.views.generate_breadcrumb_line(
+            self.request.COOKIES)
+        return_data = {"breadcrumb_line":breadcrumb_text}
         text_manager_name = self.argsDict.get("text_manager_name", None)
         if not text_manager_name:
             dialog_text="""
             Sorry. This help page is not yet written. 
             Click "View Manual" to see the entire manual.
             """
-            return_data = {"dialog_help":dialog_text, 
-                       "balloon_help": {}}
+            return_data.update({"dialog_help":dialog_text, 
+                       "balloon_help": {}})
             self.return_string = simplejson.dumps(return_data)
             return
         text_manager = SchoolDB.models.get_entities_by_name(
@@ -827,8 +829,8 @@ class AjaxServer():
             Sorry. This help page could not be found. 
             Click "View Manual" to see the entire manual.
             """
-            return_data = {"dialog_help":dialog_text, 
-                       "balloon_help": {}}
+            return_data.update({"dialog_help":dialog_text, 
+                       "balloon_help": {}})
             self.return_string = simplejson.dumps(return_data)
             return
         template_type = self.argsDict.get("template_type", "Dialog")
@@ -836,8 +838,8 @@ class AjaxServer():
         revision_number = self.argsDict.get("revision_number", "current")
         help_dialog_page, ballon_help_dict = text_manager.get_processed_text(
             template_type, revision_number, test_text)
-        return_data = {"dialog_help":help_dialog_page, 
-                       "balloon_help": ballon_help_dict}
+        return_data.update({"dialog_help":help_dialog_page, 
+                       "balloon_help": ballon_help_dict})
         self.return_string = simplejson.dumps(return_data)
         
     def _unknown_action(self):
@@ -1015,6 +1017,10 @@ class AjaxServer():
               "create_students_eligible_for_class_table"):
             function = \
                 SchoolDB.views.create_students_eligible_for_class_table
+        elif (self.function_name == 
+              "create_grading_period_grades_table"):
+            function = \
+                    SchoolDB.reports.SectionGradingPeriodGradesTable.create_report_table
         elif (self.function_name == "create_form2_table"):
             function = \
                 SchoolDB.student_attendance.Form2Report.create_report_table

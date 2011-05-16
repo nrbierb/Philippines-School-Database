@@ -33,7 +33,8 @@ def initial_build():
     national = SchoolDB.models.National(name = "National DepEd")
     national.put()
     pending_entities = []
-    for name in ("Math", "Science", "Filipino", "English", "AP", "MAPEH"):
+    for name in ("Math", "Science", "Filipino", "English", "AP", "MAPEH",
+                 "Values"):
         pending_entities.append(SchoolDB.models.Subject(name=name,
                             organization = national, parent = national,
                             used_in_achievement_tests=True,
@@ -42,15 +43,25 @@ def initial_build():
                             organization = national, parent = national,
                             used_in_achievement_tests=True,
                             taught_by_section=False))
-    pending_entities.append(SchoolDB.models.Subject(name="Values",
-                            organization = national, parent = national,
-                            used_in_achievement_tests=False,
-                            taught_by_section=True))
     db.put(pending_entities)
     logging.info("Created subjects")
     pending_entities = []
-    for name in ("Culinary Arts", "Dressmaking", "Electricity and Electronics",
-                 "Information Technology (I.T.)", "Metalworking"):
+    for name in ("Agriculture and Fishery Technology",
+                 "HE Beauty Care",
+                 "HE Clothing and Textiles",
+                 "HE Foods and Food Service",
+                 "HE Handicrafts",
+                 "HE Health Care and Support Services",
+                 "HE Home Management Business",
+                 "IA Refrigeration and Air Conditioning (RAC)",
+                 "IA Automotive Technology",
+                 "IA Civil Technology",
+                 "IA Drafting Technology",
+                 "IA Electronics Technology",
+                 "IA Electrical Technology",
+                 "IA Metalworks",
+                 "Information and Communication Technology (ICT)"
+                 ):
         pending_entities.append(SchoolDB.models.StudentMajor(name=name,
                             organization = national, parent = national))
     db.put(pending_entities)

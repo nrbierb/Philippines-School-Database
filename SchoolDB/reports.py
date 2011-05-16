@@ -488,10 +488,198 @@ class StudentRecordCheck:
             return generator.build_missing_info_table()
 
 #----------------------------------------------------------------------
+
+class SectionGradingPeriodGradesTableOlder:
+    """
+    This class creates a table of all subjects quarterly grades for a
+    section. The table shows the grades for only a single grading
+    period. It is called by an ajax table generation request.
+    """
+    def __init__(self, parameter_dict, section, grading_period):
+        """
+        Extract key data from the ajax request. The parameter dict has
+        two flags for the grading values shown: user_entered and
+        calculated. Either or both may be shown--but the web page may
+        be restricted to show only the user entered.
+        """
+        logging.info("++start_init section %s grading period %s" %(unicode(section), unicode(grading_period)))
+        self.section = section
+        self.student_keys, self.student_keystrings,\
+            self.student_names, self.genders = section.get_student_list()
+        self.grading_period = grading_period
+        self.subjects_dict = self.section.get_all_subjects()
+        self.subjects_list = self.subjects_dict.keys()
+        self.subjects_list.sort()
+        self.student_record_grades_dict = {}
+        #fixed values for the moment until further grading work allows 
+        #calculation.
+        self.show_entered_grades = True
+        self.show_calculated_grades = False
+        
+    def get_grades_information(self):
+        """
+        Initialize for all subject's quarterly grades for the specified
+        period.
+        """
+        known_class_sessions = {}
+        for student_key in self.student_keys:
+            student = SchoolDB.models.Student.get(student_key)
+            student_records_by_subject = \
+            student.get_class_records_by_subject(self.subjects_dict.values(),
+                                                 known_class_sessions)
+            student_grades_by_subject = {}
+            for subject in self.subjects_dict.values():
+                student_class_record_key = student_records_by_subject.get(
+                    subject, None)
+                if student_class_record_key:
+                    student_class_record = SchoolDB.models.StudentsClass.get(
+                        student_class_record_key)
+                    student_grades_by_subject[subject] = \
+                            student_class_record.get_grading_period_grade(
+                                self.grading_period)
+                else:
+                    student_grades_by_subject[subject] = None
+            self.student_record_grades_dict[student.key()] = \
+                        student_grades_by_subject
+                
+    def build_table(self):
+        """
+        Create the table from the subjects and students
+        """
+        self.get_grades_information()
+        table_description = [("name", "string", "Name"), 
+                        ("gender", "string", "Gender")]
+        for subject_name in self.subjects_list:
+            table_description.append((subject_name, "number", subject_name))
+        subject_keylist = [self.subjects_dict[subject_name] for subject_name
+                           in self.subjects_list]
+        table_contents = []
+        # there are four parallel arrays to be used so access by index
+        for i in xrange(len(self.student_keys)):
+            row = [self.student_names[i], self.genders[i]]
+            for key in subject_keylist:
+                grade = \
+                    self.student_record_grades_dict[self.student_keys[i]][key]
+                if not grade:
+                    grade = 0
+                row.append(grade)
+            table_contents.append(row)
+        logging.info("--completed table for %d students" %i)
+        return (table_description, table_contents, self.student_keystrings,
+                None, "")
+
+    @staticmethod
+    def create_report_table(parameter_dict, primary_object,
+                                        secondary_class, secondary_object):
+        generator = SectionGradingPeriodGradesTableOlder(parameter_dict, primary_object,
+                                 secondary_object)
+        return (generator.build_table())
+
+
+class SectionGradingPeriodGradesTable:
+    """
+    This class creates a table of all subjects quarterly grades for a
+    section. The table shows the grades for only a single grading
+    period. It is called by an ajax table generation request.
+    """
+    def __init__(self, parameter_dict, section, grading_period):
+        """
+        Extract key data from the ajax request. The parameter dict has
+        two flags for the grading values shown: user_entered and
+        calculated. Either or both may be shown--but the web page may
+        be restricted to show only the user entered.
+        """
+        logging.info("++start_init section %s grading period %s" %(unicode(section), unicode(grading_period)))
+        self.section = section
+        self.student_keys, self.student_keystrings,\
+            self.student_names, self.genders = section.get_student_list()
+        self.grading_period = grading_period
+        self.known_class_sessions = {}
+        self.subjects_taken = {}
+        self.student_record_grades_dict = {}
+        self.student_results = []
+        #fixed values for the moment until further grading work allows 
+        #calculation.
+        self.show_entered_grades = True
+        self.show_calculated_grades = False
+        
+    def get_grades_information(self):
+        """
+        Initialize for all subject's quarterly grades for the specified
+        period.
+        """
+        self.subjects_taken = {}
+        for student_key in self.student_keys:
+            student = SchoolDB.models.Student.get(student_key)
+            student_results_list = student.get_grading_period_results(
+                self.grading_period)
+            student_subject_result_dict = {}
+            for result in student_results_list:
+                class_session = result.class_session
+                key = class_session.key()
+                if not self.known_class_sessions.has_key(key):
+                    self.known_class_sessions[key] = \
+                        class_session.subject
+                    self.subjects_taken[class_session.subject] = True
+                subject = self.known_class_sessions[key]
+                student_subject_result_dict[subject] = result.assigned_grade
+            self.student_results.append(student_subject_result_dict)
+                
+    def get_subjects_list(self):
+        """
+        Return a sorted list of the names of the subjects that students
+        in the section have taken and a dict of subject_keys indexed by
+        name.
+        """
+        name_dict = {}
+        names = []
+        for subject in self.subjects_taken:
+            name = unicode(subject)
+            name_dict[name] = subject
+            names.append(name)
+        names.sort()
+        return names, name_dict
+    
+    def build_table(self):
+        """
+        Create the table from the subjects and students
+        """
+        self.get_grades_information()
+        subject_names, subject_name_dict = self.get_subjects_list()
+        table_description = [("name", "string", "Name"), 
+                        ("gender", "string", "Gender")]
+        for subject_name in subject_names:
+            table_description.append((subject_name, "number", subject_name))
+        subject_list = [subject_name_dict[subject_name] for subject_name
+                           in subject_names]
+        table_contents = []
+        # there are four parallel arrays to be used so access by index
+        for i in xrange(len(self.student_keys)):
+            row = [self.student_names[i], self.genders[i]]
+            student_result_dict = self.student_results[i]
+            for subject in subject_list:
+                grade = \
+                    student_result_dict.get(subject, None)
+                if not grade:
+                    grade = 0
+                row.append(grade)
+            table_contents.append(row)
+        logging.info("--completed table for %d students" %i)
+        return (table_description, table_contents, self.student_keystrings,
+                None, "")
+
+    @staticmethod
+    def create_report_table(parameter_dict, primary_object,
+                                        secondary_class, secondary_object):
+        generator = SectionGradingPeriodGradesTable(parameter_dict, primary_object,
+                                 secondary_object)
+        return (generator.build_table())
+
+#----------------------------------------------------------------------
 class Form14Report():
     """
     A top level class the full html page for a form 14. It combines
-    html header elements and a table that contains bot extracted and
+    html header elements and a table that contains both extracted and
     computed values. It is a child class of AjaxGetGrade Handler which
     does all of the data extraction.
     """
@@ -506,6 +694,7 @@ class Form14Report():
         self.grading_instances = \
             self.get_achievement_test_grading_instances()
         self.data_columns_count = len(self.grading_instances) + 1
+        self.gender = self.parameter_dict.get("gender","Male")
         json_data = self.generate_json_data()
         self.grade_processor = \
             SchoolDB.assistant_classes.AjaxGetGradeHandler(
@@ -733,8 +922,19 @@ class SummaryReportBase():
                 values_list.append(values_dict[value_name])
         summary_values.extend(values_list)
         return summary_values
-                    
-        
+    
+    def _fill_values_dict(self, values_dict, col, data):
+        """
+        A placeholder function to be redefined in a child class.
+        """
+        pass
+    
+    def _get_information_for_school(self, school):
+        """
+        A placeholder function to be redefined in a child class.
+        """
+        pass
+
     def _get_table_data(self):
         """
         Build the entire array of all report data values

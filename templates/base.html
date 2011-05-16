@@ -43,6 +43,8 @@ google.load("jqueryui","1.8");
 
 {% endblock script %}
 <script type="text/javascript">
+var pagePathAction = "{{page_path_action}}";
+var fixedReturnUrl = "{{fixed_return_url}}";
 {% block generated_javascript_code %}
 {{ javascript_code|safe }}
 {% endblock generated_javascript_code %}
@@ -54,7 +56,7 @@ google.load("jqueryui","1.8");
 <div id="header"><a href="{{ root_url }}">{% block databrowse_title %}{% endblock %}</a></div>
 <div id="content">
 {% include 'header.html' %}
-{{ breadcrumbs|safe }}
+<div id=breadcrumbs_div></div>
 <div class = "print-hidden"><input type="button" id="help_button" value="Help" title="Click for help on this page or to view the users manual." class="btn help same-in-view"></input></div>
 <div class = "print-hidden">
 	<span title="Your account type controls what you can do in the School Database." class="usertype">Account Type: {{usertype}}  </span>
@@ -70,7 +72,6 @@ google.load("jqueryui","1.8");
 <p></p>
 </noscript>
 {% block content %}
-<input class="hidden" name="return_page" value="NOTSET" id="id_return_page" type="text"/>
 {% endblock %}
 </div>
 <div id="help_div" class="hidden"></div>

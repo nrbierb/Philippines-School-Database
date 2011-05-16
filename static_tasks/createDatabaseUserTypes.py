@@ -108,10 +108,12 @@ standard_edit_special = (nothing, edit_special)
 def build_teacher_permissions():
     #all other urls are true
     default_url = True
-    urls = {'upperlevel_home':False,
+    urls = {'masterhome':False,
+            'upperlevel_home':False,
             'adminhome':False,
-            'school_admin_home':False,
+            'schooladminhome':False,
             'upperlevel_adminhome':False,
+            'schooladmin_maint':False,
             'othertypes':False,
             'otherwork':False,
             'database_user':False,
@@ -127,6 +129,7 @@ def build_teacher_permissions():
                           "community":standard_broad_view,
                           "class_session":standard_edit,
                           "class_period":standard_view,
+                          "classroom":standard_view,
                           "contact":standard_broad_view, 
                           "database_user":standard_prohibited,
                           "division":standard_broad_view,
@@ -151,7 +154,7 @@ def build_teacher_permissions():
                           "subject":standard_broad_view,
                           "teacher":standard_edit,
                           "achievement_test_grades":standard_edit,
-                          "achievement_test":standard_edit,
+                          "achievement_test":standard_view,
                           "versioned_text_manager":standard_prohibited,
                           "user_type":standard_prohibited}
     
@@ -185,6 +188,7 @@ def build_school_db_administrator_permissions():
     class_permission_changes = {"adminstrator":local_edit_broad_view,
                 "community":standard_broad_edit,
                 "class_period":standard_edit,
+                "classroom":standard_edit,
                 "contact":standard_broad_edit,
                 #"database_user":(edit_special,nothing,standard_edit),
                 #The special edit function for only up to teacher must
@@ -439,7 +443,7 @@ def build_user_types():
     types = {}
     types["Teacher"] = create_teacher_user_type()
     types["SchoolDbAdministrator"] = create_school_db_admin_user_type()
-    types["Student"] = create_student_user_type()
+    #types["Student"] = create_student_user_type()
     types["UpperLevelUser"] = create_upper_level_user_type()
     types["UpperLevelDbAdministrator"] = create_upper_level_db_admin_type()
     types["Master"] = create_master_user_type()
@@ -453,7 +457,7 @@ def update_database_user_types(logger = None):
     permissions_vault.
     """
     user_types = build_user_types()
-    update_list = ("Teacher", "Student", "UpperLevelUser","UpperLevelDbAdministrator","SchoolDbAdministrator","Master",None)
+    update_list = ("Teacher", "UpperLevelUser","UpperLevelDbAdministrator","SchoolDbAdministrator", "Master", None)
     for i in update_list:
         if i:
             user_type_instance = user_types[i]

@@ -13,8 +13,7 @@
 	<legend class="major">My Section</legend>
 	<table class="lg-btn" >
 		<tbody>
-			<tr><td id="id_users_section_name_td" ><input id="id_users_section_name" type="text" class="autofill entry-field" 
-			name="users_section_name"></input></td></tr>
+			<tr><td id="id_users_section_name_td" >{{form.users_section_name}}</td></tr>
 			<tr>
 				<td class="width200"><input type="button" id="attendance_button" 
 				class="btn blue tb menu-button" value="Attendance"></input></td>
@@ -53,8 +52,7 @@
 	<legend class="major">My Classes</legend>
   	<table class="lg-btn" >
 	  <tbody>
-		<tr><td id="id_users_class_session_name_td"><input id="id_users_class_session_name" type="text" class="autofill entry-field" 
-			name="users_class_session_name" ></input></td></tr>
+		<tr><td id="id_users_class_session_name_td">{{form.users_class_session_name}}</td></tr>
 		  <tr>
 			  <td class="width200"><input type="button" id="class_grades_button"  
 			  class="btn blue tb menu-button" value="Grades" ></input></td>
@@ -75,10 +73,6 @@
 		  <tr>
 			  <td class="width200" ><input type="button" id="class_expand_button"  
 			  class="btn blue tb menu-button" value="Show Other Tasks &#8659;" ></input></td>
-		  </tr>
-		  <tr class=" hidden" id="class_task1">
-			  <td class="width200"><input type="button" id="class_assign_students_button"  
-			  class="btn blue tb menu-button" value="Assign Students" ></input></td>
 		  </tr>
 		  <tr class="hidden" id="class_task2">
 			  <td class="width200"><input type="button" id="class_details_button"  
@@ -117,11 +111,11 @@
 <!-- Select form standard hidden values used here for the select actions
 -->
 <div>
-<input type="hidden" name="users_section" id="id_users_section" /> 
-<input type="hidden" name="users_class_session" id="id_users_class_session" /> 
+{{form.users_section}}
+{{form.users_class_session}}
 <input type="hidden" name="object_instance" value="NOTSET" id="id_object_instance" /> 
 <input type="hidden" name="state" value="New" id="id_state"/>
-<input type="hidden" name="requested_action" value="View" id="id_requested_action"/>
+<input type="hidden" name="requested_action" value="Save" id="id_requested_action"/>
 <input type="hidden" name="next_url" id="next_url"/>
 <input type="hidden" name="selection_key" value="" id="id_selection_key"/>
 <input type="hidden" name="prior_selection" value="" id="id_prior_selection"/>
@@ -142,4 +136,11 @@
 </table>
 </fieldset>
 <div id="help_pagename_div" class="hidden">MyWorkPageHelp</div>
+<div id="dialog_not_advisor_attendance" title="You are not the Section's Advisor"> 
+	<p>You must be the section advisor to set attendance for the section.</p></div>
+<div id="dialog_not_advisor_achtest" title="You are not the Section's Advisor"> 
+	<p>You must be the section advisor to edit achievement test grades. You can view the 
+	Form 14 for the section if you wish to see the grades.</p></div>
+<div id="dialog_not_teacher" title="You are not the Class's Teacher"> 
+	<p>You must be the teacher for this class to set grades.</p></div>
 {% endblock %}

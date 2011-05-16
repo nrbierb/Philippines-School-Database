@@ -129,20 +129,7 @@ $(function(){
 	<legend class="print-hidden">Data View</legend>
 	<div id="table_div" class="blockFrame"></div>
 </fieldset>
-<fieldset class="major one-col-buttons print-hidden">
-<legend class="major">Action</legend>
-<table class="action-btn" >
-  <tbody>
-    <tr>
-      <td class="buttons" ><input value="Finished" id="select_cancel_button" 
-	  	name="action" class="btn tb action" href="/choose_report" 
-		title='Click to return to the "Choose a Report Type" page.' ></input></td>
-	  <td class="buttons" ><input value="View Record" id="select_select_button"
-	  	name="action" class="btn tb action"></input></td>
-    </tr>
-  </tbody>
-</table>
-</fieldset>
+{% include "finish_button.html" %}
 <div>
 <!-- Select form standard hidden values -->
 <input type="hidden" name="object_instance" value="NOTSET" id="id_object_instance" /> 

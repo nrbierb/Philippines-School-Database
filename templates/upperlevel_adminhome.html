@@ -1,6 +1,5 @@
 {% extends 'base.html' %}
 {% block local_javascript_code %}
-$.cookie("return_to_page", "index");
 {% endblock local_javascript_code %}
 {% block content %}
 <p class="form-title centered-object">Welcome to the DepEd <br/>
@@ -13,18 +12,14 @@ Student Database<br/>Main Page</p>
       <td class="width200" ><a id="test_information_button" class="btn blue tb class="btn blue tb"
 	   href="/summary_at" title="Information about achievement test results"">
 	   Testing Results</a></td>
-    </tr>
-    <tr>
-      <td><a id="student_button" class="btn blue tb" href="/summary_student" title="Information about students by school">Student Information</a></td>
+      <td class="width200"><a id="student_button" class="btn blue tb" href="/summary_student" title="Information about students by school">Student Information</a></td>
     </tr>
 	<tr>
-		<td><a id="teacher_button"  class="btn blue tb not-ready" href="/otherwork">Teacher Information</a></td>
+		<td class="width200"><a id="teacher_button"  class="btn blue tb not-ready" href="/teacher_info">Teacher Information</a></td>
+		<td class="width200"><a id="other_button"  class="btn blue tb" href="/maint">Other Information</a></td>
 	</tr>
 	<tr>
-		<td><a id="other_button"  class="btn blue tb" href="/school_maint">Other Information</a></td>
-	</tr>
-	<tr>
-		<td><a id="other_button"  class="btn blue tb not-ready" href="/school_maint">Administrative Tasks</a></td>
+		<td class="width200"><a id="other_button"  class="btn blue tb not-ready" href="/upperlevel_admintasks">Administrative Tasks</a></td>
 	</tr>
   </tbody>
 </table>

@@ -28,7 +28,7 @@ from google.appengine.ext.db import polymodel
 import SchoolDB.views
 import SchoolDB
 
-def initial_build():
+def initial_build(logger):
     national = SchoolDB.models.National(name = "National DepEd")
     national.put()
     pending_entities = []
@@ -103,7 +103,7 @@ def initial_build():
                                                         region = region))
     db.put(divisions)
     logging.info("Created divisions")
-    
+
 #now run province, municipality, barangay
 #next run sections - use same for Composetela NHS and Practice School 1
 #finally run students only for practice school

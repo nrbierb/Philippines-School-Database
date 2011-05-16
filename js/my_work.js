@@ -5,23 +5,35 @@
 
 var hideString = "Hide Other Tasks " + String.fromCharCode(8657);
 var showString = "Show Other Tasks " + String.fromCharCode(8659);
+var isTeacher = false;
+var isAdvisor = false;
 function saveSelectedInCookie() {
-	//active values are used in all other pages
-	$.cookie("aSn", $("#id_users_section_name").val());
-	$.cookie("aS", $("#id_users_section").val());
-	$.cookie("aCn", $("#id_users_class_session_name").val());
-	$.cookie("aC", $("#id_users_class_session").val());
+	//clear out old ones -- just cleanup for those that have already used this
+	$.cookie("aSn",null);
+	$.cookie("aS", null);
+	$.cookie("aCn", null);
+	$.cookie("aC", null);
 	//selected values are used in return to the my_work page
-	$.cookie("sSn", $("#id_users_section_name").val());
-	$.cookie("sS", $("#id_users_section").val());
-	$.cookie("sCn", $("#id_users_class_session_name").val());
-	$.cookie("sC", $("#id_users_class_session").val());
-	$.cookie("return_to_page", "/my_work");
+	$.cookie("sSn",null);
+	$.cookie("sS", null);
+	$.cookie("sCn", null);
+	$.cookie("sC",null);
+	
+	//active values are used in all other pages
+	$.cookie("aSn", $("#id_users_section_name").val(), {page:'/'});
+	$.cookie("aS", $("#id_users_section").val(), {page:'/'});
+	$.cookie("aCn", $("#id_users_class_session_name").val(), {page:'/'});
+	$.cookie("aC", $("#id_users_class_session").val(), {page:'/'});
+	//selected values are used in return to the my_work page
+	$.cookie("sSn", $("#id_users_section_name").val(), {page:'/'});
+	$.cookie("sS", $("#id_users_section").val(), {page:'/'});
+	$.cookie("sCn", $("#id_users_class_session_name").val(), {page:'/'});
+	$.cookie("sC", $("#id_users_class_session").val(), {page:'/'});
 }
 
 function saveSelected() {
-	var selectedValues = {"selected_section":$("#id_users_section").val(),
-		"selected_class_session": $("#id_users_class_session").val()};
+	var selectedValues = {"active_section":$("#id_users_section").val(),
+		"active_class_session": $("#id_users_class_session").val()};
 	setUserPreferences(selectedValues);
 }
 
@@ -39,18 +51,56 @@ function submitAction(selectedKey,requestedAction, newUrl) {
 	$("#form2").submit();
 }
 
-function setChoiceValue(field_id, data, parameter){
-	var field = $("#" + field_id);
-	var name_field = $("#" + field_id + "_name");
+function setSectionUserStatus(){
+	if (isAdvisor) {
+		$("#attendance_button").removeClass("not-ready");
+		$("#sect_tests_button").removeClass("not-ready");
+		$("#sect_students_button").val("Edit Students");
+	} else {
+		$("#attendance_button").addClass("not-ready");
+		$("#sect_tests_button").addClass("not-ready");
+		$("#sect_students_button").val("View Students");		
+	}
+}
+
+function setClassSessionUserStatus() {
+	if (isTeacher) {
+		$("#class_grades_button").val("Edit Grades");
+		//$("#class_grading_button").removeClass("not-ready");
+	} else {
+		$("#class_grades_button").val("View Grades");
+		//$("#class_grading_button").addClass("not-ready");
+	}
+}
+
+function setActiveSection(data){
+	var key = "";
+	var name = "";
+	isAdvisor = false;
 	if (data) {
-		field.val(data.item.key);
-		name_field.val(data.item.value);
+		keystring = data.item.key;
+		name = data.item.value;	
+		key = keystring.slice(1);
+		isAdvisor = (keystring.slice(0,1) === '+');
 	}
-	else {
-		field.val("");
-		name_field.val("");
+	$("#id_users_section").val(key);
+	$("#id_users_section_name").val(name);
+	setSectionUserStatus();
+}
+
+function setActiveClassSession(data){
+	var key = "";
+	var name = "";
+	isTeacher = false;
+	if (data) {
+		keystring = data.item.key;
+		name = data.item.value;	
+		key = keystring.slice(1);
+		isTeacher = (keystring.slice(0,1) === '+');
 	}
-	setSingleValue("database_user", localParams.dbUserKey, parameter, field.val());
+	$("#id_users_class_session").val(key);
+	$("#id_users_class_session_name").val(name);
+	setClassSessionUserStatus();
 }
 
 function toggleSectionExpansion() {
@@ -94,11 +144,17 @@ function toggleClassExpansion() {
  */
 
 $(function(){
+	$("#dialog_not_advisor_attendance").dialog(std_ok_dialog);
+	$("#dialog_not_advisor_achtest").dialog(std_ok_dialog);
+	$("#dialog_not_teacher").dialog(std_ok_dialog);
 	$("#id_users_section_name").val(localParams.users_section_name);
 	$("#id_users_section").val(localParams.users_section);
 	$("#id_users_class_session_name").val(localParams.users_class_session_name);
 	$("#id_users_class_session").val(localParams.users_class_session);
-	
+	isTeacher = localParams.user_is_class_session_teacher;
+	isAdvisor = localParams.user_is_section_advisor;
+	setClassSessionUserStatus(isTeacher);
+	setSectionUserStatus(isAdvisor);	
 	$(".menu-button").click(function(){
 		var target, action, url;
 		var selectedKey = "default";
@@ -106,10 +162,14 @@ $(function(){
 		var classSessionKey= $("#id_users_class_session").val();
 		switch (this.id) {
 			case "attendance_button":
+				if (! isAdvisor) {
+					$("#dialog_not_advisor_attendance").dialog('open');
+					return true;
+					}
 				target = "Section";
 				action = "Edit";
 				url = "/attendance";
-				break;
+				break;				
 			case "sect_report_button":
 				target = "Section";
 				action = "Edit";
@@ -131,8 +191,12 @@ $(function(){
 				//Completely different kind of action from all other buttons.
 				return toggleSectionExpansion();
 			case "sect_tests_button":
+				if (! isAdvisor) {
+					$("#dialog_not_advisor_achtest").dialog('open');
+					return true;
+					}
 				target="Section";
-				action="Edit"
+				action="Edit";
 				url="/achievement_test_grades";
 				break;
 			case "sect_details_button":
@@ -141,6 +205,12 @@ $(function(){
 				url = "/section";
 				break;
 			case "class_grades_button":
+				/*
+				if (! isTeacher) {
+					$("#dialog_not_teacher").dialog('open');
+					return true;
+					}
+					*/
 				target = "Class";
 				action = "Edit";
 				url = "/grading_period_results";
@@ -167,11 +237,6 @@ $(function(){
 				//Expand the list for other tasks.
 				//Completely different kind of action from all other buttons.
 				return toggleClassExpansion();
-			case "class_assign_students_button":
-				target = "Class";
-				action = "Edit";
-				url = "/assign_students";
-				break;
 			case "class_details_button":
 				target = "Class";
 				action = "View";
@@ -182,7 +247,7 @@ $(function(){
 				url = "/my_choices";
 				break;
 			case "my_info_button":
-				target = "Teacher"
+				target = "Teacher";
 				action = "Edit";
 				url = "/teacher";
 				break;
@@ -205,7 +270,7 @@ $(function(){
 				break;
 			case "Class":
 				selectedKey = classSessionKey;
-				if (selectedKey == "") {
+				if (selectedKey === "") {
 					reportError("Please select a Class first.", "Class Select Needed");
 				}
 				break;

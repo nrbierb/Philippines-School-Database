@@ -99,9 +99,7 @@ $(function() {
 		return false;
 	});
 	
-	$("#select_cancel_button").click(function() {
-		history.back();
-		});
+	$("#select_cancel_button").click(standardCancel);
 	
 	$(document).keydown(function(event){
 		if (event.keyCode == 13) {

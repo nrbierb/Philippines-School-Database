@@ -1,6 +1,5 @@
 {% extends 'base.html' %}
 {% block local_javascript_code %} 	
-$.cookie("return_to_page", "/schoolhome");
 {% endblock local_javascript_code %}
 {% block content %}
 <p class="form-title centered-object">{{school_name}}</p>
@@ -25,7 +24,7 @@ $.cookie("return_to_page", "/schoolhome");
 				<!--href="initialselect/class_session/select-grading_instance/Select-a-Class-to-Work-With-Grading-Instances"-->
 			</tr>
 			<tr>
-				<td class="width200" ><a id="other_button" class="btn blue tb menu-button" href="/school_maint">Maintenance</a></td>
+				<td class="width200" ><a id="other_button" class="btn blue tb menu-button" href="/maint">Maintenance</a></td>
 			</tr>
 		</tbody>
 	</table>
@@ -43,7 +42,7 @@ $.cookie("return_to_page", "/schoolhome");
 		  </tr>
 		  <tr>
 			  <td class="width200" ><a id="grades_button" class="btn blue tb menu-button" 
-			  href="/initialselect/class_session/initialselect-grading_instance-grades/Select-a-Class-to-Work-With-Grades">Grades</a></td>
+			  href="/initialselect/class_session/grading_period_results/Select-a-Class-to-Work-With-Grades">Grades</a></td>
 		  </tr>
 		  <tr>
 			  <td class="width200" ><a id="reports_button"  class="btn blue tb menu-button" href="/choose_report">Reports</a></td>

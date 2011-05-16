@@ -586,7 +586,8 @@ def dump_student_info_to_email_task_ascii(class_year, email_address, memcache_ke
             writer.writerow(val_dict)
         query = SchoolDB.models.Student.all()
         query.filter("organization =", SchoolDB.models.getActiveOrganization())
-        query.filter("class_year =", class_year)  
+        query.filter("class_year =", class_year)
+        SchoolDB.models.active_student_filter(query)
         students = query.fetch(block_size, offset=last_count)
         for student in students:
             for s in csv_field_names:
@@ -639,6 +640,9 @@ def dump_student_info_to_email_task_ascii(class_year, email_address, memcache_ke
                     unicode(student.elementary_graduation_date)
             val_dict["elementary_gpa"]=unicode(student.elementary_gpa)
             val_dict["years_in_elementary"]=unicode(student.years_in_elementary)
+            for key,value in val_dict.items():
+                if (value == "None"):
+                    val_dict[key] = ""
             writer.writerow(val_dict)
             task_count += 1
         memcached_data = memcache.get(memcache_key)
@@ -747,7 +751,8 @@ def dump_student_info_to_email_task(class_year, email_address, memcache_key,
             writer.writerow(row)
         query = SchoolDB.models.Student.all()
         query.filter("organization =", SchoolDB.models.getActiveOrganization())
-        query.filter("class_year =", class_year)  
+        query.filter("class_year =", class_year)
+        SchoolDB.models.active_student_filter(query)
         students = query.fetch(block_size, offset=last_count)
         for student in students:
             for s in csv_field_names:
@@ -800,6 +805,10 @@ def dump_student_info_to_email_task(class_year, email_address, memcache_key,
                     unicode(student.elementary_graduation_date)
             val_dict["elementary_gpa"]=unicode(student.elementary_gpa)
             val_dict["years_in_elementary"]=unicode(student.years_in_elementary)
+            for key,value in val_dict.items():
+                value = value.strip()
+                if ((value == "None") or (value == "none")):
+                    val_dict[key] = ""
             row = [val_dict[name].strip() for name in csv_field_names]
             writer.writerow(row)
             task_count += 1
@@ -828,7 +837,7 @@ def dump_student_info_to_email_task(class_year, email_address, memcache_key,
             message.to = email_address
             message.body = """
             Here is the information you requested about the %s students
-            at %s. 
+            at %s. This is from version 1.1.
             The attachment is a csv file that can be opened in a spreadsheet.
             """ %(class_year, unicode(SchoolDB.models.getActiveOrganization()))
             message.attachments = (csv_filename, memcached_data)
@@ -840,4 +849,4 @@ def dump_student_info_to_email_task(class_year, email_address, memcache_key,
         logging.error("Failed to generate requested student csv info to %s: %s"
                       %(email_address, e))
         return False
-   
+
