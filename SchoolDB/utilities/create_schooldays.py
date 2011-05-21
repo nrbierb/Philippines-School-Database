@@ -8,7 +8,7 @@ def create_schooldays(logger, start_date, end_date, school_break = ""):
     Create a block of SchoolDay instances with either the type
     schoolday for weekdays or weekend for weekend days. Takes two
     agruments, both inclusive: start_date, end_date. Both are in the
-    format "mm/dd/yyyy". The defining organzation is "national".
+    format "mm/dd/yyyy". The defining organization is "national".
     Perform a query on the range first and do not create an instance
     for any day that already has "national" defined for it.
     """

@@ -20,7 +20,7 @@ DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
 ADMINS = (
-    ('Neal Bierbaum', "nrbierb@yahoo.com")
+    ('Neal Bierbaum', "schooldb.error@gmail.com")
 )
 
 MANAGERS = ADMINS

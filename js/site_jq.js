@@ -53,7 +53,7 @@ function cleanPriorSamePage(pageStack) {
 }
 
 function pagePathPush(cookieName, setNp) {
-	var pageStack = JSON.parse($.cookie(cookieName));	
+	var pageStack = jQuery.parseJSON($.cookie(cookieName));	
 	cleanPriorSamePage(pageStack);
 	var parsedUri = parseUri(document.baseURI);
 	var current_path = parsedUri.path;
@@ -72,7 +72,7 @@ function pagePathIndex(cookieName, setNp) {
 }
 
 function pagePathPop(cookieName, setNp) {
-	var pageStack = JSON.parse($.cookie(cookieName));
+	var pageStack = jQuery.parseJSON($.cookie(cookieName));
 	// assure no loops
 	while (pagePathIsSamePage(pageStack)) {
 		pageStack.pop();
@@ -101,7 +101,7 @@ function pagePathFixedUrl(cookieName, setNp, setPath){
 }
 
 function assurePgStCookieExists(cookieName){
-	if (JSON.parse($.cookie(cookieName)) === null) {
+	if (jQuery.parseJSON($.cookie(cookieName)) === null) {
 		pagePathIndex(cookieName);
 	}	
 }
@@ -203,7 +203,7 @@ function standardFinish() {
 	//further action. While the url is set to "/index" the actual
 	//page will be determined by the pagePathPop result
 	pagePathPop("pgSt", true);
-	pagePathPop("bcSt", false);
+	pagePathPop("bcSt", true);
 	location.href = "/dynamic";
 }
 
@@ -213,7 +213,7 @@ function cleanupForCancel() {}
 function standardCancel() {
 	cleanupForCancel();
 	pagePathPop("pgSt", true);
-	pagePathPop("bcSt", false);
+	pagePathPop("bcSt", true);
 	location.href = "/dynamic";	
 }
 
@@ -300,8 +300,8 @@ function requestHelpDialog(helpPagename, testText) {
 	                "text_manager_name":helpPagename,
 	                "test_text":testText},
 	        success: function(ajaxResponse) {
-					var helpData = json_parse(ajaxResponse);					
-					var helpDialogHtml = helpData.dialog_help; //json_parse(ajaxResponse);
+					var helpData = jQuery.parseJSON(ajaxResponse);					
+					var helpDialogHtml = helpData.dialog_help; //jQuery.parseJSON(ajaxResponse);
 					displayHelpDialog(helpDialogHtml);
 	                },
 			error: function(ajaxResponse) {
@@ -646,7 +646,7 @@ function getUserPreferences(preference_names){
 		dataType: "json",
         data: {"user_preferences":preference_names},
 		success: function(ajaxResponse){
-			return (json_parse(ajaxResponse));
+			return (jQuery.parseJSON(ajaxResponse));
 			},
 		error: function(xhr, textStatus, errorThrown){
 			// just return empty values
@@ -882,7 +882,7 @@ function requestTable(url, params, targetTable){
 		url: url,
 		data: params,
 		success: function(ajaxResponse){
-			//var responseArray = json_parse(ajaxResponse);
+			//var responseArray = jQuery.parseJSON(ajaxResponse);
 			targetTable.loadAjaxResponse(ajaxResponse);
 			//targetTable.initializeTableParams();
 			targetTable.finalizeTable();

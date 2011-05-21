@@ -1681,10 +1681,10 @@ class GradingPeriod(DateBlock):
         query.filter("end_date <=", date.today())
         query.order("-end_date")
         #with inverse sort order only the most recent will be included
-        #this assusmes that no more than four years of grading periods
+        #this assumes that no more than four years of grading periods
         #have been defined for the future
         periods = query.fetch(12)
-        #now work backwards to get sorted int the correct way
+        #now work backwards to get sorted in the correct way
         in_range_periods = []
         for i in range(len(periods) ,0,-1):
             period = periods[i - 1]
@@ -1693,32 +1693,36 @@ class GradingPeriod(DateBlock):
         #If only one or none then skip all of the following -- unneeded
         if (len(in_range_periods) < 2):
             return(in_range_periods)
-        #Now only periods completed and in current school year
-        #There may be some multidefined, so sort organization and
-        #then remove probable matches
-        periods_sorted = MultiLevelDefined.sort_by_org_level(in_range_periods)
-        filtered_periods = []
-        #the periods toward the front are better. Look for another further down
-        #the list and remove it
-        max_offset = timedelta(15)
-        while (len(periods_sorted) > 1):
-            compare_value = periods_sorted.pop(0)
-            filtered_periods.append(compare_value)
-            for i, period in enumerate(periods_sorted):
-                to_delete = []
-                if ((period.start_date <= (compare_value.start_date +
-                                           max_offset))
-                    and (period.start_date >= (compare_value.start_date -
-                                               max_offset))):
-                    to_delete.append(i)
-            if (len(to_delete) > 0):
-                to_delete.reverse()
-                for i in to_delete:
-                    periods_sorted.pop(i)
-        if (len(periods_sorted)==1):
-            filtered_periods.append(periods_sorted[0])
+        #Now only periods completed and in current school year There
+        #may be some multidefined, so sort organization and then remove
+        #probable matches This does not work yet because of the way the
+        #sort_by_org_level works. For now, just skip all of it and
+        #return all
+        #periods_sorted = MultiLevelDefined.sort_by_org_level(in_range_periods)
+        #filtered_periods = []
+        ##the periods toward the front are better. Look for another further down
+        ##the list and remove it
+        #max_offset = timedelta(15)
+        #while (len(periods_sorted) > 1):
+            #compare_value = periods_sorted.pop(0)
+            #filtered_periods.append(compare_value)
+            #for i, period in enumerate(periods_sorted):
+                #to_delete = []
+                #if ((period.start_date <= (compare_value.start_date +
+                                           #max_offset))
+                    #and (period.start_date >= (compare_value.start_date -
+                                               #max_offset))):
+                    #to_delete.append(i)
+            #if (len(to_delete) > 0):
+                #to_delete.reverse()
+                #for i in to_delete:
+                    #periods_sorted.pop(i)
+        #if (len(periods_sorted)==1):
+            #filtered_periods.append(periods_sorted[0])
         #now there should be only one for each time period. Do a final time
         #sort
+        #hack to leave context for further thought
+        filtered_periods = in_range_periods
         final_periods_list = GradingPeriod.sort_function(filtered_periods)
         return final_periods_list
 
@@ -2042,7 +2046,12 @@ class Person(polymodel.PolyModel):
         return (query.get())
 
     def in_organization(self, organization_key, requested_action):
-        return (self.organization.key() == organization_key)
+        if self.organization.key():
+            return (self.organization.key() == organization_key)
+        else:
+            #if no organization key (parents, for example) then 
+            #accept person as in organization
+            return True
 
     def add_to_interesting_instances(self, model_class, new_key):
         """
@@ -5704,7 +5713,7 @@ class UserPermissionsVault():
         within the form after the object instance is known.
         """
         target_permissions = self.target_permissions.get(target_name, 
-                                                         self.target_default_permission)
+                                    self.target_default_permission)
         if (target_permissions.is_class and target_instance):
             target_in_organization = target_instance.in_organization(
                 getActiveDatabaseUser().get_active_organization_key(), 

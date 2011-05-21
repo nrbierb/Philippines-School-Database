@@ -252,7 +252,7 @@ class ValuesDictGenerator:
             if (test_val < 0.45):
                 self.values_dict["transfer_school"] = "Other Municipality School"
                 self.values_dict["special_designation"] = \
-                    self.special_values_dict["Transferred In"]
+                    self.special_values_dict["Transfered In"]
             elif (test_val > 0.6):
                 self.values_dict["special_designation"] = \
                     self.special_values_dict["Balik Aral"]
@@ -268,7 +268,7 @@ class ValuesDictGenerator:
     
     def create_special_designation_dict(self):
         d_dict = {}
-        for val in ("Balik Aral", "Repeater", "Transferred In"):
+        for val in ("Balik Aral", "Repeater", "Transfered In"):
             d_dict[val] = \
                   str(SchoolDB.utility_functions.get_entities_by_name(
                       SchoolDB.models.SpecialDesignation, val).key())
@@ -277,6 +277,7 @@ class ValuesDictGenerator:
 def create_student_tasks(values_creator, school_data, students_per_section):
     sections = school_data.get_sections()
     count = 0
+    logging.info("Starting task generation")
     for section in sections:
         #create student_count students for each section by a single task 
         #for each student
@@ -481,7 +482,9 @@ def create_students_for_school(logger, school_name,
         exit(-1)
     values_generator = TableValuesGenerator()
     values_generator.load_pickled_data()
+    logging.info("Starting to load school data for " +school_name)
     school_data = SchoolData(school_name)
+    logging.info("School data loaded")
     all_values_creator = ValuesDictGenerator(values_generator, school_data)
     student_count = create_student_tasks(all_values_creator, school_data, 
                                          students_per_section)

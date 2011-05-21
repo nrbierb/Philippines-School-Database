@@ -408,7 +408,7 @@ def specialShowAction(instance, requested_action, classname,
             params.update(extra_params)
         form.modify_params(params)
         return showForm(template=template, form=form,
-                page_path_action="NoAction", extra_params=params)
+                page_path_action="NoAction", params=params)
     except ProhibitedError, e:
         return e.response
 
@@ -538,11 +538,10 @@ def showDatabaseUser(request):
     return standardShowAction(request, "master_database_user", 
                               MasterDatabaseUserForm, 
                               "Database User", "generic")
-
-#def showMasterDatabaseUser(request):
-    #return standardShowAction(request, "master_database_user", 
-                              #MasterDatabaseUserForm, 
-                              #"Database User", "generic")
+def showMasterDatabaseUser(request):
+    return standardShowAction(request, "master_database_user", 
+                              MasterDatabaseUserForm, 
+                              "Database User", "generic")
 
 #def showDatabaseUser(request):
     #return standardShowAction(request, "database_user", 
@@ -4010,6 +4009,43 @@ class StandardDatabaseUserForm(BaseStudentDBForm):
     def initialize(data):
         initialize_fields([("person", "person_name")], data)
         
+    def save(self, instance):
+        """
+        Create or update a database user. This is a special action because the entity is not identified directly by the name field in the object. That and most of the other data must be created from implied information derived from the person of the user. 
+        """
+        current_user = getActiveDatabaseUser().get_active_user()
+        create_type = current_user.get_user_create_type(same_level=True)
+        if (not create_type):
+            error_string = "Attempted to create a database user but did not have permission to do so user: '%s' usertype: '%s'" \
+                %(getActiveDatabaseUser().get_active_user_name(),
+                  getActiveDatabaseUser().get_active_user_type_name())
+            raise ProhibitedError, error_string
+        person = self.cleaned_data["person"]
+        if not person:
+            #nothing to be done
+            return
+        #search for existing record for conflicts
+        query = DatabaseUser.all()
+        query.filter("person =", person)
+        database_user = query.get()
+        if (not database_user):
+            database_user = DatabaseUser()
+        database_user.user_type = create_type
+        database_user.first_name = person.first_name
+        database_user.middle_name = person.middle_name
+        database_user.last_name = person.last_name
+        database_user.name = unicode(person)
+        database_user.email = self.cleaned_data["email"]
+        database_user.user = self.cleaned_data["email"]
+        database_user.other_information = self.cleaned_data[
+            "other_information"]
+        database_user.organization = \
+            getActiveDatabaseUser().get_active_organization()
+        database_user.guidance_counselor = \
+                     self.cleaned_data["guidance_counselor"]
+        database_user.put()
+        
+        
 #----------------------------------------------------------------------  
 class SelectForm(BaseStudentDBForm):
 
@@ -5227,8 +5263,9 @@ def initialize_fields(fields_list, data):
 def get_form_from_class_name(class_name_string):
     """
     Map a string that is the model class name to the associated
-    form class. Return None if not found.
+    form class. Return None if not found or if no class_name_string
     """
+    form_class = None
     if (class_name_string):
         class_formname_map = {
             "my_choices":(MyChoicesForm),
@@ -5420,31 +5457,16 @@ class BreadcrumbGenerator:
     More usefully, a completely formatted webpage entry for a page
     can be generated with command generate_breadcrumb.
     """
-    #title_tree = {}
-    #url_dict = {}
-
-    #def add_page(self, title, url, parent_title):
-        #self.url_dict[title] = url
-        #self.title_tree[title] = parent_title
-
-    #def add_pages(self, pages_list):
-        #for page in pages_list:
-            #self.add_page(page[0],page[1],page[2])
-
-    #def get_breadcrumb_list(self, title):
-        #breadcrumb_list = []
-        #while self.title_tree.has_key(title):
-            #breadcrumb_list.insert(0,((self.url_dict[title], title)))
-            #title = self.title_tree[title]       
-        #return breadcrumb_list
-
-    #def has_page(self, title):
-        #return self.url_dict.has_key(title)
     name_map = {
         "index":"Main Menu",
         "upperlevel_adminhome":"Main Menu",
         "upperlevel_home":"Main Menu",
         "schoolhome":"Main Menu",
+        "maint":"Maintenance",
+        "upperlevel_maint":"Maintenance",
+        "upperleveladmin_maint":"Maintenance",
+        "school_maint":"Maintenance",
+        "schooladmin_maint":"Maintenance",
         "my_work":"My Work",
         "student":"Student",
         "section":"Section",
@@ -5495,6 +5517,7 @@ class BreadcrumbGenerator:
         "enter_grades":"Enter Grades",
         "grading_period_results":"Grading Period Grades",
         "gradebook_entry_calendar":"Gradebook Entry Calendar",
+        "summary_student":"School Summary",
         "utilrequest":"Run Utility",
         "utilresponse":"Utility Response"
     }

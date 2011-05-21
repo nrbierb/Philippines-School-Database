@@ -956,7 +956,7 @@ class SummaryReportBase():
         values_block = self.values_to_show
         if self.show_division_names:
             table_header_text.append("Division")
-        if (len(self.schools_list) > 1):
+        if (not self.is_school):
             table_header_text.append("School")
         if (not self.single_row):
             table_header_text.append("Class Year")
@@ -988,7 +988,7 @@ class SummaryReportBase():
     def build_table(self):
         """
         Call the functions to generate the table in appropriate order
-        to generete the satandard table build return values
+        to generate the standard table build return values
         """
         table_data = self._get_table_data()
         table_desc = self._get_table_description()

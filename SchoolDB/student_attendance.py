@@ -618,6 +618,8 @@ class AttendanceReports:
     def __init__(self, section, start_date, end_date, parameter_dict):
         """Constructor"""
         self.section = section
+        if (not section):
+            raise SchoolDB.ajax.AjaxError, "Cannot create report. No section selected."
         self.start_date = start_date
         self.end_date = end_date
         self.parameter_dict = parameter_dict

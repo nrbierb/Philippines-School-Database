@@ -33,11 +33,11 @@ import SchoolDB.models
 def create_schools():
     schools = {}
     for desc in (
-        ("Liloan Practice HS",
+        ("Consolacion Practice HS",
          SchoolDB.utility_functions.get_entities_by_name(
              SchoolDB.models.Division,"Cebu Province", ), 
          SchoolDB.utility_functions.get_entities_by_name(
-             SchoolDB.models.Municipality, "Liloan")),
+             SchoolDB.models.Municipality, "Consolacion")),
         ("Danao City Practice HS",
          SchoolDB.utility_functions.get_entities_by_name(
              SchoolDB.models.Division,"Danao City", ), 
@@ -74,9 +74,9 @@ def create_schools():
                                 #email="nrbierbcm@gmail.com",
                                 #user_type = usertype)
     #masterDBUser.post_creation()
-    ##liloan master
+    ##Consolacion master
     #master_person = SchoolDB.models.Teacher(first_name = "Neal", 
-        #last_name = "Bierbaum-LA", organization = schools["Liloan Practice HS"],
+        #last_name = "Bierbaum-CO", organization = schools["Consolacion Practice HS"],
                 #gender = "Male")
     #master_person.put()
     #usertype = SchoolDB.utility_functions.get_entities_by_name(
@@ -84,7 +84,7 @@ def create_schools():
     #masterDBUser = SchoolDB.models.DatabaseUser(first_name = "Neal",
                                 #last_name = "Bierbaum", 
                                 #person = master_person,
-                                #organization = schools["Liloan Practice HS"], 
+                                #organization = schools["Consolacion Practice HS"], 
                                 #email="nrbierb@gmail.com",
                                 #user_type = usertype)
     #masterDBUser.post_creation()
@@ -133,7 +133,7 @@ def create_schools():
                                 #user_type = usertype)
     #masterDBUser.post_creation()    
     #teacher = SchoolDB.models.Teacher(first_name = "A", middle_name = "Db", 
-            #last_name = "Tester", organization = schools["Liloan Practice HS"])
+            #last_name = "Tester", organization = schools["Consolacion Practice HS"])
     #teacher.put()
     #usertype = SchoolDB.utility_functions.get_entities_by_name(
         #SchoolDB.models.UserType,"Teacher")
@@ -141,7 +141,7 @@ def create_schools():
                                 #middle_name = "Db", 
                                 #last_name = "Tester", 
                                 #person=teacher, 
-                                #organization = schools["Liloan Practice HS"],
+                                #organization = schools["Consolacion Practice HS"],
                                 #email = "ph.db.tester@gmail.com", 
                                 #user_type = usertype)
     #teacher_user.post_creation()
@@ -160,12 +160,12 @@ def create_schools():
     #teacher_user.post_creation()
     #teacher = SchoolDB.models.Teacher(first_name = "Demo", 
                       #last_name = "Teacher1", 
-                     #organization = schools["Liloan Practice HS"])
+                     #organization = schools["Consolacion Practice HS"])
     #teacher.put()
     #teacher_user = SchoolDB.models.DatabaseUser(first_name = "Demo", 
                       #last_name = "Teacher1", 
                                 #person=teacher, 
-                                #organization = schools["Liloan Practice HS"],
+                                #organization = schools["Consolacion Practice HS"],
                                 #email = "pi.demo.teacher1@gmail.com", 
                                 #user_type = usertype)
     #teacher_user.post_creation()
@@ -213,9 +213,9 @@ def create_schools():
 def create_sections(schools):
     for school in (
         #Lilo An 6, 5, 4, 4 
-        (schools["Liloan Practice HS"],
-         (("Red", "Blue", "Green", "Orange", "White", "Yellow"),
-          ("Gold","Silver","Bronze","Copper","Aluminum"),
+        (schools["Consolacion Practice HS"],
+         (("Red", "Blue", "Green", "Orange", "White", "Yellow", "Purple", "Pink", "Brown", "Magenta"),
+          ("Gold","Silver","Bronze","Copper","Aluminum","Tin", "Zinc"),
           ("East","West","North","South"),
           ("Laugh","Whistle","Sing","Shout"))),       
         #Danau 4, 4, 3, 3
@@ -226,7 +226,7 @@ def create_sections(schools):
          ("Sun", "Moon", "Stars"))),
         #Cebu City 5, 5, 4, 3
         (schools["Cebu City Practice HS"],
-         (("Red", "Blue", "Green", "Orange", "White", "Yellow"),
+         (("Red", "Blue", "Green", "Orange", "White", "Yellow", "Purple", "Pink", "Brown", "Magenta"),
           ("Gold","Silver","Bronze","Copper","Aluminum"),
           ("North","South", "East","West"),
           ("Laugh","Whistle","Sing", "Shout"))),    
@@ -288,9 +288,26 @@ def create_sections_for_school(school_info):
     logging.info("Created %d sections for school %s" 
                  %(section_count, school_name))
     
+def move_users(schools):
+    comp = schools["Compostela Practice HS"]
+    q = SchoolDB.models.Teacher.all()
+    for t in q:
+        t.organization = comp
+        t.put()
+    q = SchoolDB.models.DatabaseUser.all()
+    for t in q:
+        t.organization = comp
+        t.put()
+        
+def delete_schools():
+    q = SchoolDB.models.School.all()
+    for s in q:
+        s.delete()
 if __name__ == "__main__":
     logging.info("Starting school creation")
+    delete_schools()
     schools = create_schools()
     #users = create_users(schools)
     create_sections(schools)
+    move_users(schools)
     logging.info("School creation complete")
