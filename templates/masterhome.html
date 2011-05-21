@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block local_javascript_code %}
+{% endblock local_javascript_code %}
+{% block content %}
+<p class="form-title centered-object">Welcome to the DepEd <br/>
+Student Database<br/> Administrators Main Page</p>
+<fieldset id="admin-fieldset" class="major">
+<legend class="major">Choose Your Task</legend>
+<table class="lg-btn" >
+  <tbody>
+    <tr>
+      <td class="width200" ><a id="student_button" class="btn blue tb" href="/select/student">Students</a></td>
+	  <td class="width200"><a id="attendance_button"  class="btn blue tb" title="The attendance entry form"
+	  	href="/initialselect/section/attendance/Select-a-Section-for-Attendance">Attendance</a></td>
+    </tr>
+    <tr>
+      <td><a id="other_button" class="btn blue tb" href="/othertypes"
+	  	title="Many different types of information like teachers, classes, schools, etc. to create, edit, or view">Maintenance</a></td>
+      <td><a id="grades_button" class="btn blue tb" 
+	  	href="/initialselect/class_session/grading_period_results/Select-a-Class-to-Work-With-Grades">Grades</a></td>
+    </tr>
+	<tr>
+		<td><a id="work_button"  class="btn blue tb" href="/otherwork">Other Work</a></td>
+		<td><a id="reports_button"  class="btn blue tb" href="/choose_report">Reports</a></td>
+	</tr>
+	<tr>
+		<td><a id="school_button"  class="btn blue tb" href="/admin/schoolhome">School Home</a></td>
+		<td><a id="upleveladmin_button"  class="btn blue tb" href="/admin/upperlevel_adminhome">Upper Lvl Admin Home</a></td>
+	</tr>
+	<tr>
+		<td><a id="mywork_button"  class="btn blue tb" href="/my_work">My Work</a></td>
+		<td><a id="uplevel_button"  class="btn blue tb" href="/admin/upperlevel_home">Upper Level Home</a></td>
+	</tr>
+	<tr>
+		<td><a id="util_button"  class="btn blue tb" href="/utilrequest">Run Utility</a></td>
+		<td><a id="empty_button"  class="btn blue tb" href="/runtest">Perform Testing</a></td>
+	</tr>
+  </tbody>
+</table>
+</fieldset>
+<div id="help_pagename_div" class="hidden">AdminHomeHelp</div>
+{% include 'logout_button.html' %}
+{% endblock %}

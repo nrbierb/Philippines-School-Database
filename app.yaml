@@ -1,4 +1,4 @@
-application: pi-schooldb-dev
+application: pi-schooldb-practice
 version: 1--0-13
 runtime: python
 api_version: 1
@@ -37,7 +37,6 @@ handlers:
 - url: /task
   script: /main.py
   login: admin
-  secure: always
 
 - url: /.*
   script: main.py
