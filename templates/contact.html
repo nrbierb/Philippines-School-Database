@@ -1,8 +1,10 @@
 {% extends 'forms_base_generic.html' %}
 {% block local_javascript_code %}
 $(function() {
+	pagePathFixedUrl("",false,false);
     $.initWindowMsg();
     loadParentWindowKey("id_object_instance","id_parent_key");
+	$("#cancel_btn").unbind("click");
     $("#cancel_btn").click(function(e){
         close();
 		});

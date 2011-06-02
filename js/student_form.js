@@ -89,6 +89,7 @@ function sendCheckRequest(){
 	if ($("#id_object_instance").val() == "NOTSET") {
 		$.ajax({
 			url: "/ajax/find_similar_students/",
+			type: "POST",
 			data: {
 				"last_name": $("#id_last_name").val(),
 				"first_name": $('#id_first_name').val(),
@@ -322,6 +323,7 @@ function cleanupForCancel(){
 	if ((studentKey == "NOTSET") && (familyKey != "NOTSET")) {
 		$.ajax({
 		url: "/ajax/cleanup_family/",
+		type: "POST",
 		data: {
 			"class": "family",
 			"key": familyKey

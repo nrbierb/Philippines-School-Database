@@ -1,80 +1,1695 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html 
-  PUBLIC "-//W3C//DTD XHTML 1.1 plus MathML 2.0//EN" "http://www.w3.org/TR/MathML2/dtd/xhtml-math11-f.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml"><!--This file was converted to xhtml by OpenOffice.org - see http://xml.openoffice.org/odf2xhtml for more info.--><head profile="http://dublincore.org/documents/dcmi-terms/"><meta http-equiv="Content-Type" content="application/xhtml+xml; charset=utf-8"/><title xml:lang="en-US">- Database Manual</title><meta name="DCTERMS.title" content="" xml:lang="en-US"/><meta name="DCTERMS.language" content="en-US" scheme="DCTERMS.RFC4646"/><meta name="DCTERMS.source" content="http://xml.openoffice.org/odf2xhtml"/><meta name="DCTERMS.issued" content="2010-04-11T18:14:59" scheme="DCTERMS.W3CDTF"/><meta name="DCTERMS.contributor" content="master "/><meta name="DCTERMS.modified" content="2010-06-24T00:30:48" scheme="DCTERMS.W3CDTF"/><meta name="DCTERMS.provenance" content="" xml:lang="en-US"/><meta name="DCTERMS.subject" content="," xml:lang="en-US"/><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/" hreflang="en"/><link rel="schema.DCTERMS" href="http://purl.org/dc/terms/" hreflang="en"/><link rel="schema.DCTYPE" href="http://purl.org/dc/dcmitype/" hreflang="en"/><link rel="schema.DCAM" href="http://purl.org/dc/dcam/" hreflang="en"/><base href="."/>
-	<meta name="robots" content="none"></meta>
-	<link rel="icon" href="/media/favicon.ico" type="image/x-icon"></link> 
-    <link rel="shortcut icon" href="/media/favicon.ico" type="image/x-icon"></link> 
-<style type="text/css">
-	@page {  }
-	table { border-collapse:collapse; border-spacing:0; empty-cells:show }
-	td, th { vertical-align:top; font-size:12pt;}
-	h1, h2, h3, h4, h5, h6 { clear:both }
-	ol, ul { margin:0; padding:0;}
-	li { list-style: none; margin:0; padding:0;}
-	<!-- "li span.odfLiEnd" - IE 7 issue-->
-	li span. { clear: both; line-height:0; width:0; height:0; margin:0; padding:0; }
-	span.footnodeNumber { padding-right:1em; }
-	span.annotation_style_by_filter { font-size:95%; font-family:Arial; background-color:#fff000;  margin:0; border:0; padding:0;  }
-	* { margin:0;}
-	.Contents_20_1 { font-size:11pt; font-family:Times New Roman; writing-mode:page; margin-left:0in; margin-right:0in; text-indent:0in; }
-	.Contents_20_2 { font-size:11pt; font-family:Times New Roman; writing-mode:page; margin-left:0.1965in; margin-right:0in; text-indent:0in; }
-	.Contents_20_Heading { font-size:12pt; margin-bottom:0in; margin-top:0in; font-family:Arial; writing-mode:page; margin-left:0in; margin-right:0in; text-align:center ! important; text-indent:0in; font-weight:bold; }
-	.Heading_20_1 { font-size:11pt; margin-bottom:0in; margin-top:0in; font-family:Arial; writing-mode:page; text-align:center ! important; font-weight:bold; }
-	.P10 { font-size:11pt; font-weight:bold; margin-bottom:0in; margin-top:0in; text-align:justify ! important; font-family:Arial; writing-mode:page; color:#000000; text-decoration:none ! important; }
-	.P11 { font-size:11pt; font-weight:bold; margin-bottom:0in; margin-top:0in; text-align:justify ! important; font-family:Arial; writing-mode:page; }
-	.P12 { font-size:11pt; font-weight:bold; margin-bottom:0in; margin-top:0in; text-align:center ! important; font-family:Arial; writing-mode:page; }
-	.P13 { font-size:11pt; font-family:Times New Roman; writing-mode:page; }
-	.P14 { font-size:12pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; text-decoration:none ! important; font-weight:normal; }
-	.P15 { font-size:12pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; text-decoration:none ! important; font-weight:normal; }
-	.P16 { font-size:12pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; font-weight:normal; }
-	.P17 { font-size:12pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; text-decoration:underline; font-weight:normal; }
-	.P18 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; }
-	.P19 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; }
-	.P20 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; color:#000000; text-decoration:none ! important; }
-	.P21 { font-size:12pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; color:#000000; text-decoration:none ! important; }
-	.P22 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; }
-	.P23 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; }
-	.P24 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; }
-	.P25 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; }
-	.P26 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; }
-	.P27 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; }
-	.P28 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; }
-	.P29 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; }
-	.P3 { font-size:16pt; margin-bottom:0.0835in; margin-top:0in; font-family:Times New Roman; writing-mode:page; text-align:center ! important; font-weight:bold; }
-	.P30 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; }
-	.P31 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; }
-	.P32 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; }
-	.P33 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; }
-	.P34 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; }
-	.P35 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; font-weight:bold; }
-	.P36 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; text-decoration:none ! important; }
-	.P37 { font-size:11pt; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; text-decoration:underline; }
-	.P38 { font-size:11pt; font-family:Times New Roman; writing-mode:page; margin-left:0.9791in; margin-right:0in; text-align:justify ! important; text-indent:0in; color:#000000; }
-	.P39 { font-size:11pt; font-family:Times New Roman; writing-mode:page; margin-left:0.9791in; margin-right:0in; text-align:justify ! important; text-indent:0in; }
-	.P4 { font-size:11pt; margin-bottom:0.0835in; margin-top:0in; font-family:Times New Roman; writing-mode:page; text-align:center ! important; }
-	.P40 { font-size:11pt; font-family:Times New Roman; writing-mode:page; margin-left:0.9791in; margin-right:0in; text-align:justify ! important; text-indent:0in; }
-	.P41 { font-size:11pt; font-family:Times New Roman; writing-mode:page; margin-left:0.9791in; margin-right:0in; text-align:justify ! important; text-indent:0in; }
-	.P42 { font-size:12pt; font-family:Times New Roman; writing-mode:page; margin-top:0in; margin-bottom:0in; text-align:justify ! important; font-weight:normal; }
-	.P43 { font-size:11pt; margin-bottom:0.0835in; margin-top:0in; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; text-decoration:none ! important; }
-	.P44 { font-size:12pt; margin-bottom:0.0835in; margin-top:0in; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; }
-	.P45 { font-size:11pt; margin-bottom:0in; margin-top:0in; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; }
-	.P46 { font-size:12pt; margin-bottom:0in; margin-top:0in; font-family:Times New Roman; writing-mode:page; text-align:justify ! important; font-weight:normal; }
-	.P5 { font-size:11pt; margin-left:0.1965in; margin-right:0in; text-indent:0in; font-family:Times New Roman; writing-mode:page; }
-	.P6 { font-size:11pt; margin-left:0in; margin-right:0in; text-indent:0in; font-family:Times New Roman; writing-mode:page; }
-	.P7 { font-size:12pt; font-style:normal; font-weight:normal; margin-bottom:0in; margin-top:0in; font-family:Times New Roman; text-decoration:underline; writing-mode:page; text-align:justify ! important; }
-	.P8 { font-size:11pt; font-style:normal; font-weight:normal; margin-bottom:0in; margin-top:0in; font-family:Times New Roman; text-decoration:underline; writing-mode:page; text-align:justify ! important; }
-	.P9 { font-size:18pt; font-weight:bold; margin-bottom:0in; margin-top:0in; text-align:center ! important; font-family:Arial; writing-mode:page; }
-	.Standard { font-size:11pt; font-family:Times New Roman; writing-mode:page; }
-	.Text_20_body { font-size:11pt; font-family:Times New Roman; writing-mode:page; margin-top:0in; margin-bottom:0.0835in; }
-	.Sect1 { background-color:transparent; }
-	.Bullet_20_Symbols { font-family:StarSymbol; font-size:9pt; }
-	.T1 { text-decoration:underline; }
-	.T2 { text-decoration:none ! important; }
-	.T3 { font-weight:bold; }
-	.T4 { font-weight:normal; }
-	.T5 { font-size:14pt; }
-	.T6 { color:#000000; text-decoration:none ! important; }
-	<!-- ODF styles with no properties representable as CSS -->
-	.Sect2 .Numbering_20_Symbols { }
-	</style></head><body dir="ltr" style="max-width:8.5in;margin-top:0.7874in; margin-bottom:0.7874in; margin-left:0.7874in; margin-right:0.7874in; "><h1 class="P9"><a id="a__Philippines_School_Database"><span style="margin-right:0.381cm;"/></a>Philippines School Database</h1><p class="P3">Instructions for Use</p><p class="P3"> </p><p class="P3">Version 1, June 2010</p><p class="P4"> </p><table border="0" cellspacing="0" cellpadding="0" class="Sect1"><colgroup/><p class="Contents_20_Heading">Table of Contents</p><tr><td><p class="P6">Philippines School Database        </p></td></tr><tr><td><p class="P6">Getting Started        </p></td></tr><tr><td><p class="P6">Main Menu        </p></td></tr><tr><td><p class="P6">Definitions        </p></td></tr><tr><td><p class="P6">Using the Database        </p></td></tr><tr><td><p class="P5">Saving Information        </p></td></tr><tr><td><p class="P5">Selecting a Button        </p></td></tr><tr><td><p class="P5">Entering Information in a Box        </p></td></tr><tr><td><p class="P5">Multiple Options for Selections        </p></td></tr><tr><td><p class="P5">Selecting from a List        </p></td></tr><tr><td><p class="P5">Sorting a List        </p></td></tr><tr><td><p class="P5">Copying and Pasting to a Spreadsheet        </p></td></tr><tr><td><p class="P5">How Names are Alphabetized        </p></td></tr><tr><td><p class="P6">Students        </p></td></tr><tr><td><p class="P5">Adding a Student        </p></td></tr><tr><td><p class="P5">Editing a Student        </p></td></tr><tr><td><p class="P5">Viewing a Student        </p></td></tr><tr><td><p class="P6">Attendance        </p></td></tr><tr><td><p class="P5">Opening the Attendance Record for a Section        </p></td></tr><tr><td><p class="P5">Marking Attendance of an Entire Section for a Day        </p></td></tr><tr><td><p class="P5">Marking an Individual Student Absent or Present        </p></td></tr><tr><td><p class="P5">Saving Your Work        </p></td></tr><tr><td><p class="P5">Going to a Different Week        </p></td></tr><tr><td><p class="P5">Other Information        </p></td></tr><tr><td><p class="P6">Reports        </p></td></tr><tr><td><p class="P5">Attendance Reports        </p></td></tr><tr><td><p class="P5">Student Age Summary        </p></td></tr><tr><td><p class="P5">Age Calculation        </p></td></tr><tr><td><p class="P6">Grades and Gradebook Items        </p></td></tr><tr><td><p class="P6">My Work        </p></td></tr><tr><td><p class="P6">Maintenance: Editing Your Teacher Information        </p></td></tr><tr><td><p class="P5">New, Edit, or View Maintenance Values        </p></td></tr><tr><td><p class="P6">Practice Database        </p></td></tr><tr><td><p class="P6">E-Mail Addresses for Help        </p></td></tr></table><p class="Text_20_body"> </p><h1 class="P12"><a id="a__Getting_Started"><span style="margin-right:0.381cm;"/></a>Getting Started</h1><p class="Standard"> </p><ol><li><p class="P13" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">1.</span>Open up Firefox<span class="odfLiEnd"/> </p></li><li><p class="P13" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">2.</span>Go to the website for the database:  <span class="T5">http://pi-schooldb.appspot.com</span><span class="odfLiEnd"/> </p></li><li><p class="P13" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">3.</span>Type in your account name and password<span class="odfLiEnd"/> </p></li></ol><p class="Standard"> </p><p class="P20">To make it easier to access the database, you can set up a “bookmark” in Firefox.  To do this, go to the Main Menu of the database.  Then in the Firefox toolbar, select “Bookmarks” and then “Bookmark this Page”.  You only need to do this once for your account.  Then the next time you want to access the database, you can go to “Bookmarks” and select the database from the list of your bookmarks.    </p><p class="P20"> </p><p class="P20">Password security is very important to keep the information secure.  Do not share your password with others.</p><p class="P22"> </p><h1 class="Heading_20_1"><a id="a__Main_Menu"><span style="margin-right:0.381cm;"/></a>Main Menu</h1><p class="Standard"> </p><p class="P22">When you first log in, you will go to the Main Menu. You will see several options on the Main Menu.  Do a single left-click on any button to select that option.</p><p class="P22"> </p><ul><li><p class="P23" style="margin-left:0.635cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0.635cm">●.</span>MY WORK: Using “My Work”, you can identify your <span class="T1">section</span> (if you are an advisor) and the <span class="T1">classes</span><span class="T2"> that you teach.  Then it is easy to find and update the information for your section and classes.</span><span class="odfLiEnd"/> </p></li><li><p class="P23" style="margin-left:0.635cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0.635cm">●.</span>STUDENTS: This allows you to add a new student to the database or to edit or view the information for an existing student.<span class="odfLiEnd"/> </p></li><li><p class="P23" style="margin-left:0.635cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0.635cm">●.</span>GRADEBOOK ITEMS: This allows you to add a new “gradebook item” to the database or to edit an existing one.  A “gradebook item” is needed each time you want to add something to the gradebook for a class: a quiz, assignment, unit test, participation score, project output, mid test, periodic test, etc.<span class="odfLiEnd"/> </p></li><li><p class="P23" style="margin-left:0.635cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0.635cm">●.</span>MAINTENANCE: These are special options (usually used by the Guidance Office) to create a new school year, to manage information about a school's sections and classes, to identify holidays and other days off, etc.<span class="odfLiEnd"/> </p></li><li><p class="P23" style="margin-left:0.635cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0.635cm">●.</span>ATTENDANCE: This allows to you indicate the presence or absence of each student for either morning or afternoon of a school day<span class="odfLiEnd"/> </p></li><li><p class="P23" style="margin-left:0.635cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0.635cm">●.</span>GRADES:This allows you to enter the grades received for each student in a class for a specific Gradebook Item<span class="odfLiEnd"/> </p></li><li><p class="P23" style="margin-left:0.635cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0.635cm">●.</span>REPORTS: You can select from a variety of reports about a section or class<span class="odfLiEnd"/> </p></li><li><p class="P23" style="margin-left:0.635cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0.635cm">●.</span>STUDENT EMERGENCY: This is a fast way to get contact information about a student.<span class="odfLiEnd"/> </p></li></ul><p class="P22"> </p><h1 class="Heading_20_1"><a id="a__Definitions"><span style="margin-right:0.381cm;"/></a>Definitions</h1><p class="Standard"> </p><p class="P22">Section: This is a group of students who share most or all of the same classes and have assigned a teacher advisor.</p><p class="P22"> </p><p class="P22">Class: A class is defined as a group of students who meet at a certain time and place for a specific subject for a given school year.  An example is section Aguinaldo that meets from 9:30-10:30 for Science III during the 2010-2011 school year.  The name of this class in the database would be “Science III Aguinaldo”.  Some classes do not meet as a section, and they will have unique name.  For example, the TLE III students majoring in garments meeting from 10:30-11:30 may have a class name of “TLE III Garments A”, while the other group of TLE III students majoring in garments meeting from 2:30-3:30 may have a class name of “TLE III Garments B”.</p><p class="P22"> </p><p class="P22">Student: A student will be entered only once in the database, and their historical information will be saved for their entire career in the school system.</p><p class="P22"> </p><p class="P22">Gradebook Item: A gradebook item is defined for a class each time the teacher has the students in that class perform a task.  A gradebook item can be a quiz, a test, a participation score, a project, etc. -- anything for which the teacher will assign a grade for a given class.  For example, if the teacher of Science III Aguinaldo has a quiz, they will add a gradebook item for that quiz in Science III for the students of Aguinaldo.  The gradebook items can be different for each class that the teacher teaches.  </p><p class="P22"> </p><p class="P22">Grades: Grades are the scores that individual students receive for the different gradebook items in a  class.</p><p class="P22"> </p><h1 class="Heading_20_1"><a id="a__Using_the_Database"><span style="margin-right:0.381cm;"/></a>Using the Database</h1><p class="Text_20_body"> </p><p class="P45">There are some important things to know when you are using this database.  Please review the information below before you begin.</p><p class="P45"> </p><h2 class="P8"><a id="a__Saving_Information"><span style="margin-right:0.381cm;"/></a>Saving Information</h2><p class="P46">You must always click “Save” or your work will not be saved!</p><p class="P42"> </p><h2 class="P8"><a id="a__Selecting_a_Button"><span style="margin-right:0.381cm;"/></a>Selecting a Button</h2><p class="P42">To select a button, left-click once on it.</p><p class="P16"> </p><h2 class="P8"><a id="a__Entering_Information_in_a_Box"><span style="margin-right:0.381cm;"/></a>Entering Information in a Box</h2><p class="P16">All of the boxes for entering  information will be colored either white or tan.  Boxes that are white allow you to type in anything you want.  Boxes that are tan (such as Barangay or a teacher's name) will only allow entries that have already been determined by the Guidance Office.  You can start typing letters in the box, and it will immediately start guessing what you want and will show the options that match those letters.  For example, if you type an “f” in “Class Year”, it will show you the options of “First Year” and “Fourth Year”.  If you type an “fo” in “Class Year”, it will show you the option of “Fourth Year”.  If you want to see what all of the options are, double-click with your left mouse button in the tan box and it will show the list of options that you can choose.  IF YOU TYPE SOMETHING COMPLETELY DIFFERENT INTO A TAN BOX, IT WILL <span class="T1">NOT</span> CHANGE THE VALUE.  If you see an option that is missing in a tan box and needs to be added, please contact the Guidance Office and they can add it using the “Maintenance” option.</p><p class="P16"> </p><h2 class="P8"><a id="a__Multiple_Options_for_Selections"><span style="margin-right:0.381cm;"/></a>Multiple Options for Selections</h2><p class="P16">In many cases, there are multiple options for how you select things.  An example is selecting a student.  You can ask for students that have a certain enrollment status, class year, or section.  You can also just start typing their family name.</p><p class="P16"> </p><p class="P16">You do not have to fill out all of these boxes, only the ones that are important to you.  The others you can leave blank.  However if you fill out more than one box, it is best if you do them in the order shown (for example, you would fill out “Section” before you entered “Family Name”).  The last thing you should do is always at the bottom of the list (in the example above, this is “Family Name”).  You can just start typing the first few letters of the student's family name, and it will try to guess the name.  If you need to show all names, you can double-click with your left mouse button in “Family Name” (this is very slow, so it is much better if you can type a few letters of the family name).    After you have entered something in “Family Name”, a list of students is shown.  You can select the student you want by left-clicking on it once and then either hitting the Enter key or left-clicking once on “Select”.  Using “View a Student” as an example, here are some examples of how this works:</p><p class="P16"> </p><p class="P16">A.<span style="position:absolute;left:NaNcm;">To show all Third Year students, select “Third Year” in “Class Year” and then double-click with your left mouse button in “Family Name”.</span></p><p class="P16">B.<span style="position:absolute;left:NaNcm;">To show all students in section Rizal, select “Rizal” in “Section” and then double-click with your left mouse button in “Family Name”.</span></p><p class="P16">C.<span style="position:absolute;left:NaNcm;">To show all students with a family name that starts with “bac”, type “bac” in “Family Name”.</span></p><p class="P16"> </p><p class="P16">One important note is that some selections (such as all students) may take a long time.  Therefore it is helpful to always narrow down the search as much as you can by typing a few letters (3-4) of the family name or by restricting the search to a certain Class Year or Section.</p><p class="P16"> </p><p class="P22">The steps described above allow you to do what is called “filtering”, or selecting things that meet a certain criteria.  For example, it allows you to show a list of students in a certain section (by selecting something in “Section”) or students that have dropped (by picked “Dropped” under “Enrollment Status”).  Remember, you always need to type something or double-click with your left mouse button in “Family Name” so the database knows you are ready to get the results. </p><p class="P16"> </p><h2 class="P8"><a id="a__Selecting_from_a_List"><span style="margin-right:0.381cm;"/></a>Selecting from a List</h2><p class="P16">To select something from a list (for example, to pick a single student from a list of students), left-click on it once and then either hit the “Enter” key or left-click once on the “Select” button.</p><p class="P16"> </p><h2 class="P8"><a id="a__Sorting_a_List"><span style="margin-right:0.381cm;"/></a>Sorting a List</h2><p class="P16">You can sort different ways by just clicking on the word in the heading.  An example is that a list of students is normally given in alphabetical order by family name.  However, by clicking on the list heading “Section”, it rearranges alphabetically by Section.</p><p class="P16"> </p><h2 class="P8"><a id="a__Copying_and_Pasting_to_a_Spreadsheet"><span style="margin-right:0.381cm;"/></a>Copying and Pasting to a Spreadsheet</h2><p class="P16">If you would like to move information from the database into a Calc spreadsheet, you can highlight the information by putting your mouse in the upper left-hand corner of the table of information, pushing down and holding your left mouse button, dragging the mouse to the lower right-hand corner of the table of information, and then releasing the mouse button.  Select “Edit” and “Copy”.  Then go to Calc, left-click once on the cell where you'd like to place the information, and select “Edit” and “Paste”.</p><p class="P16"> </p><p class="P17">Printing Information</p><p class="P16">If you would like to print anything, just go to “File” and “Print”.  You may want to do a “Print Preview” first to see what it will look like.</p><p class="P16"> </p><h2 class="P8"><a id="a__How_Names_are_Alphabetized"><span style="margin-right:0.381cm;"/></a>How Names are Alphabetized</h2><p class="P16">All names (students, teachers, administrators, and other contacts) are shown in tan boxes with <span class="T3">family name first.  </span>They may be shown in the tan box with first name listed first, but you must type the family name to find them in the list.</p><p class="P16"> </p><p class="P17">Typing an Enye</p><p class="P16">On the computers with Linux at CNHS, type the following sequence one at a time: the “Left Window” key (next to the left CTRL key), the “n” key, and then finally the “~” key (next to the 1 key).</p><p class="P16"> </p><p class="P16">For Windows computers, an enye is usually typed by holding down the Alt key while you type 164 on the numeric keypad.</p><p class="P16"> </p><h1 class="P11"><a id="a__Students"><span style="margin-right:0.381cm;"/></a>Students</h1><p class="P22"> </p><p class="P22">One of the important functions of the database is to keep track of student information.  This information only needs to be entered once, when the student first enrolls.  Then for each following year, the student just needs to be assigned to their new section.  The database also allows for updating student information, such as when a phone number or address changes.</p><p class="P22"> </p><p class="P22">To manage student information, left-click once on the “Student” button on the Main Menu.  You will then have the option to Add, Edit, or View student information.  “Add” means that a new student will be created in the database and their information will be stored.  “Edit” means that you can change the information that has already been entered about a student.  “View” means you can look at the information for a student but not change it.  Each of these will be described below.</p><p class="P22"> </p><p class="P14">Remember that for the tan boxes, you must use the options that are already there – if you try to type different information, it will <span class="T1">not</span> be saved.</p><p class="P22"> </p><h2 class="P8"><a id="a__Adding_a_Student"><span style="margin-right:0.381cm;"/></a>Adding a Student</h2><p class="P22">This should be done only once, when the student enrolls.  [If you need to change information about a student that has already been added, go to “Editing a Student” below.]  </p><p class="P22"> </p><p class="P22">Here is the process for adding a student.  Information required for the Form 137 is indicated with a “*”.</p><p class="P22"> </p><ol><li><p class="P24" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">1.</span>Before entering a new student, you should check to make sure the student is not already in the database.  To do this, use the “Viewing a Student” option described below.  <span class="T3">If the student is already in the database, you should not enter them again!  </span><span class="T4">You can use the “Editing a Student” option described below to make any needed changes.</span><span class="odfLiEnd"/> </p></li><li><p class="P24" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">2.</span>Left-click once on the “Student” button on the Main Menu.<span class="odfLiEnd"/> </p></li><li><p class="P24" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">3.</span>Then left-click once on “Add” on the “Work with Students” page.<span class="odfLiEnd"/> </p></li><li><p class="P24" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">4.</span>A new window will open with places to enter all of the needed student information.  This is shown on the next page.  You can use the “Tab” key to move from one box to the next.<span class="odfLiEnd"/> </p></li><li><p class="P24" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">5.</span>NAME: <span class="odfLiEnd"/> </p></li></ol><p class="P22"><span style="position:absolute;left:NaNcm;"/><span style="position:absolute;left:NaNcm;">Enter the students First Name,  Middle Name, and Family Name</span></p><ol><li><p class="P24" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">6.</span>PERSONAL INFORMATION:<span class="odfLiEnd"/> </p></li></ol><ul><li><p class="P40" style="margin-left:2.4869cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0cm">•.</span>Select the student's Gender*.<span class="odfLiEnd"/> </p></li><li><p class="P40" style="margin-left:2.4869cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0cm">•.</span>Enter the Municipality* and Barangay* where the student is living.  These are tan boxes, so you can just start typing the first letters of the municipality and barangay names, and they will show you the options.  Select the correct option.<span class="odfLiEnd"/> </p></li><li><p class="P40" style="margin-left:2.4869cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0cm">•.</span>Enter the student's address (if applicable).<span class="odfLiEnd"/> </p></li><li><p class="P40" style="margin-left:2.4869cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0cm">•.</span>Enter the student's Date of Birth*.  You can either type their date of birth using MMDDYYYY format, or you can click on the calendar to select the student's birth date.<span class="odfLiEnd"/> </p></li><li><p class="P38" style="margin-left:2.4869cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0cm">•.</span>You can save time in entering information about the parents/guardians if the student has brothers and sisters who have already been entered in the database.  Click “Search for Brothers and Sisters”.  If there are students with the same last name, it will show them.  If you want to look at the information for one of those students, left-click once on their name and then click “Check Family”.  It will show the parents or guardians for that other student.  If that is the same for this student, click “Keep Family” and it will automatically add that information for the student you are entering.  If it is not the correct family, click “Cancel Search”. This should save you time in entering new students who already have brothers and sisters at the school.<span class="odfLiEnd"/> </p></li><li><p class="P40" style="margin-left:2.4869cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0cm">•.</span>Click “New Parent or Guardian” to enter the Name* of the student's parents or guardian.  (Note that if you did not do the brothers and sisters check, it will ask you if you want to. Click “Cancel” if you do not want to.)  If the municipality, barangay, and address information is the same, you do not need to enter it again.  Make sure to indicate at the bottom the relationship of the student to this person.  Because more than one parent or guardian can be entered, also select the order in which to contact parents in “Order to Contact”.  Make sure to click “Save” when you are finished.<span class="odfLiEnd"/> </p></li><li><p class="P40" style="margin-left:2.4869cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0cm">•.</span>You can enter information about more than one parent or guardian by click “New Parent or Guardian” again.<span class="odfLiEnd"/> </p></li></ul><p class="P39"> </p><ol><li><p class="P24" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">7.</span>CONTACT INFORMATION:<span class="odfLiEnd"/> </p></li></ol><p class="P39">Enter information about the student's phone number(s) or e-mail address.</p><p class="P39"> </p><ol><li><p class="P24" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">8.</span>STUDENT INFORMATION:<span class="odfLiEnd"/> </p></li></ol><ul><li><p class="P41" style="margin-left:2.4869cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0cm">•.</span>Enter the students Enrollment Status* and the Date of Change.  The date is very important, because it tells the database what the school year is.  <span class="T3">If you do not enter Enrollment Status and the Date of Change for Enrollment Status, the information will not be saved!</span><span class="odfLiEnd"/> </p></li><li><p class="P41" style="margin-left:2.4869cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0cm">•.</span>Enter the student's Class Year* and the Date of Change.<span class="odfLiEnd"/> </p></li><li><p class="P41" style="margin-left:2.4869cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0cm">•.</span>Enter the student's Section* and the Date of Change.  Because sectioning is sometimes done later after the end of the enrollment period, this can be done later.<span class="odfLiEnd"/> </p></li><li><p class="P41" style="margin-left:2.4869cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0cm">•.</span>Enter the student's Ranking, if available, and the Date of Change.<span class="odfLiEnd"/> </p></li><li><p class="P41" style="margin-left:2.4869cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0cm">•.</span>Enter the student's Designations* (e.g., repeater, Balik Aral, Transfer In), if applicable, and the Date of Change. If a student has multiple designations, enter each of them along with the date.<span class="odfLiEnd"/> </p></li><li><p class="P41" style="margin-left:2.4869cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0cm">•.</span>Then click the button “Show Childhood History”.<span class="odfLiEnd"/> </p></li><li><p class="P41" style="margin-left:2.4869cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0cm">•.</span>Enter the student's Birth Province*, Birth Municipality*, and Birth Baranagay*.  If the student was born in a different country, encode that information in the white box “Birth Country”.  If the Birth Municipality and Birth Barangay are not in the lists shown in the tan boxes, you can type them in the white boxes entitled “Birth Municipality (Not In List)” and “Birth Barangay (Not In List)”<span class="odfLiEnd"/> </p></li><li><p class="P41" style="margin-left:2.4869cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0cm">•.</span>Enter the student's Elementary School*, Elementary GPA*, Elementary Graduation Date*, and Years in Elementary School*.<span class="odfLiEnd"/> </p></li></ul><p class="P39"> </p><ol><li><p class="P24" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">9.</span>When you are finished, be sure to click the “Save” button.  <span class="T3">The information will not be saved if you do not click the “Save” button.  Also make sure that the Enrollment Status and Date of Change for Enrollment Status have been completed, or the information will not be saved.</span><span class="odfLiEnd"/> </p></li></ol><p class="P35"> </p><p class="P35">Always remember: Garbage In, Garbage Out (GIGO).  Make sure all of the information is accurate and complete before you select “Save”.</p><p class="P22"> </p><h2 class="P8"><a id="a__Editing_a_Student"><span style="margin-right:0.381cm;"/></a>Editing a Student</h2><p class="P22">Once you've added a student, this gives a way for you to make changes in that student's information – either corrections or updates.</p><p class="P22"> </p><ol><li><p class="P43" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">1.</span>Left-click once on the “Student” button on the Main Menu.<span class="odfLiEnd"/> </p></li><li><p class="P43" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">2.</span>Left-click once on “Edit” on the “Work with Students” page.<span class="odfLiEnd"/> </p></li><li><p class="P43" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">3.</span>There are several ways to look for a specific student.  You can choose Enrollment Status, Class Year, or Section.  You may enter any of those that you like.  Finally, begin typing the student's family name and you will be shown students whose family names match what you've typed.<span class="odfLiEnd"/> </p></li><li><p class="P15" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">4.</span>To select a student to view from the list left-click on it once and then and then either hit the “Enter” key or left-click once on the “Select” button.<span class="odfLiEnd"/> </p></li><li><p class="P15" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">5.</span>The information about the student will be shown.  You can find the items that need to be changed and make the changes.  Remember that for the tan boxes, you <span class="T1">must</span> use the options that are already there – if you try to type different information, it will not be saved.  Be sure to enter the date in the “Student Information” section if you change any enrollment information!<span class="odfLiEnd"/> </p></li><li><p class="P15" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">6.</span>When you are finished, be sure to click “Save” – otherwise the information you just entered will be lost.<span class="odfLiEnd"/> </p></li></ol><p class="P22"> </p><h2 class="P8"><a id="a__Viewing_a_Student"><span style="margin-right:0.381cm;"/></a>Viewing a Student</h2><p class="P36">Left-click once on the “Student” button on the Main Menu.</p><ol><li><p class="P43" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">1.</span>Left-click once on “View” on the “Work with Students” page.<span class="odfLiEnd"/> </p></li><li><p class="P43" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">2.</span>There are several ways to look for a specific student.  You can choose Enrollment Status, Class Year, or Section.  You may enter any of those that you like.  Finally, begin typing the student's family name and you will be shown students whose family names match what you've typed.<span class="odfLiEnd"/> </p></li><li><p class="P15" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">3.</span>To select a student to view from the list left-click on it once and then and then hit the “Enter” key or left-click once on the “Select” button.<span class="odfLiEnd"/> </p></li><li><p class="P15" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">4.</span>The information about the student will be shown.  You will not be able to change it, just look at it.<span class="odfLiEnd"/> </p></li><li><p class="P25" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">5.</span>When you are done, click “Finished”<span class="odfLiEnd"/> </p></li></ol><p class="P22"> </p><h1 class="P11"><a id="a__Attendance"><span style="margin-right:0.381cm;"/></a>Attendance</h1><p class="P22"> </p><p class="P22">This option allows teachers to enter the attendance information for their section.  Attendance is entered by selecting a section and then identifying what students were present or absent in that section for each school day, for both morning and afternoon.</p><p class="P22"> </p><h2 class="P8"><a id="a__Opening_the_Attendance_Record_for_a_Section"><span style="margin-right:0.381cm;"/></a>Opening the Attendance Record for a Section</h2><p class="P22">From the Main Menu, select “Attendance” (under “Perform Tasks”)</p><ol><li><p class="P26" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">1.</span>Under “Section Name”, you can start typing the section name.  The program will try to guess the section based upon what you type, and it will show you options.  If you want it to show all sections, just double-click the left mouse button in the blank instead of entering a section name.<span class="odfLiEnd"/> </p></li><li><p class="P26" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">2.</span>When you see your section, left-click it one time and then hit “Enter” or left-click once on the “Select” button.<span class="odfLiEnd"/> </p></li><li><p class="P26" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">3.</span>The student records for that section will be loaded.  You will see the current week and the last week.<span class="odfLiEnd"/> </p></li></ol><p class="P22"> </p><h2 class="P8"><a id="a__Marking_Attendance_of_an_Entire_Section_for_a_Day"><span style="margin-right:0.381cm;"/></a>Marking Attendance of an Entire Section for a Day</h2><p class="P22">This is the fastest way to enter attendance information for your section.  You can record that every student was present for both the morning and afternoon with a single click.  You can only do this once, before any information has been added and there are question marks shown for each student's attendance.  Once you do this, you can then go back and mark which individual students were absent (see the next section).</p><ol><li><p class="P27" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">1.</span>Move your mouse to the letter for the day of the week that you want to mark (these are shown at the top of the list of students).  <span class="odfLiEnd"/> </p></li><li><p class="P27" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">2.</span>Click your left-mouse button once on the letter.<span class="odfLiEnd"/> </p></li><li><p class="P27" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">3.</span>You will see every student's attendance change to a green check mark for both the morning and the afternoon.  This indicates that all students were present.<span class="odfLiEnd"/> </p></li></ol><p class="P22"> </p><h2 class="P8"><a id="a__Marking_an_Individual_Student_Absent_or_Present"><span style="margin-right:0.381cm;"/></a>Marking an Individual Student Absent or Present</h2><p class="P22">To mark a student as present or absent, you will always start by clicking on the letter for the day of the week that you want to change.  You can tell that this day has been selected because a red outline will show around all of the students for that day.</p><ol><li><p class="P28" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">1.</span>If you want to change both the morning and afternoon, you can just click on the student's name and it will change both at the same time.<span class="odfLiEnd"/> </p></li><li><p class="P28" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">2.</span>You then find the student's name and click on either the morning or afternoon for that day .  A single click will change a green check mark (present) to a red “x” (absent), or vice versa.<span class="odfLiEnd"/> </p></li></ol><p class="P22">Remember, you must always select the day first!</p><p class="P22"> </p><h2 class="P8"><a id="a__Saving_Your_Work"><span style="margin-right:0.381cm;"/></a>Saving Your Work</h2><p class="P22">When you are done working on the attendance for this section, click “Save” at the bottom of the page.  Your work will be saved, and you will be returned to the Main Menu.  If you do not want to save your work, click “Cancel”.</p><p class="P22">You must always click “Save” or your work will not be saved!</p><p class="P22"> </p><p class="P22">You will then return to the Main Menu.</p><p class="P22"> </p><h2 class="P8"><a id="a__Going_to_a_Different_Week"><span style="margin-right:0.381cm;"/></a>Going to a Different Week</h2><p class="P22">If you would like to go to earlier weeks and review or change the entries, do a single left-click on the calendar button labeled “Choose a Start Date”.  This will open a calendar and you can pick the starting date of the two-week period you would like to show.  It will load the earlier information and you can make changes or review the information.</p><p class="P22"> </p><h2 class="P8"><a id="a__Other_Information"><span style="margin-right:0.381cm;"/></a>Other Information</h2><ol><li><p class="P19" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">1.</span>You will not be able to enter attendance information for a day until that day arrives.<span class="odfLiEnd"/> </p></li><li><p class="P19" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">2.</span>To mark the days that there are no classes, see “Maintenance”.  This will be done by the Guidance Office for the entire school.<span class="odfLiEnd"/> </p></li></ol><p class="P18"> </p><p class="P22">You can create attendance reports.  To do this, see the section on Reports.</p><p class="P22"> </p><h1 class="P11"><a id="a__Reports"><span style="margin-right:0.381cm;"/></a>Reports</h1><p class="P22"> </p><p class="P22">To view a report, go to the Main Menu and click “Reports”.  Note that you can also go to Reports from your My Work page.</p><p class="P22"> </p><p class="P22">Then you select the type of report you want.</p><p class="P22"> </p><h2 class="P8"><a id="a__Attendance_Reports"><span style="margin-right:0.381cm;"/></a>Attendance Reports</h2><ol><li><p class="P29" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">1.</span>Choose the section.<span class="odfLiEnd"/> </p></li><li><p class="P29" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">2.</span>Select the Start Date and End Date.  You can type in the values or use the calendar.  <span class="odfLiEnd"/> </p></li><li><p class="P29" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">3.</span>Chose the Report Type (Daily or Student Summary).<span class="odfLiEnd"/> </p></li><li><p class="P29" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">4.</span>Click “Create Report”.<span class="odfLiEnd"/> </p></li><li><p class="P29" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">5.</span>The report will then be displayed.  If you want, you can copy and paste this information into spreadsheet.<span class="odfLiEnd"/> </p></li><li><p class="P29" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">6.</span>When you are finished viewing the report, click “Finished”.<span class="odfLiEnd"/> </p></li></ol><p class="P22"> </p><h2 class="P8"><a id="a__Student_Age_Summary"><span style="margin-right:0.381cm;"/></a>Student Age Summary</h2><ol><li><p class="P30" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">1.</span>You can choose to show the report by Class Year or by Section.<span class="odfLiEnd"/> </p></li><li><p class="P30" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">2.</span>Then choose the date of the report.<span class="odfLiEnd"/> </p></li><li><p class="P30" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">3.</span>Choose the maximum and minimum ages to include in the report.<span class="odfLiEnd"/> </p></li><li><p class="P30" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">4.</span>Put a check in the “Trim Years” box, if you don't want to show every age but only the ages with one or more students.<span class="odfLiEnd"/> </p></li><li><p class="P30" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">5.</span>Finally, you can select the students actual age, or their age at the beginning or end of the school year using the Dep Ed calculation of age.<span class="odfLiEnd"/> </p></li><li><p class="P30" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">6.</span>Click “Create Report”.<span class="odfLiEnd"/> </p></li></ol><ol><li><p class="P29" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">7.</span>The report will then be displayed.  If you want, you can copy and paste this information into spreadsheet.<span class="odfLiEnd"/> </p></li><li><p class="P29" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">8.</span>When you are finished viewing the report, click “Finished”.<span class="odfLiEnd"/> </p></li></ol><p class="P22"/><h2 class="P8"><a id="a__Age_Calculation"><span style="margin-right:0.381cm;"/></a>Age Calculation</h2><p class="P22">The age in June is calculated as follows:</p><ul><li><p class="P31" style="margin-left:0.635cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0.635cm">●.</span>If the student's birthday is from January-March, subtract the year of their birth from this year and add 0.5.<span class="odfLiEnd"/> </p></li><li><p class="P31" style="margin-left:0.635cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0.635cm">●.</span>If the student's birthday is from October-December, subtract the year of their birth from this year and subtract 0.5.<span class="odfLiEnd"/> </p></li><li><p class="P31" style="margin-left:0.635cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0.635cm">●.</span>If the student's birthday is from April-September, subtract the year of their birth from this year.<span class="odfLiEnd"/> </p></li></ul><p class="P22"> </p><p class="P22">For all birth dates, the age in March is calculated by adding 0.75 to the age in June.</p><p class="P22"> </p><p class="P22">Examples:</p><ul><li><p class="P32" style="margin-left:0.635cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0.635cm">●.</span>The student's birth date is March 15, 1995.  This school year is 2010.  Since their birthday falls from January-March, use the first formula.  Their age in June is (2010-1995)+0.5 = 15.5, and their age in March is 15.5+0.75 = 16.25.<span class="odfLiEnd"/> </p></li><li><p class="P32" style="margin-left:0.635cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0.635cm">●.</span>The student's birth date is December 23, 1997.  This school year is 2010.  Since their birthday falls from October-December, use the third formula.  Their age in June is (2010-1997)-0.5 = 12.5, and their age in March is 12.5+0.75 = 13.25.<span class="odfLiEnd"/> </p></li><li><p class="P32" style="margin-left:0.635cm;"><span class="Bullet_20_Symbols" style="display:block;float:left;min-width:0.635cm">●.</span>The student's birth date is August 19, 1998.  This school year is 2010.  Since their birthday falls from January-March, use the second formula.  Their age in June is (2010-1998) = 12, and their age in March is 12 +0.75 = 12.75.<span class="odfLiEnd"/> </p></li></ul><p class="P22"> </p><p class="P37">Section List and School Register</p><p class="P22">For these reports, choose the section you want and click “Create Report”.  You will do a separate School Register report for boys and girls, so you must also select the gender as well as the section name.</p><p class="P22"> </p><h1 class="P11"><a id="a__Grades_and_Gradebook_Items"><span style="margin-right:0.381cm;"/></a>Grades and Gradebook Items</h1><p class="P22"> </p><p class="P22">Coming soon...</p><p class="P22"> </p><h1 class="P11"><a id="a__My_Work"><span style="margin-right:0.381cm;"/></a>My Work</h1><p class="P22"> </p><p class="P22">“My Work” makes it easier for a teacher to manage their advisory section and class.  The first thing a teacher must do is to tell the database what sections and classes are important.  Normally a teacher would choose their advisory section and the classes that they are teaching.  However a teacher can pick <span class="T1">any</span> sections and classes to include in their “My Work”, depending on what is convenient for them.</p><p class="P22"> </p><p class="P37">Setting Up My Work Sections and Classes</p><p class="P22">This would normally be done at the beginning of the school year, but it can be changed at any time.</p><p class="P22"> </p><ol><li><p class="P33" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">1.</span>From the Main Menu, click “My Work”.<span class="odfLiEnd"/> </p></li><li><p class="P33" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">2.</span>Click “About Me” in “My Info”.<span class="odfLiEnd"/> </p></li><li><p class="P33" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">3.</span>The database will display the sections and classes you have already selected, if any.<span class="odfLiEnd"/> </p></li><li><p class="P33" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">4.</span>You can add or remove sections using the options in “My Sections”.  In the “Section” tan box, type the first few letters of the section you want to add or remove (or you can double-click to show them all).  Select the section.  Then click either “Add Section” to add it to your list, or “Remove Section” to remove it from your list.<span class="odfLiEnd"/> </p></li><li><p class="P33" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">5.</span>You can add or remove classes using the options in “My Classes”.  In the “Class” tan box, type the first few letters of the class you want to add or remove (or you can double-click to show them all).  Select the class.  Then click either “Add Class” to add it to your list, or “Remove Class” to remove it from your list.<span class="odfLiEnd"/> </p></li><li><p class="P33" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">6.</span>When you are finished, click the “Save” button.<span class="odfLiEnd"/> </p></li></ol><p class="P22"/><p class="P22">Note: If you try to remove a class or section by selecting from either  list shown under “Name” on the left, it will <span class="T1">not</span> make the change.  You must put the section or class name in the tan box and then click “Remove”.</p><p class="P22"> </p><h1 class="P11"><a id="a__Maintenance__Editing_Your_Teacher_Information"><span style="margin-right:0.381cm;"/></a>Maintenance: Editing Your Teacher Information</h1><p class="P22"> </p><p class="P22">The Maintenance option allows the Guidance Office to set important values used by the database, such as section names, classes, and school information.  The Guidance Office can create new values or edit or view existing values.</p><p class="P22"> </p><p class="P22">Teachers can edit or view their own information using the following procedure.</p><p class="P22"> </p><h2 class="P8"><a id="a__New__Edit__or_View_Maintenance_Values"><span style="margin-right:0.381cm;"/></a>New, Edit, or View Maintenance Values</h2><ol><li><p class="P34" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">1.</span>From the Main Menu, click the “Maintenance” button.<span class="odfLiEnd"/> </p></li><li><p class="P34" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">2.</span>Then select “Teacher”.<span class="odfLiEnd"/> </p></li><li><p class="P34" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">3.</span>Then pick Edit or View, depending upon what you want to do.<span class="odfLiEnd"/> </p></li><li><p class="P34" style="margin-left:0.635cm;"><span class="Numbering_20_Symbols" style="display:block;float:left;min-width:0.635cm">4.</span>If you edit, make the needed changes and then select “Save”.<span class="odfLiEnd"/> </p></li></ol><p class="P22"> </p><h1 class="P11"><a id="a__Practice_Database"><span style="margin-right:0.381cm;"/></a>Practice Database</h1><p class="P22"> </p><p class="P22">If you would like more practice or would lik<span class="T6">e to experiment, you can use the practice database.  It is at</span></p><p class="P22"><span class="T6"> </span><a href="http://pi-schooldb-practice.appspot.com/">http://pi-schooldb-practice.appspot.com</a></p><p class="P22"><a href="http://pi-schooldb-practice.appspot.com/"><span class="T6">Your gmail account may not be set up for this, so you can use one of the practice gmail accounts below.</span></a></p><p class="P20"> </p><p class="P20">pi.practice.teacher1</p><p class="P20">pi.practice.teacher2</p><p class="P20">pi.practice.teacher3 </p><p class="P20"> </p><p class="P20">The password for each of these gmail accounts is pi-database</p><p class="P20"> </p><h1 class="P10"><a id="a__E-Mail_Addresses_for_Help"><span style="margin-right:0.381cm;"/></a>E-Mail Addresses for Help</h1><p class="P20"> </p><p class="P21">Sir Neal:         pi.db.developer@gmail.com<br/>Ma'am Rene:  rlbierb@yahoo.com</p><p class="P44">We would love your ideas for making the database easier and better for you!</p></body></html>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=utf-8">
+	<TITLE></TITLE>
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.2  (Unix)">
+	<META NAME="CREATED" CONTENT="20100411;18145900">
+	<META NAME="CHANGEDBY" CONTENT="master ">
+	<META NAME="CHANGED" CONTENT="20110522;515500">
+	<META NAME="Info 1" CONTENT="">
+	<META NAME="Info 2" CONTENT="">
+	<META NAME="Info 3" CONTENT="">
+	<META NAME="Info 4" CONTENT="">
+	<META NAME="CHANGEDBY" CONTENT="master ">
+	<STYLE TYPE="text/css">
+	<!--
+		@page { margin: 0.79in }
+		H1 { margin-top: 0in; margin-bottom: 0in; text-align: center }
+		H1.western { font-family: "Arial", sans-serif; font-size: 12pt }
+		H1.cjk { font-family: "MS Mincho"; font-size: 16pt }
+		H1.ctl { font-family: "Tahoma"; font-size: 16pt }
+		P { margin-bottom: 0.08in }
+		H2 { margin-top: 0in; margin-bottom: 0in; text-decoration: underline }
+		H2.western { font-size: 12pt; font-style: normal; font-weight: normal }
+		H2.cjk { font-family: "MS Mincho"; font-size: 14pt; font-style: italic }
+		H2.ctl { font-family: "Tahoma"; font-size: 14pt; font-style: italic }
+		A:link { so-language: zxx }
+	-->
+	</STYLE>
+</HEAD>
+<BODY LANG="en-US" DIR="LTR">
+<P><BR><BR>
+</P>
+<P><BR><BR>
+</P>
+<P ALIGN=CENTER><BR><BR>
+</P>
+<P ALIGN=CENTER><BR><BR>
+</P>
+<P ALIGN=CENTER><FONT SIZE=6><B>Department of Education</B></FONT></P>
+<P ALIGN=CENTER><BR><BR>
+</P>
+<P ALIGN=CENTER><FONT SIZE=6><B>Philippines School Database</B></FONT></P>
+<P ALIGN=CENTER><FONT SIZE=6><B>Manual for Teachers</B></FONT></P>
+<P ALIGN=CENTER><BR><BR>
+</P>
+<P ALIGN=CENTER><FONT SIZE=4 STYLE="font-size: 16pt"><B>Database
+version 1.0-13</B></FONT></P>
+<P ALIGN=CENTER><FONT SIZE=4 STYLE="font-size: 16pt"><B>Manual
+version 2011-5-15</B></FONT></P>
+<P ALIGN=CENTER><BR><BR>
+</P>
+<P ALIGN=CENTER><FONT SIZE=4 STYLE="font-size: 16pt"><B>School Year
+2011-2012</B></FONT></P>
+<DIV ID="Table of Contents1" DIR="LTR" STYLE="background: transparent">
+	<P STYLE="page-break-before: always"><BR><BR>
+	</P>
+	<DIV ID="Table of Contents1_Head" DIR="LTR">
+		<P ALIGN=CENTER STYLE="margin-bottom: 0in; page-break-after: avoid">
+		<FONT FACE="Arial, sans-serif"><FONT SIZE=3><B>Table of Contents</B></FONT></FONT></P>
+	</DIV>
+	<P STYLE="margin-bottom: 0in"><A HREF="#__RefHeading__1368_1497544869">Getting
+	Started</A> 3</P>
+	<P STYLE="margin-bottom: 0in"><A HREF="#__RefHeading__1370_1497544869">Main
+	Menu</A> 3</P>
+	<P STYLE="margin-bottom: 0in"><A HREF="#__RefHeading__1372_1497544869">Definitions</A>
+	5</P>
+	<P STYLE="margin-bottom: 0in"><A HREF="#__RefHeading__1374_1497544869">Using
+	the Database</A> 6</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1376_1497544869">Saving
+	Information</A> 6</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1378_1497544869">Date
+	of Change</A> 6</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1380_1497544869">Selecting
+	a Button</A> 6</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1382_1497544869">Entering
+	Information in a Box</A> 6</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1384_1497544869">Multiple
+	Options for Selections</A> 6</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1386_1497544869">Selecting
+	from a List and Sorting a List</A> 8</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1388_1497544869">Copying
+	and Pasting to a Spreadsheet</A> 8</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1390_1497544869">How
+	Names are Alphabetized</A> 8</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1392_1497544869">Typing
+	an Enye</A> 8</P>
+	<P STYLE="margin-bottom: 0in"><A HREF="#__RefHeading__1394_1497544869">My
+	Work</A> 9</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1396_1497544869">Setting
+	Up “My Work” Sections and Classes</A> 9</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1398_1497544869">Section
+	Advisers: Using “My Sections”</A> 10</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1400_1497544869">Classroom
+	Teachers: Using “My Classes”</A> 11</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1402_1497544869">All
+	Teachers: “My Info”</A> 11</P>
+	<P STYLE="margin-bottom: 0in"><A HREF="#__RefHeading__1404_1497544869">Students</A>
+	12</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1406_1497544869">Adding
+	a Student</A> 12</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1408_1497544869">Editing
+	a Student</A> 15</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1410_1497544869">Viewing
+	a Student</A> 16</P>
+	<P STYLE="margin-bottom: 0in"><A HREF="#__RefHeading__1412_1497544869">Attendance</A>
+	17</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1414_1497544869">Opening
+	the Attendance Record for a Section</A> 17</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1416_1497544869">Marking
+	Attendance of an Entire Section for a Day</A> 17</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1418_1497544869">Marking
+	an Individual Student Absent or Present</A> 17</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1420_1497544869">Going
+	to a Different Week</A> 17</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1422_1497544869">Saving
+	Your Work</A> 18</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1424_1497544869">Other
+	Information</A> 18</P>
+	<P STYLE="margin-bottom: 0in"><A HREF="#__RefHeading__1426_1497544869">Grades</A>
+	19</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1428_1497544869">Entering
+	Final Grades for a Grading Period</A> 19</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1430_1497544869">Editing
+	or Viewing Final Grades for a Grading Period</A> 19</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1432_1497544869">Entering
+	or Viewing Achievement Test Scores</A> 19</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1434_1497544869">Future
+	Database Plans</A> 20</P>
+	<P STYLE="margin-bottom: 0in"><A HREF="#__RefHeading__1436_1497544869">Reports</A>
+	21</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1438_1497544869">Attendance</A>
+	21</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1440_1497544869">Student
+	Age Summary</A> 22</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1442_1497544869">Age
+	Calculation</A> 22</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1444_1497544869">Section
+	List</A> 22</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1446_1497544869">Student
+	Records Check</A> 23</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1448_1497544869">Custom
+	Reports</A> 23</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1450_1497544869">Numbered
+	Forms</A> 25</P>
+	<P STYLE="margin-bottom: 0in"><A HREF="#__RefHeading__1452_1497544869">Maintenance</A>
+	26</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1690_1497544869">Viewing
+	Maintenance Information</A> 26</P>
+	<P STYLE="margin-left: 0.2in; margin-bottom: 0in"><A HREF="#__RefHeading__1456_1497544869">Updating
+	Your Teacher Information</A> 26</P>
+</DIV>
+<H1 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1368_1497544869"></A>
+Getting Started</H1>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL>
+	<LI><P STYLE="margin-bottom: 0in">Open up Firefox</P>
+	<LI><P STYLE="margin-bottom: 0in">Go to the website for the
+	database: ph-schooldb.appspot.com</P>
+	<LI><P STYLE="margin-bottom: 0in">Type in your gmail address and
+	password</P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H1 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1370_1497544869"></A>
+Main Menu</H1>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">When you first log in, you will go to
+the Main Menu.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">You will see several options on the
+Main Menu.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">MY WORK: This is a very important
+button for teachers, because it allows them to do their daily tasks
+very quickly. Once every year, you must identify your <U>section</U>
+(if you are an adviser) and the <U>classes</U><SPAN STYLE="text-decoration: none">
+that you teach. Then it is easy to find and update the information
+for your section and classes for the rest of the year.</SPAN></P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">STUDENTS: This allows you to add a new
+student to the database or to edit or view the information for an
+existing student.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">GRADEBOOK ITEMS: [NOT ACTIVE] This
+allows you to add a new “gradebook item” to the database or to
+edit an existing one. A “gradebook item” is needed each time you
+want to add something to the gradebook for a class: a quiz,
+assignment, unit test, participation score, project output, mid test,
+periodic test, etc.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">MAINTENANCE: These are special options
+to create a new school year, to manage information about a school's
+sections and classes, update teachers information, to identify
+holidays and other days off, etc. These are mainly updated by the
+Guidance Office but teachers can view the information. Teachers also
+can update information about themselves in the database using the
+“Maintenance” button.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">ATTENDANCE: This allows to you indicate
+the presence or absence of each student for either morning or
+afternoon of a school day.</P>
+<P STYLE="margin-bottom: 0in"><BR>GRADES: [NOT ACTIVE] This allows
+you to enter the grades received for each student in a class for a
+specific Gradebook Item.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">REPORTS: You can select from a variety
+of reports about a section or class.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">STUDENT EMERGENCY: [NOT ACTIVE] This is
+a fast way to get contact information about a student.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">Do a single left-click on any button to
+select that option.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">To return to the Main Menu, you can go
+to the upper left-hand corner of the window and click on “Main
+Menu”. This is circled in red in the picture below. One click will
+return you to the Main Menu. 
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">Note though that if you select “Main
+Menu” here without clicking “Save”, the information you entered
+on that page will not be saved!</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H1 CLASS="western" STYLE="margin-bottom: 0.2in; page-break-before: always"><A NAME="__RefHeading__1372_1497544869"></A>
+Definitions</H1>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">Period: This indicates the time of the
+class. For example, for many schools the time from 7:30 to 8:30 would
+be “First Period”, the time from 8:30 to 9:30 would be “Second
+Period”, etc. This can be defined for each school depending upon
+the school's schedule.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">Section: This is a group of students
+who share most or all of the same classes and have an assigned
+teacher as a section adviser.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">Class: A class is defined as a group of
+students who meet at a certain class period and classroom for a
+specific subject for a given school year. An example is a section of
+Science III that meets during the third period. The name of this
+class in the database would be “Science-III - Third Period -
+Teacher's Name”. Some classes do not meet as a section, and they
+will have unique name. For example, the TLE I students majoring in
+ICT meeting during the fifth period would have a class name of
+“TLE-I-ICT - Fifth Period - Teacher's Name”, while the other
+group of TLE I students majoring in garments meeting during the six
+period may have a class name of “TLE-I-ICT - Sixth Period -
+Teacher's Name”. Most teachers have several classes that they are
+responsible for.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">Student: A student will be entered only
+once in the database, and their historical information will be saved
+for their entire career in the school system.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">Grades: This refers to grades received
+by individual students in each subject area at the end of each
+grading period.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">Enrollment Status: This indicates
+whether a student is Enrolled, Graduated, Dropped Out, or
+Transferred.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">[NOT ACTIVE] Gradebook Item: A
+gradebook item is defined for a class each time the teacher has the
+students in that class perform a task. A gradebook item can be a
+quiz, a test, a participation score, a project, etc. -- anything for
+which the teacher will assign a grade for a given class. For example,
+if the teacher of Science III Fifth Period has a quiz, they will add
+a gradebook item for that quiz for the students of Science III Fifth
+Period. The gradebook items can be different for each class that the
+teacher teaches. 
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H1 CLASS="western" STYLE="margin-bottom: 0.2in; page-break-before: always"><A NAME="__RefHeading__1374_1497544869"></A>
+Using the Database</H1>
+<P><BR><BR>
+</P>
+<P STYLE="margin-bottom: 0in">There are some important things to know
+when you are using this database. Please review the information below
+before you begin.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1376_1497544869"></A>
+Saving Information</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal"><FONT SIZE=3>You
+must always click “Save” or your work will not be saved!</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1378_1497544869"></A>
+Date of Change</H2>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal"><FONT SIZE=3>In
+many places, when you make a change you will be asked to enter the
+date of change. For example, when you change a student's enrollment
+status, section, or major, you will be asked for Date of Change. It
+is extremely important that you enter that date every time and that
+the date is accurate. This is because this date is used in managing a
+student's history in the school and for setting attendance and many
+other records.</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1380_1497544869"></A>
+Selecting a Button</H2>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal"><FONT SIZE=3>To
+select a button, move your mouse over the button and left-click once
+on it.</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1382_1497544869"></A>
+Entering Information in a Box</H2>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-left: 0.01in; margin-bottom: 0in; font-weight: normal">
+<FONT SIZE=3>All of the boxes for entering information will be
+colored either white or tan. Boxes that are white allow you to type
+in anything you want. Boxes that are tan (such as Barangay or a
+teacher's name) will only allow entries that have already been
+determined by the Guidance Office. You can start typing letters in
+the box, and it will show the options that match those letters. For
+example, if you type an “f” in “Class Year”, it will show you
+the options of “First Year” and “Fourth Year”. If you type
+“fi”, you will see the option of “First Year”. If you want to
+see what all of the options are, double-click with your left mouse
+button in the tan box and it will show the list of options that you
+can choose. IF YOU TYPE SOMETHING COMPLETELY DIFFERENT INTO A TAN
+BOX, IT WILL <U>NOT</U> SAVE THAT VALUE. If you see an option that is
+missing in a tan box and needs to be added, please contact the
+Guidance Office and they can add it using the “Maintenance”
+option.</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1384_1497544869"></A>
+Multiple Options for Selections</H2>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal"><FONT SIZE=3>In
+many cases, there are multiple ways to find and select things. An
+example is shown on the next page for selecting a student. You can
+ask for students that have a certain enrollment status, a certain
+class year, or a certain section. You can also just start typing
+their family name.</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal"><FONT SIZE=3>You
+do not have to fill out all of these, only the ones that are
+important to you. The others you can leave blank. However if you fill
+out more than one box, it is best if you do them in the order shown
+(for example, you would fill out “Section” before you entered
+“Family Name”). The last thing you should do is always at the
+bottom of the list (in the example above, this is “Family Name”).
+You can just start typing the first few letters of the student's
+family name, and it will try to guess the name. If you need to show
+all names, you can double-click with your left mouse button in
+“Family Name” (this is very slow, so it is much better if you can
+type a few letters of the family name). After you have entered
+something in “Family Name”, a list of students is shown. You can
+select the student you want by left-clicking on it once and then
+either hitting the Enter key or left-clicking once on “Select” at
+the bottom of the list. Using “View a Student” as an example,
+here are some examples of how this works:</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal"><FONT SIZE=3>A.
+To show all Third Year students, select “Third Year” in “Class
+Year” and then double-click with your left mouse button in “Family
+Name”.</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal"><FONT SIZE=3>B.
+To show all students in section Rizal, select “Rizal” in
+“Section” and then double-click with your left mouse button in
+“Family Name”.</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal"><FONT SIZE=3>C.
+To show all students with a family name that starts with “ba”,
+type “ba” in “Family Name”.</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal"><FONT SIZE=3>One
+other nice feature is that if you select something in “Class
+Level”, now the selections below (Section and Family Name) will
+only include Sections and Students from that Class Level that you
+selected. For example, if you select a Class Level of Third Year, it
+will only show Third Year Sections in the Section box and Third Year
+students in the Family Name box.</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal"><FONT SIZE=3>One
+important note is that some selections (such as all students) may
+take a long time. Therefore it is helpful to always narrow down the
+search as much as you can by typing some letters of the family name
+or by restricting the search to a certain Class Year or Section.</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in">The steps described above
+allow you to do what is called “filtering”, or selecting things
+that meet a certain criteria. For example, it allows you to show a
+list of students in a certain section (by selecting something in
+“Section”) or students that have dropped (by picked “Dropped
+Out” under “Enrollment Status”). Remember, you always need to
+type something or double-click with your left mouse button in “Family
+Name” so the database knows you are ready to get the results. 
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1386_1497544869"></A>
+Selecting from a List and Sorting a List</H2>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal"><FONT SIZE=3>To
+select something from a list (for example, to pick a single student
+from a list of students), click your left mouse button on it once.
+When you click once on it, you will be able to see that it is
+highlighted. Then you can either hit the “Enter” key or
+left-click once on the “Select” button at the bottom of the list.
+</FONT>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal"><FONT SIZE=3>You
+can sort different ways by just clicking on the word in the heading.
+For example, a list of students is normally given in alphabetical
+order by family name. However, by clicking on the list heading
+“Section”, it is rearranged alphabetically by Section.</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1388_1497544869"></A>
+Copying and Pasting to a Spreadsheet</H2>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal"><FONT SIZE=3>If
+you would like to move information from the database into a
+spreadsheet, you can highlight the information by putting your mouse
+in the upper left-hand corner of the table of information, pushing
+down and holding your left mouse button, dragging the mouse to the
+lower right-hand corner of the table of information, and then
+releasing the mouse button. Select “Edit” and “Copy”. Then go
+to your spreadsheet, left-click once on the cell where you'd like to
+place the information, and select “Edit” and “Paste”.</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1390_1497544869"></A>
+How Names are Alphabetized</H2>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal"><FONT SIZE=3>All
+names (students, teachers, administrators, and other contacts) are
+shown in tan boxes with <B>family name first. </B>They may be shown
+in the tan box with first name listed first, but you must type the
+family name to find them in the list.</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1392_1497544869"></A>
+Typing an Enye</H2>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal"><FONT SIZE=3>On
+the computers with Linux at CNHS, type the following sequence one at
+a time: the “Left Window” key (next to the left CTRL key), the
+“n” key, and then finally the “~” key (next to the 1 key).</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal"><FONT SIZE=3>For
+Windows computers, an enye is usually typed by holding down the Alt
+key while you type 164 on the numeric keypad.</FONT></P>
+<H1 CLASS="western" STYLE="margin-bottom: 0.2in; page-break-before: always"><A NAME="__RefHeading__1394_1497544869"></A>
+My Work</H1>
+<P STYLE="margin-bottom: 0in"><BR>“My Work” saves time for
+teachers by putting into one place the buttons they use most. It
+makes it easy for them to go immediately to their sections or classes
+to encode or review information about the students. You can always
+use the Main Menu to find everything, but it is usually faster to
+just use “My Work” to do your usual tasks.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">You will also go to “My Work' to
+update your own personal information. <B>It is important that you
+keep your information updated for the school records.</B></P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">Clicking “My Work” from the Main
+Menu will bring up the menu below. Note that there are two buttons
+that say “Show Other Tasks”. If you click those, it will expand
+to show some other buttons for you. If you don't want to show those
+buttons, you can click “Hide Other Tasks”.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1396_1497544869"></A>
+Setting Up “My Work” Sections and Classes</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">You should not have to do this, since
+the database automatically identifies a teacher's section (if they
+are a section adviser) and their classes. However if you wants to
+look at other classes or sections that are not yours, you can pick
+<U>any</U> sections and classes to include in “My Work”. This
+only has to be done once, at the beginning of the school year. It can
+be changed at any time though.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL>
+	<LI><P STYLE="margin-bottom: 0in">From the Main Menu, click “My
+	Work”.</P>
+	<LI><P STYLE="margin-bottom: 0in">Click “My Choices” (in “My
+	Info”).</P>
+	<LI><P STYLE="margin-bottom: 0in">The database will display the
+	sections and classes you have already selected, if any.</P>
+	<LI><P STYLE="margin-bottom: 0in">You can add or remove sections
+	using the options in “My Sections”. 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">To ADD a section: In the “Section”
+	tan box, type the first few letters of the section you want to add
+	(or you can double-click to show them all). Select the section you
+	want to add. Then left-click once on the “Add Section” button to
+	add it to your list. It will show up in the list.</P>
+	<LI><P STYLE="margin-bottom: 0in">To REMOVE a section: In the list
+	of sections displayed, left-click once on the section you want to
+	remove, then left-click once on the “Remove Section” button to
+	remove it from your list. You will see it removed from your list.</P>
+	<LI><P STYLE="margin-bottom: 0in">You can add or remove classes
+	using the options in “My Classes”. It is done the same way as
+	adding or removing sections. 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">To ADD a class: In the “Class”
+	tan box, type the first few letters of the class you want to add (or
+	you can double-click to show them all). Select the class. Then click
+	“Add Class” to add it to your list.</P>
+	<LI><P STYLE="margin-bottom: 0in">To REMOVE a class: In the list of
+	classes displayed, left-click once on the class you want to remove,
+	then left-click once on the “Remove Class” button to remove it
+	from your list. You will see it removed from your list.</P>
+	<LI><P STYLE="margin-bottom: 0in">When you are finished, click the
+	“Save” button.</P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1398_1497544869"></A>
+Section Advisers: Using “My Sections”</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">Section Advisers can select almost all
+of their daily tasks from here. Below is a short description of each
+button in the “My Classes” area of the “My Work” page. NOTE:
+YOU MUST HAVE A SECTION SELECTED BEFORE YOU CLICK A BUTTON. If you do
+not, it will ask you to select your section. (Note that you can
+choose any section you want. However if you are not the section
+adviser for the section you select, you will <U>not</U> be able to
+enter attendance or edit students. Only the section adviser can do
+that.)</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><I>Attendance:</I> If you click this
+button, you can enter the daily attendance for your section. (See the
+chapter on Attendance for more details.)</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><I>Reports:</I> If you click this
+button, you can select different reports to view or print. (See the
+chapter on Reports for more details.)</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><I>Class Schedule:</I> If you click
+this button, you can view the schedule for your section.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><I>Edit Students:</I> If you click this
+button, it will show the list of students in your section. Left-click
+once on the student you want to edit and hit “Enter” or
+left-click once on “Select” at the bottom of the list. You can
+then edit the student information. Be sure to click “Save” when
+you are finished. (See the chapter on Students for more details.)</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><I>Achievement Tests: </I>[you must
+click “Show Other Tasks” to see this button] If you click this
+button, you can select the achievement test you want to enter grades
+for and then enter the grades for your section. (See the chapter on
+Grades for more details.)</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><I>View Details:</I> [you must click
+“Show Other Tasks” to see this button] If you click this button,
+it will show the information about your section including the name of
+the section adviser, the classroom, and the year level.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1400_1497544869"></A>
+Classroom Teachers: Using “My Classes”</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">These are options for classroom
+teachers. Below is a short description of each button in the “My
+Sections” area of the “My Work” page. NOTE: YOU MUST HAVE ONE
+OF YOUR CLASSES SELECTED BEFORE YOU CLICK A BUTTON. If you do not, it
+will ask you to select one of your classes.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><I>Grades:</I> If you click this
+button, you can view or edit the quarterly grades for a class. (See
+the chapter on Grades for more details.)</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><I>Reports:</I> [Not yet active]</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><I>Gradebook Calendar:</I> [Not yet
+active]</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><I>View Students:</I> If you click this
+button, it will show the list of students in your class. 
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><I>View Details:</I> [you must click
+“Show Other Tasks” to see this button] If you click this button,
+it will show the information about your class including the name of
+the classroom teacher, the classroom, the subject and year level, and
+the section (if the class is assigned to the entire section).</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1402_1497544869"></A>
+All Teachers: “My Info”</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">These are options for classroom
+teachers. Below is a short description of each button in the “My
+Sections” area of the “My Work” page.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><I>My Choices:</I> This allows you to
+define your section and your classes (described earlier in this
+chapter).</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><I>Edit My Info: </I>If you click this
+button, you can update your own teacher information. You will want to
+add all of the information requested here so that other teachers, the
+school, and the Division office can use it. Please keep this
+information updated, at least once a year.</P>
+<P STYLE="margin-bottom: 0in"><BR><I>View My School:</I> If you click
+this button, you can see information about your school.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H1 CLASS="western" STYLE="margin-bottom: 0.2in; page-break-before: always"><A NAME="__RefHeading__1404_1497544869"></A>
+Students</H1>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">One of the important functions of the
+database is to keep track of student information. This information
+only needs to be entered once, when the student first enrolls. Then
+for each following year, the student just needs to be assigned to
+their new section. The database also allows for updating student
+information, such as when a phone number or address changes.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">To manage student information,
+left-click once on the “Student” button on the Main Menu. You
+will then have the option for New, Edit, or View for student
+information. “New” means that a new student will be created in
+the database and their information will be stored. “Edit” means
+that you can change the information that has already been entered
+about a student. “View” means you can look at the information for
+a student but not change it. Each of these will be described below.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+<FONT SIZE=3>Remember that for the tan boxes, you must use the
+options that are already there – if you try to type different
+information, it will <U>not</U> be saved.</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1406_1497544869"></A>
+Adding a Student</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">This should be done <B>only once</B>,
+when the student first enrolls at your school. When you try to enter
+a new student, the program will automatically check to see if they
+are already in there when you enter the birth date. Please be careful
+to make sure you do not enter the same student twice! [If you need to
+change information about a student that has already been added, go to
+“Editing a Student” below.] 
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL>
+	<LI><P STYLE="margin-bottom: 0in">Left-click once on the “Student”
+	button on the Main Menu.</P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL START=2>
+	<LI><P STYLE="margin-bottom: 0in">Then left-click once on “New”
+	in the “Work with Students” page.</P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL START=3>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>A new window “Create a Student” will open with
+	places to enter all of the needed student information. This window
+	is shown on the next page. You can use the “Tab” or “Enter”
+	key to move from one box to the next.</FONT></P>
+</OL>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL START=4>
+	<LI><P STYLE="margin-bottom: 0in">NAME: 
+	</P>
+</OL>
+<P STYLE="margin-bottom: 0in">Enter the students First Name, Middle
+Name, and Family Name.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL START=5>
+	<LI><P STYLE="margin-bottom: 0in">PERSONAL INFORMATION:</P>
+</OL>
+<P STYLE="margin-left: 0.98in; margin-bottom: 0in">Select the
+student's Gender.</P>
+<P STYLE="margin-left: 0.98in; margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-left: 0.98in; margin-bottom: 0in">Select the
+Municipality and Barangay where the student is living. These are tan
+boxes, so you can just start typing the first letters of the
+municipality and barangay names, and they will show you the options.
+Select the correct option. You must choose municipality first before
+choosing the barangay! This is so the right barangays can be shown
+for that municipality. If you select the barangay first, it will be
+erased when you select the municipality.</P>
+<P STYLE="margin-left: 0.98in; margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-left: 0.98in; margin-bottom: 0in">Enter the
+student's address (if applicable). Do not enter municipality or
+barangay again.</P>
+<P STYLE="margin-left: 0.98in; margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-left: 0.98in; margin-bottom: 0in">Enter the
+student's Date of Birth. You can either type their date of birth
+using MMDDYYYY format. If the month is less than 10, you must type a
+0 as the first digit. For example, if the birthdate is in May you
+would type 05 for the month. It is the same for the birth date. If
+you were born on the 4<SUP>th</SUP>, you would type 04 for the day.
+You can also click on the calendar to select the student's birth
+date. Make sure to select the correct year as well as the correct
+month and date if you use the calendar.</P>
+<P STYLE="margin-left: 0.98in; margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-left: 0.98in; margin-bottom: 0in">You can click
+“Search for Brothers or Sisters” if you know that there is
+another student from the same family already in the database.
+Otherwise click “New Parent or Guardian” to enter the Name of the
+student's parents or guardian. If there are students with the same
+last name, it will show them to you automatically. If you want to
+look at the information for one of those students, left-click once on
+their name and then click “Check Family”. It will show the
+parents or guardians for that other student. If that is the same for
+this student, click “Keep Family” and it will automatically add
+that information for the student you are entering. If it is not the
+correct family, click “Cancel Search”. This shou<FONT FACE="Times New Roman, serif"><FONT SIZE=3>ld
+save you time in entering new students who already have brothers and
+sisters at the school. It will also ensure</FONT></FONT><FONT COLOR="#000000"><SPAN STYLE="text-decoration: none">
+</SPAN></FONT><FONT COLOR="#000000"><SPAN STYLE="text-decoration: none"><FONT FACE="Times New Roman, serif"><FONT SIZE=3><SPAN STYLE="font-style: normal"><SPAN STYLE="font-weight: normal">that
+any changes for one of the siblings will be shown in all – they are
+kept together as a family. Ina addition, the association of family
+members will be used in other places such as the student emergency
+information.</SPAN></SPAN></FONT></FONT></SPAN></FONT></P>
+<P STYLE="margin-left: 0.98in; margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-left: 0.98in; margin-bottom: 0in">If the
+parent/guardian municipality, barangay, and address information is
+the same, you do not need to enter it again. Make sure to indicate at
+the bottom the relationship of the student to this person. Because
+more than one parent or guardian can be entered, also select the
+order in which to contact parents in “Order to Contact”. Make
+sure to click “Save” when you are finished.</P>
+<P STYLE="margin-left: 0.98in; margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-left: 0.98in; margin-bottom: 0in; font-weight: normal; text-decoration: none">
+<FONT SIZE=3>You can enter information about more than one parent or
+guardian by click “New Parent or Guardian” again.</FONT></P>
+<P STYLE="margin-left: 0.98in; margin-bottom: 0in"><BR>
+</P>
+<OL START=6>
+	<LI><P STYLE="margin-bottom: 0in">CONTACT INFORMATION:</P>
+</OL>
+<P STYLE="margin-left: 0.98in; margin-bottom: 0in">Enter information
+about the student's phone number(s) or e-mail address.</P>
+<P STYLE="margin-left: 0.98in; margin-bottom: 0in"><BR>
+</P>
+<OL START=7>
+	<LI><P STYLE="margin-bottom: 0in">STUDENT INFORMATION:</P>
+</OL>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in">Enter the
+student's ID if your school assigns one.</P>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in">Enrollment Status
+and the Date of Change. The date is very important, because it tells
+the database what the school year is and is used in setting
+attendance and many other school records. <B>If you do not enter
+Enrollment Status and the Date of Change for Enrollment Status, the
+information will not be saved!</B></P>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in">Select the
+student's Class Year and the Date of Change.</P>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in">Select the
+student's Section and the Date of Change. If the sectioning is done
+later after the end of the enrollment period, this can be done later.</P>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in">Select the
+student's Major and the Date of Change.</P>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in">Select the
+student's Designations (e.g., repeater, Balik Aral, Transfer In), if
+applicable, and the Date of Change.</P>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in">Enter the
+student's Ranking, if available, and the Date of Change.</P>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in">Then click the
+button “Show Childhood History”.</P>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in">Select the
+student's Birth Province, Birth Municipality, and Birth Barangay. If
+the Birth Municipality and Birth Barangay are not in the lists shown
+in the tan boxes, you can encode them in the white boxes entitled
+“Birth Municipality (Not In List)” and “Birth Barangay (Not In
+List)”</P>
+<P STYLE="margin-left: 0.99in; margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-left: 1in; margin-bottom: 0in">Enter the student's
+Elementary School, Elementary General Average, Elementary Graduation
+Date, and Years in Elementary School.</P>
+<P STYLE="margin-left: 1in; margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-left: 1in; margin-bottom: 0in">Then click the button
+“Show School Transfer” (this is just for students who transfer
+in) and enter the information and date.</P>
+<P STYLE="margin-left: 1in; margin-bottom: 0in"><BR>
+</P>
+<OL START=8>
+	<LI><P STYLE="margin-bottom: 0in">Please check your work to make
+	sure that you have type in everything correctly. Remember, “<B>Garbage
+	In, Garbage Out.”</B></P>
+</OL>
+<P STYLE="margin-left: 1in; margin-bottom: 0in"><BR>
+</P>
+<OL START=9>
+	<LI><P STYLE="margin-bottom: 0in">When you are finished, be sure to
+	click the “Save” button. <B>The information will not be saved if
+	you do not click the “Save” button. Also make sure that the
+	First Name and Family Name and Enrollment Status and Date of Change
+	for Enrollment Status have been completed, or the information will
+	not be saved. For some fields, if there are errors or missing
+	information, the field with the error will be highlighted with an
+	error message beside it. These errors must be corrected before you
+	can save.</B></P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL START=10>
+	<LI><P STYLE="margin-bottom: 0in; font-style: normal; font-weight: normal">
+	<FONT SIZE=3>It is a good thing to view the Section List frequently
+	when you are encoding the students. This will allow you to make sure
+	that you are enrolling the students properly. If you have entered
+	the dates and section information properly, the students should show
+	up on the section list. See the <BR>chapter on “Reports” to see
+	how to view a Section List.</FONT></P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="text-indent: 0.01in; margin-bottom: 0in; font-style: normal; font-weight: normal; text-decoration: none">
+<FONT SIZE=3>Another helpful report during encoding of student
+information is the “Student Records Check”. The Student Records
+Check allows you to see what students do not have an assigned
+section, what students have not yet been enrolled, or shows what
+information is missing for students in a section. See the <BR>chapter
+on “Reports” for more information on this report.</FONT></P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1408_1497544869"></A>
+Editing a Student</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">Once you've added a student, the “Edit”
+option gives a way for you to make changes in that student's
+information – either corrections or updates.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL>
+	<LI><P STYLE="text-decoration: none">Left-click once on the
+	“Student” button on the Main Menu. Then left-click once on
+	“Edit” on the “Work with Students” page. 
+	</P>
+	<LI><P STYLE="text-decoration: none">There are several ways to look
+	for a specific student. You can choose Enrollment Status, Class
+	Year, or Section. You may enter any of those that you like. Finally,
+	begin typing the student's family name and you will be shown
+	students whose family names match what you've typed.</P>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>To select a student to view from the list left-click on
+	it once and then and then either hit the “Enter” key or
+	left-click once on the “Select” button.</FONT></P>
+</OL>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL START=4>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>The information about the student will be shown. You
+	can find the items that need to be changed and make the changes.
+	Remember that for the tan boxes, you <U>must</U> use the options
+	that are already there – if you try to type different information,
+	it will not be saved.</FONT></P>
+</OL>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL START=5>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>When you are finished, be sure to click “Save” –
+	otherwise the information you just entered will be lost.</FONT></P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1410_1497544869"></A>
+Viewing a Student</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL>
+	<LI VALUE=1><P STYLE="text-decoration: none">Left-click once on the
+	“Student” button on the Main Menu.</P>
+	<LI><P STYLE="text-decoration: none">Left-click once on “View”
+	on the “Work with Students” page.</P>
+	<LI><P STYLE="text-decoration: none">There are several ways to look
+	for a specific student. You can choose Enrollment Status, Class
+	Year, or Section. You may enter any of those that you like. Finally,
+	begin typing the student's family name and you will be shown
+	students whose family names match what you've typed.</P>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>To select a student to view from the list left-click on
+	it once and then and then hit the “Enter” key or left-click once
+	on the “Select” button.</FONT></P>
+</OL>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL START=5>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>The information about the student will be shown. You
+	will not be able to change it, just look at it.</FONT></P>
+</OL>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL START=6>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>When you are done, click “Finished”</FONT></P>
+</OL>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+<FONT SIZE=3>Note that Enrollment Status is automatically set to
+“Enrolled” as a default value. If you are looking for students
+from a previous year who have not yet enrolled or students that have
+dropped, transferred out, or graduated, you must change the select in
+Enrollment Status or you will not be able to view those students.</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P><BR><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H1 CLASS="western" STYLE="margin-bottom: 0.2in; page-break-before: always"><A NAME="__RefHeading__1412_1497544869"></A>
+Attendance</H1>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">This option allows section advisers to
+enter the attendance information for their section. Attendance is
+entered by selecting a section and then identifying what students
+were present or absent in that section for each school day, for both
+morning and afternoon. Note that if you are not a section adviser,
+the attendance button will be disabled for you.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1414_1497544869"></A>
+Opening the Attendance Record for a Section</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL>
+	<LI><P STYLE="margin-bottom: 0in">Go to “My Work” from the Main
+	Menu and select “Attendance” (You can also select “Attendance”
+	from the Main Menu under “Perform Tasks” and enter your section)</P>
+	<LI><P STYLE="margin-bottom: 0in">The student records for your
+	section will be loaded. You will see the current week and the last
+	week.</P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1416_1497544869"></A>
+Marking Attendance of an Entire Section for a Day</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">This is the first step in entering
+attendance information for your section. You can record that every
+student was present for both the morning and afternoon with a single
+click. You can only do this once, before any information has been
+added and there are question marks shown for each student's
+attendance. Once you do this, you can then go back and mark which
+individual students were absent (see the next section).</P>
+<OL>
+	<LI><P STYLE="margin-bottom: 0in">Move your mouse to the letter for
+	the day of the week that you want to mark (these are shown at the
+	top of the list of students). 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">Click your left-mouse button once
+	on the letter.</P>
+	<LI><P STYLE="margin-bottom: 0in">You will see every student's
+	attendance change to a green check mark for both the morning and the
+	afternoon. This indicates that all students were present.</P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1418_1497544869"></A>
+Marking an Individual Student Absent or Present</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">To mark a student as present or absent,
+you must always start by clicking on the letter for the day of the
+week that you want to change. You can tell that this day has been
+selected because a red outline will show around all of the students
+for that day.</P>
+<OL>
+	<LI><P STYLE="margin-bottom: 0in">You then find the student's name
+	and click on either the morning or afternoon for that day . A single
+	click will change a green check mark (present) to a red “x”
+	(absent), or vice versa.</P>
+	<LI><P STYLE="margin-bottom: 0in">If you want to change both the
+	morning and afternoon, you can just click on the student's name and
+	it will change both at the same time.</P>
+	<LI><P STYLE="margin-bottom: 0in">If you make a mistake, clicking
+	again will just change it back.</P>
+</OL>
+<P STYLE="margin-bottom: 0in">Remember, you must always select the
+day first!</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1420_1497544869"></A>
+Going to a Different Week</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">If you have entered new attendance
+information, be sure to save it and then come back before you choose
+another week. Then if you would like to go to earlier weeks and
+review or change the entries, do a single left-click on the calendar
+button labeled “Choose a Start Date”. This will open a calendar
+and you can pick the starting date of the two-week period you would
+like to show. It will load the earlier information and you can make
+changes or review the information.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1422_1497544869"></A>
+Saving Your Work</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">When you are done working on the
+attendance for this section, click “Save” at the bottom of the
+page. Your work will be saved, and you will be returned to the Main
+Menu. If you do not want to save your work, click “Cancel”.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=CENTER STYLE="margin-bottom: 0in"><FONT SIZE=4><B>You must
+always click “Save” or your work will not be saved!</B></FONT></P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">You will then return to the Main Menu.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1424_1497544869"></A>
+Other Information</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL>
+	<LI><P STYLE="margin-bottom: 0in">You will not be able to enter
+	attendance information for a day until that day arrives.</P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT COLOR="#000000">The Guidance
+	Office will mark the days that there are no classes for the entire
+	school.</FONT></P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT COLOR="#000000">The Guidance
+	Office will also mark “make-up” days, such as Saturdays. You
+	will be able to enter attendance for those days.</FONT></P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT COLOR="#000000">Putting the
+	mouse on each date will give a bubble above it with information
+	about that day. If it is a special day the date will have a special
+	color and you can hold the mouse over it to see why it is special.</FONT></P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">You can create the Form 1 and Form 2
+reports for attendance. To do this, see the chapter on Reports.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H1 CLASS="western" STYLE="margin-bottom: 0.2in; page-break-before: always"><A NAME="__RefHeading__1426_1497544869"></A>
+Grades</H1>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">There are two types of grades that can
+be entered into the database now: achievement test grades (for a Form
+14) and the final grades for a grading period (for a report card). 
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1428_1497544869"></A>
+Entering Final Grades for a Grading Period</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><FONT FACE="Times New Roman, serif">At
+the end of the grading period, you can enter the final grades for
+each student in your classes. It is important to know that you cannot
+enter grades until the end of the grading period.</FONT></P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL>
+	<LI><P STYLE="margin-bottom: 0in"><FONT FACE="Times New Roman, serif">From
+	the Main Menu, left-click once on “My Work” and select the class
+	that you want to enter grades for</FONT></P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT FACE="Times New Roman, serif">Left-click
+	once on “Grades”</FONT></P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT FACE="Times New Roman, serif">Identify
+	the grading period that you want to enter grades for, and click the
+	“Edit” box to encode the final grade for each student for a
+	grading period. You can also choose other grading periods to view at
+	the same time. This would allow you to compare current grades with
+	those from previous grading periods.</FONT></P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT FACE="Times New Roman, serif">When
+	you are done working on the grades for this section, always click
+	“Save” at the bottom of the page. If you do not want to save
+	your work, click “Cancel”.</FONT></P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><FONT FACE="Times New Roman, serif"><B>MAKE
+SURE YOU CLICK THE SAVE BUTTON OR YOUR WORK WILL NOT BE SAVED!</B></FONT></P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1430_1497544869"></A>
+Editing or Viewing Final Grades for a Grading Period</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><FONT FACE="Times New Roman, serif">You
+can also edit or view final grades for a grading period that you've
+already entered. Note that if you are not the assigned teacher for a
+class, you may still view the grades but you cannot edit them. The
+button name changes to “View Grades” to indicate that.</FONT></P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL>
+	<LI><P STYLE="margin-bottom: 0in"><FONT FACE="Times New Roman, serif">From
+	the Main Menu, select “My Work” and then select the class</FONT></P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT FACE="Times New Roman, serif">Left-click
+	once on “Grades”</FONT></P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT FACE="Times New Roman, serif">Identify
+	each grading period that you want to enter grades for, and click
+	either the “View” or “Edit” box. You can select any number
+	of them. “Edit” allows you to change the final grade for a
+	student for a grading period, and “View” allows you to just view
+	them without making changes.</FONT></P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT FACE="Times New Roman, serif">If
+	you make changes, be sure to click “Save” at the bottom of the
+	page. If you do not want to save your work, click “Cancel”.</FONT></P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1432_1497544869"></A>
+<FONT COLOR="#000000">Entering or Viewing Achievement Test Scores</FONT></H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">You can enter or view achievement test
+scores for your section.</P>
+<OL>
+	<LI VALUE=1><P STYLE="margin-bottom: 0in">From the Main Menu, select
+	“My Work”. 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT COLOR="#000000"><FONT FACE="Times New Roman, serif">Left-click
+	once on “Show Other Tasks”. You will then see “Achievement
+	Tests”.</FONT></FONT></P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT COLOR="#000000"><FONT FACE="Times New Roman, serif">Left-click
+	once on “Achievement Tests”.</FONT></FONT></P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT COLOR="#000000"><FONT FACE="Times New Roman, serif">You
+	will then have to select the achievement test you want to enter
+	grades for. </FONT></FONT>
+	</P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT COLOR="#000000"><FONT FACE="Times New Roman, serif">First
+	select your section under “Section” and then select the
+	achievement test..</FONT></FONT></P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT COLOR="#000000"><FONT FACE="Times New Roman, serif">Left-click
+	once on “Get Grades”.</FONT></FONT></P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT COLOR="#000000"><FONT FACE="Times New Roman, serif">A
+	new window will open for you to enter the grades. Each subject area
+	should be shown that was included in the test, as well as the number
+	of test items.</FONT></FONT></P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT COLOR="#000000"><FONT FACE="Times New Roman, serif">Encode
+	the scores of your section. You can use either the Tab key or Enter
+	to move to the next entry.</FONT></FONT></P>
+	<LI><P STYLE="margin-bottom: 0in"><FONT COLOR="#000000"><FONT FACE="Times New Roman, serif">Be
+	sure to click “Save” at the bottom of the page when you are
+	done!</FONT></FONT></P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1434_1497544869"></A>
+Future Database Plans</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">In the future, teachers may be able to
+manage all of the grades for each of their classes. For each
+individual class they teach, a teacher will create in the database
+“gradebook items” such as quizzes, projects, participation,
+tests, and other activities that they have assigned to their
+students. The teacher could then enter the grade that each student
+earns for that “gradebook item”. The database could then be able
+to calculate the final grades for the grading period for the students
+in their class. This capability is not yet active.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H1 CLASS="western" STYLE="margin-bottom: 0.2in; page-break-before: always"><A NAME="__RefHeading__1436_1497544869"></A>
+Reports</H1>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+<FONT SIZE=3>REMEMBER – INFORMATION DATA ONLY NEEDS TO BE ENTERED
+ONCE IN A DATABASE, AND IT CAN THEN BE REPORTED ANY WAY YOU WANT. If
+there is another report that you need, contact your guidance office
+with suggestions. This may then be included in a later version of the
+database program.</FONT></P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">To view a report, you can go to Reports
+from your “My Work” page. You can also go to the Main Menu and
+click “Reports”. You will see a list of the available reports.
+Then you select the type of report you want. If you want a numbered
+Form, you can click “Show Numbered Forms” to display the options
+(see below).</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1438_1497544869"></A>
+Attendance</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">This report shows a summary of
+attendance. You can select the time period that you want to view.
+Note that if you want the Form 1 or Form 2, you can click “Show
+Numbered Forms”.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL>
+	<LI><P STYLE="margin-bottom: 0in">Left-click once on the
+	“Attendance” button.</P>
+	<LI><P STYLE="margin-bottom: 0in">Choose the section.</P>
+	<LI><P STYLE="margin-bottom: 0in">Select the Start Date and End
+	Date. You can type in the values or use the calendar. 
+	</P>
+	<LI><P STYLE="margin-bottom: 0in">Chose the Report Type (Daily or
+	Student Summary).</P>
+	<LI><P STYLE="margin-bottom: 0in">Click “Create Report”.</P>
+	<LI><P STYLE="margin-bottom: 0in">The report will then be displayed.
+	If you want, you can copy and paste this information into
+	spreadsheet.</P>
+	<LI><P STYLE="margin-bottom: 0in">When you are finished viewing the
+	report, click “Finished”.</P>
+</OL>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1440_1497544869"></A>
+Student Age Summary</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL>
+	<LI><P STYLE="margin-bottom: 0in">Left-click once on the “Student
+	Age Summary” button.</P>
+	<LI><P STYLE="margin-bottom: 0in">You can choose to show the report
+	by Class Year or by Section.</P>
+	<LI><P STYLE="margin-bottom: 0in">Then choose the date of the
+	report. If you do not set a date, the current date will be used.</P>
+	<LI><P STYLE="margin-bottom: 0in">Choose the maximum and minimum
+	ages to include in the report. These can be left blank if you want
+	to be sure to see all of the students.</P>
+	<LI><P STYLE="margin-bottom: 0in">Put a check in the “Trim Years”
+	box, if you don't want to show every age but only the ages with one
+	or more students.</P>
+	<LI><P STYLE="margin-bottom: 0in">Finally, you can select the
+	students actual age, or their age at the beginning or end of the
+	school year using the Dep Ed calculation of age.</P>
+	<LI><P STYLE="margin-bottom: 0in">Click “Create Report”.</P>
+</OL>
+<OL START=8>
+	<LI><P STYLE="margin-bottom: 0in">The report will then be displayed.
+	If you want, you can copy and paste this information into
+	spreadsheet.</P>
+	<LI><P STYLE="margin-bottom: 0in">When you are finished viewing the
+	report, click “Finished”.</P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1442_1497544869"></A>
+Age Calculation</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">The age in June is calculated as
+follows:</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in">If the student's birthday is from
+	January-March, subtract the year of their birth from this year and
+	add 0.5.</P>
+	<LI><P STYLE="margin-bottom: 0in">If the student's birthday is from
+	October-December, subtract the year of their birth from this year
+	and subtract 0.5.</P>
+	<LI><P STYLE="margin-bottom: 0in">If the student's birthday is from
+	April-September, subtract the year of their birth from this year.</P>
+</UL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">For all birth dates, the age in March
+is calculated by adding 0.75 to the age in June.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">Examples:</P>
+<P STYLE="margin-bottom: 0in">The student's birth date is March 15,
+1995. This school year is 2010. Since their birthday falls from
+January-March, use the first formula. Their age in June is
+(2010-1995)+0.5 = 15.5, and their age in March is 15.5+0.75 = 16.25.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">The student's birth date is December
+23, 1997. This school year is 2010. Since their birthday falls from
+October-December, use the third formula. Their age in June is
+(2010-1997)-0.5 = 12.5, and their age in March is 12.5+0.75 = 13.25.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">The student's birth date is August 19,
+1998. This school year is 2010. Since their birthday falls from
+January-March, use the second formula. Their age in June is
+(2010-1998) = 12, and their age in March is 12 +0.75 = 12.75.</P>
+<P ALIGN=CENTER STYLE="margin-left: 0.49in; text-indent: -0.23in; margin-bottom: 0in">
+<BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1444_1497544869"></A>
+Section List</H2>
+<P ALIGN=LEFT STYLE="margin-left: 0.24in; text-indent: -0.23in; margin-bottom: 0in">
+<BR>
+</P>
+<OL>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>Left-click once on the “Section List” button.</FONT></P>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>Select your section and click “Create Report”</FONT></P>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>If you choose “Print”, you can print this in the
+	final form for official submission.</FONT></P>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>You can also highlight the information and copy and
+	paste it into a spreadsheet as described earlier</FONT></P>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>Click “Finished” when you are done</FONT></P>
+</OL>
+<P ALIGN=LEFT STYLE="margin-left: 0.24in; text-indent: -0.23in; margin-bottom: 0in">
+<BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1446_1497544869"></A>
+Student Records Check</H2>
+<P ALIGN=LEFT STYLE="margin-left: 0.24in; text-indent: -0.23in; margin-bottom: 0in">
+<BR>
+</P>
+<P ALIGN=LEFT STYLE="text-indent: 0.01in; margin-bottom: 0in; font-weight: normal; text-decoration: none">
+<FONT SIZE=3>This is a very helpful report during encoding of student
+information during enrollment. The Student Records Check allows you
+to see what students do not have an assigned section, what students
+have not yet been enrolled, or shows what information is missing for
+students in a section.</FONT></P>
+<P ALIGN=LEFT STYLE="margin-left: 0.24in; text-indent: -0.23in; margin-bottom: 0in">
+<BR>
+</P>
+<OL>
+	<LI VALUE=1><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>Left-click once on “Student Records Check”</FONT></P>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>You can select one of three options for this report:
+	Missing Fields, No Section, No Current Enrollment (these are
+	described below) – pick the one you want</FONT></P>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>For the Missing Fields report, you must select a
+	section</FONT></P>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>Click “Create Report”</FONT></P>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>You can select “Print” or highlight the
+	information, Edit, Copy, and then Edit Paste into a spreadsheet.</FONT></P>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>Click “Finished” when you are done.</FONT></P>
+	<LI><P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+	<FONT SIZE=3>You can use this report now to identify missing
+	information for a student.</FONT></P>
+</OL>
+<P ALIGN=LEFT STYLE="margin-left: 0.73in; text-indent: -0.23in; margin-bottom: 0in">
+<BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-left: 0.73in; text-indent: -0.23in; margin-bottom: 0in; font-weight: normal; text-decoration: none">
+<FONT SIZE=3><I>Missing Fields </I>report – this shows what
+information is missing for students in a section (you must enter a
+section)</FONT></P>
+<P ALIGN=LEFT STYLE="margin-left: 0.73in; text-indent: -0.23in; margin-bottom: 0in">
+<SPAN STYLE="text-decoration: none"><FONT SIZE=3><I><SPAN STYLE="font-weight: normal">No
+Section</SPAN></I></FONT></SPAN> report – this shows enrolled
+students who do not have a section assigned yet</P>
+<P ALIGN=LEFT STYLE="margin-left: 0.73in; text-indent: -0.23in; margin-bottom: 0in">
+<SPAN STYLE="text-decoration: none"><FONT SIZE=3><I><SPAN STYLE="font-weight: normal">No
+Current Enrollment </SPAN></I></FONT></SPAN>– this shows students
+from last year who have not been enrolled yet this year</P>
+<P ALIGN=LEFT STYLE="margin-left: 0.24in; text-indent: -0.23in; margin-bottom: 0in">
+<BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1448_1497544869"></A>
+Custom Reports</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">Custom Reports is an exciting option
+that allows you to create a reports with only the information that
+you want. To do that, select “Reports” from the Main Menu and
+then “Custom Reports”. You will see the window below, with
+buttons for many types of reports to choose from.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">As you can see, you can make a Custom
+Report for many kinds of information: students, teachers, classes,
+sections, etc. Here is an example of how to make a custom report with
+student information. (You would follow the same steps to make reports
+with the other types of information.) 
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL>
+	<LI><P STYLE="margin-bottom: 0in">From Main Menu, left-click once on
+	“Reports”</P>
+	<LI><P STYLE="margin-bottom: 0in">Select “Custom Reports”</P>
+	<LI><P STYLE="margin-bottom: 0in">Select “Student”</P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">Now you will need to do two things.
+First you will need to create the format of the report (what
+information you want listed in the report). Then you will identify
+the students to be included in the report. These two steps are
+described below.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in; text-decoration: none"><I>Step 1:
+Creating the Format</I></P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">To create the format of your custom
+report, you will go to the area called “Choose Fields to Show”.
+To create the format, you just choose the information you want (these
+are called “fields”).</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">To add fields:</P>
+<OL>
+	<LI><P STYLE="margin-bottom: 0in">On the list on the right side
+	called “Field Choices”, left-click once on the field you want to
+	add to highlight it. Then left-click once on the “Add Field”
+	button.</P>
+	<LI><P STYLE="margin-bottom: 0in">You will see that field move to
+	the left under “Selected Fields”</P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">To remove fields that you've already
+added:</P>
+<OL>
+	<LI VALUE=1><P STYLE="margin-bottom: 0in">On the list on the left
+	side called “Selected Fields”, left-click once on the field you
+	want to remove to highlight it. Then left-click once on the “Remove
+	Field” button.</P>
+	<LI><P STYLE="margin-bottom: 0in">You will see that field move back
+	to the right under “Field Choices”</P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">NOTE: A Student Custom Report<SPAN STYLE="text-decoration: none">
+will always automatically start with the students last name</SPAN>,
+so you will not need to add that. The report will then give the
+information that you have listed under “Selected Fields”. It will
+show it in the order that it appears in “Selected Fields”, so it
+is easiest if you add fields in the order that you want them shown on
+your report. If you decide to change the order, you can remove the
+fields from the “Selected Fields” list as described above and
+then re-add them in the order you want. However you can also
+rearrange them after you have copied and pasted them to a
+spreadsheet. 
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in; text-decoration: none"><I>Step 2:
+Identifying the Students to Include in your Custom Report</I></P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">Now you will go to the left side of the
+screen, where it says “Select”. You will use this area to
+identify the students to include in your report. Below are examples
+of how you would do two common types of custom reports, a section
+custom report and a year-level custom report.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><I>Section Custom Report</I></P>
+<OL>
+	<LI><P STYLE="margin-bottom: 0in">For “Enrollment Status”,
+	select “Enrolled”</P>
+	<LI><P STYLE="margin-bottom: 0in">For “Section”, select the
+	Section you want (for example, “Aquino”)</P>
+	<LI><P STYLE="margin-bottom: 0in">Then double-click your left mouse
+	button in “Family Name”</P>
+	<LI><P STYLE="margin-bottom: 0in">Under “Data View”, you will
+	see your custom report appear</P>
+	<LI><P STYLE="margin-bottom: 0in">You can then copy and paste that
+	information to a spreadsheet, OR you can choose to print. This is
+	done in Firefox by choosing “File” and “Print”.</P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">Here is an example of how you would
+create a custom report for Enrolled students in Section Aquino that
+lists their last name, first name, gender, birthdate, and major. 
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">You can also make a custom report for
+an entire year level.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><I>Year-Level Custom Report</I></P>
+<OL>
+	<LI VALUE=1><P STYLE="margin-bottom: 0in">For “Enrollment Status”,
+	select “Enrolled”</P>
+	<LI><P STYLE="margin-bottom: 0in">For “Class Year”, select the
+	year-level you want (for example, “First Year”)</P>
+	<LI><P STYLE="margin-bottom: 0in">Then double-click your left mouse
+	button in “Family Name”</P>
+	<LI><P STYLE="margin-bottom: 0in">Under “Data View”, you will
+	see your custom report appear [FOR YEAR LEVEL REPORTS, THIS MIGHT
+	TAKE SOME TIME BECAUSE THERE ARE SO MANY STUDENTS – PLEASE BE
+	PATIENT]</P>
+	<LI><P STYLE="margin-bottom: 0in">You can then copy and paste that
+	information to a spreadsheet, OR you can go to “File” and
+	“Print”</P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+<FONT COLOR="#000000"><FONT SIZE=3>When you are finished creating
+your custom report, you can select “Cancel” at the bottom of the
+page.</FONT></FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1450_1497544869"></A>
+Numbered Forms</H2>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+<FONT SIZE=3>Teachers have several numbered forms to choose from.
+Some are still under development. The Form XIV will be available
+soon.</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+<FONT SIZE=3>Form 1 School Record</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+<FONT SIZE=3>Form 2 Daily Attendance Summary</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in"><BR>
+</P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+<FONT SIZE=3>Form 9 [Under development]</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+<FONT SIZE=3>Form 14 Test Scores [Under development]</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in; font-weight: normal; text-decoration: none">
+<FONT SIZE=3>Form 18 [Under development]</FONT></P>
+<P ALIGN=LEFT STYLE="margin-bottom: 0in">Form 137 [Under development]</P>
+<H1 CLASS="western" STYLE="margin-bottom: 0.2in; page-break-before: always"><A NAME="__RefHeading__1452_1497544869"></A>
+Maintenance</H1>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">This function is managed by the
+Guidance Office. The Maintenance option allows the Guidance Office to
+set important values used by the database, such as section names,
+classes, and school information. The Guidance Office can create new
+values or edit or view existing values. Below are the various options
+in “Maintenance”. For most of these options, teachers can just
+View information. If there is incorrect information shown, please
+inform the guidance office.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1690_1497544869"></A>
+Viewing Maintenance Information</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<OL>
+	<LI><P STYLE="margin-bottom: 0in">From the Main Menu, click the
+	“Maintenance” button.</P>
+	<LI><P STYLE="margin-bottom: 0in">Then select the type of
+	information that you want to view.</P>
+	<LI><P STYLE="margin-bottom: 0in">Then left-click once on “View”.</P>
+</OL>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">The school calendar is something useful
+that teachers might want to view. It shows the school days and
+holidays for the school.</P>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<H2 CLASS="western" STYLE="margin-bottom: 0.2in"><A NAME="__RefHeading__1456_1497544869"></A>
+Updating Your Teacher Information</H2>
+<P STYLE="margin-bottom: 0in"><BR>
+</P>
+<P STYLE="margin-bottom: 0in">The only information a teacher can
+change in Maintenance is their own personal Teacher information. This
+can be done by going to “My Work” and “My Info”. (You can
+also click “Maintenance”, “Teacher”, “Edit”, and enter
+your family name.) 
+</P>
+</BODY>
+</HTML>

@@ -1,8 +1,18 @@
-#!/usr/bin/env python
-#coding:utf-8
-# Author:   --<>
-# Purpose: 
-# Created: 08/10/2009
+#Copyright 2010,2011 Neal R Bierbaum, Redtreefalcon Software
+#This file is part of SchoolsDatabase.
+
+#SchoolsDatabase is free software: you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation, either version 3 of the License, or
+#(at your option) any later version.
+
+#SchoolsDatabase  is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+
+#You should have received a copy of the GNU General Public License
+#along with SchoolsDatabase.  If not, see <http://www.gnu.org/licenses/>.
 
 from datetime import date, timedelta
 import time
@@ -502,7 +512,8 @@ class SectionRosterProcessor:
                 if event.add_to_section():
                     # add is in forward direction - for reverse we
                     # remove it
-                    del(self.all_students_dict[student_key])             
+                    if self.all_students_dict.has_key(student_key):
+                        del(self.all_students_dict[student_key])             
                 else:
                     self.all_students_dict[student_key] = \
                         db.get(student_key)
@@ -994,7 +1005,7 @@ class Form2Report:
                         
     def get_initial_student_count(self):
         """
-        Get the number of students in hte section at the beginning of the
+        Get the number of students in the section at the beginning of the
         school year.
         """
         #do not return 0 because it will generate a divide by zero in

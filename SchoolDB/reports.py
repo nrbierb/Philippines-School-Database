@@ -412,7 +412,7 @@ class StudentRecordCheck:
         """
         self.table_description = [('last_name','string','Last Name'),
                     ('first_name','string','First Name'),
-                    ('class_year','string', 'Last Class Year'),
+                    ('class_year','string', 'Last Year Level'),
                     ('last_date', 'string','Last Change Date')]
         table_contents = []
         keys = []
@@ -434,7 +434,7 @@ class StudentRecordCheck:
     def build_no_section_table(self):
         self.table_description = [('last_name','string','Last Name'),
                             ('first_name','string','First Name'),
-                            ('class_year','string','Class Year')]
+                            ('class_year','string','Year Level')]
         for student in self.query:
             self.keys.append(str(SchoolDB.models.get_key_from_instance(
                 student)))
@@ -450,7 +450,7 @@ class StudentRecordCheck:
                         ("bg", "boolean", "Barangay"),
                         ("bd", "boolean", "Birthdate"),
                         ("ed", "boolean", "Enrollment Date"),
-                        ("cy", "boolean", "Class Year Date"),
+                        ("cy", "boolean", "Year Level Date"),
                         ("sd", "boolean", "Section Date"),
                         ("bp", "boolean", "Birth Province"),
                         ("bm", "boolean", "Birth Municipality"),
@@ -664,7 +664,8 @@ class SectionGradingPeriodGradesTable:
                     grade = 0
                 row.append(grade)
             table_contents.append(row)
-        logging.info("--completed table for %d students" %i)
+        logging.info("--completed table for %d students"
+                     %len(self.student_keys))
         return (table_description, table_contents, self.student_keystrings,
                 None, "")
 
@@ -959,7 +960,7 @@ class SummaryReportBase():
         if (not self.is_school):
             table_header_text.append("School")
         if (not self.single_row):
-            table_header_text.append("Class Year")
+            table_header_text.append("Year Level")
         if (not self.by_class_year):
             table_header_text.append("Section")
         if (self.show_genders):

@@ -30,7 +30,7 @@ from google.appengine.ext import db
 import SchoolDB.views
 import SchoolDB.models
 
-def update_all_schools_summaries(force_update = False):
+def update_all_schools_summaries(force_update = True):
     """
     The standard scheduled action to update the school summaries which
     is performed nightly. Only the summaries which have been marked for

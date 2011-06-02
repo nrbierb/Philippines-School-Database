@@ -4,16 +4,17 @@
 <fieldset class="std-block">
 <legend>Teacher Information</legend>
 <table class="unbordered"> 
-<tr><td><label for="id_primary_subject_name">Primary Subject:</label></td>
+<tr><td><label for="id_primary_subject_name" id="id_primary_subject_name_label">Primary Subject:</label></td>
 <td>{{form.primary_subject_name}}</td></tr>
-<tr><td><label for="id_secondary_subject_name">Secondary Subject:</label></td>
+<tr><td><label for="id_secondary_subject_name" id="id_secondary_subject_name_label">Secondary Subject:</label></td>
 <td>{{form.secondary_subject_name}}</td></tr>
-<tr><td><label for="id_paygrade">Pay Grade:</label></td>
+<tr><td><label for="id_paygrade" id="id_paygrade_label">Position:</label></td>
 <td>{{form.paygrade}}</td></tr>
-<tr><td><label for="id_other_information">Other Information:</label></td>
+<tr><td><label for="id_other_information" id="id_other_information_label">Other Information:</label></td>
 <td>{{form.other_information}}</td></tr>
 </table>
 </fieldset>
 {{form.primary_subject}}
 {{form.secondary_subject}}
+<div id="help_pagename_div" class="hidden">TeacherPageHelp</div>
 {% endblock extended %}

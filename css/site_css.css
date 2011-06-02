@@ -347,6 +347,10 @@ fieldset.three-buttons {
 	width:400px;
 }
 
+fieldset.two-buttons {
+	width:270px;
+}
+
 .waiting {
 	border: 1px groove  #ebcaca;
 	background-color: gray;

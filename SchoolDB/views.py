@@ -21,7 +21,7 @@ import binascii
 
 import os, urlparse, sys, re, datetime
 import cPickle, zlib, base64
-from datetime import date, datetime
+from datetime import date
 import logging
 import exceptions
 from google.appengine.api import users
@@ -44,12 +44,12 @@ import SchoolDB.reports
 import SchoolDB.assistant_classes
 import SchoolDB.local_utilities_functions
 import SchoolDB.system_management
-from SchoolDB.local_utilities_functions import bulk_student_status_change_utilty
+from SchoolDB.local_utilities_functions import bulk_student_status_change_utility
 from SchoolDB.local_utilities_functions import update_student_summary_utility
 from SchoolDB.utilities.empty_database import empty_database
 from SchoolDB.utilities import load_students
 from SchoolDB.utilities.low_level_utils import delete_student
-from SchoolDB.utilities.update_database_user_types \
+from SchoolDB.utilities.update_usertypes \
      import update_database_user_types
 from SchoolDB.utilities.convert_histories import convert_histories
 from SchoolDB.utilities.add_student_major_history import \
@@ -64,7 +64,9 @@ result_string = ""
 __http_request__ = None
 __processed_request__ = None
 __revision_id__ = \
-"Version: 1--0-13 " + datetime.now().strftime("%m/%d/%y %I:%M%p")
+"Version: 1--0-14" 
+# upload time does not work for now.  Rethink.
+#+ datetime.datetime.now().strftime("%m/%d/%y %I:%M%p")
 
 def validate_user(request, auto_task=False):
     """
@@ -351,7 +353,7 @@ def showGradebookEntriesCalendar(request):
     return showStatic(request, "gradebook_entries_calendar",
                       "Gradebook Entries Calendar")
 
-def standardShowAction(request, classname, formname, title_suffix,
+def standardShowAction(request, classname, form_class, title_suffix,
                        template = "generic", page_path_action = 
                        "Pop", extra_params = None, full_title = "",
                         perform_mapping = False):
@@ -359,7 +361,8 @@ def standardShowAction(request, classname, formname, title_suffix,
         validate_user(request)
         if perform_mapping:
             classname = map_page_to_usertype(classname)
-            formname = map_form_to_usertype(formname)
+            form_class = map_form_to_usertype(form_class)
+            template = map_template_to_usertype(template)
         req_action = getprocessed().requested_action
         if (req_action == "Save"):
             req_object = getprocessed().current_instance
@@ -370,7 +373,7 @@ def standardShowAction(request, classname, formname, title_suffix,
         #try just presenting the view instead
         if ((not legal_action) and view_ok):
             getprocessed().requested_action = "View"
-        form, javascript_code = buildForm(formname) 
+        form, javascript_code = buildForm(form_class) 
         params = create_standard_params_dict(
             title_suffix=title_suffix, url_name=classname,
             javascript_code= javascript_code, 
@@ -388,7 +391,7 @@ def standardShowAction(request, classname, formname, title_suffix,
         return e.response
 
 def specialShowAction(instance, requested_action, classname, 
-                      formname, title_suffix,
+                      form_class, title_suffix,
                        template = "generic", 
                        page_path_action="Pop", 
                        extra_params = None):
@@ -400,7 +403,7 @@ def specialShowAction(instance, requested_action, classname,
             getprocessed().selection_key = str(instance.key())
         else:
             getprocessed().selection_key = ""
-        form, javascript_code = buildForm(formname) 
+        form, javascript_code = buildForm(form_class) 
         params = create_standard_params_dict(title_suffix, classname,
                                              javascript_code)
         params['form'] = form
@@ -492,7 +495,7 @@ def showDivision(request):
 
 def showContact(request):
     return standardShowAction(request, "contact", ContactForm,
-                    "Contact", "contact", "FixedUrl",
+                    "Contact", "contact", "NoAction",
             {"fixed_return_url":"/static_pages/close_window.html"})
 
 def showStudentEmergency(request):
@@ -534,20 +537,17 @@ def showGradingPeriodResults(request):
                               "grading_period_results")
 
 #revert for moment
-def showDatabaseUser(request):
-    return standardShowAction(request, "master_database_user", 
-                              MasterDatabaseUserForm, 
-                              "Database User", "generic")
 def showMasterDatabaseUser(request):
     return standardShowAction(request, "master_database_user", 
                               MasterDatabaseUserForm, 
-                              "Database User", "generic")
+                              "Database User", "generic",
+                              perform_mapping = True)
 
-#def showDatabaseUser(request):
-    #return standardShowAction(request, "database_user", 
-                              #StandardDatabaseUserForm,
-                              #"Database User", "generic",
-                              #perform_mapping = True)
+def showDatabaseUser(request):
+    return standardShowAction(request, "database_user", 
+                              StandardDatabaseUserForm,
+                              "Database User", "standard_database_user",
+                              perform_mapping = True)
 def showUserType(request):
     return standardShowAction(request, "user_type", UserTypeForm,
                               "User Type", "generic")
@@ -652,20 +652,27 @@ def showChoose(request):
     The choose form presents an instance selection table similar to the
     bottom part of the select form. It is used when all selection
     parameters are already known. Each different type of choose page
-    has its own custom ajax selection generator.
+    has its own custom ajax selection generator. The most accurate
+    choice of pages comes directly from the MyWork page on initial
+    choice. Use the cookie values if the direct is not present.
     """
     try:
         validate_user(request)
         splitpath  = request.path.split("/")
         choose_type = splitpath[2]
         choose_action = "View"
+        cookie_section, cookie_class_session = \
+                      get_active_pages_from_cookies()
         if (choose_type == "section_students"):
             #Only the section head can edit but all can view
             section = SchoolDB.models.get_instance_from_key_string(
                 getprocessed().values.get("users_section", None), 
                 SchoolDB.models.Section)
             if (not section):
+                section = cookie_section
+            if (not section):
                 raise RequestError, "Unknown Section"
+            getprocessed().selection_key = str(section.key())
             if (section.user_is_section_head()):
                 choose_action = "Edit"
             else:
@@ -678,7 +685,10 @@ def showChoose(request):
             class_session = SchoolDB.models.get_instance_from_key_string(
                 getprocessed().selection_key, SchoolDB.models.ClassSession)
             if (not class_session):
+                class_session = cookie_class_session
+            if (not class_session):
                 raise RequestError, "Unknown Class"
+            getprocessed().selection_key = str(class_session.key())
             form_title = "Class " + class_session.name + " Students"
             choose_action = "View"
             breadcrumb_title = "Class Students"
@@ -689,7 +699,10 @@ def showChoose(request):
                 getprocessed().values.get("users_section", None), 
                 SchoolDB.models.Section)
             if (not section):
+                section = cookie_section
+            if (not section):
                 raise RequestError, "Unknown Section"
+            getprocessed().selection_key = str(section.key())
             form_title = "Section " + section.name + " Class Schedule"
             breadcrumb_title = "Section Class Schedule"
             chosen_object_class = "class_session"
@@ -729,34 +742,35 @@ def showReports(request):
     #"school_report". This is not a long term correct approach but
     #is functional for now.
     if (report_type == "attendance"):
-        formname = AttendanceReportForm
+        form_class = AttendanceReportForm
         report_title = "Attendance Report"
     elif (report_type == "student_age"):
-        formname = StudentAgeReportForm
+        form_class = StudentAgeReportForm
         report_title = "Student Age Distribution Report"
     elif (report_type == "section_list"):
-        formname = SectionListReportForm
+        form_class = SectionListReportForm
         report_title = "Section List"
     elif (report_type == "student_record_check"):
-        formname = StudentRecordsCheckForm
+        form_class = StudentRecordsCheckForm
         report_title = 'Student Record Check'
     elif(report_type == "section_grading_period_grades"):
-        formname = SectionGradingPeriodGradesForm
+        form_class = SectionGradingPeriodGradesForm
         report_title = "Section Grading Period Grades Report"
     elif (report_type == "form1"):
-        formname = Form1ReportForm
+        form_class = Form1ReportForm
         report_title = 'Form 1'
     elif (report_type == "form2"):
-        formname = Form2ReportForm
+        form_class = Form2ReportForm
         report_title = 'Form 2'
     elif (report_type == "form14"):
-        formname = Form14ReportForm
+        form_class = Form14ReportForm
         report_title = 'Form 14'
     else:
         #Unknown report type. Return 404 page.
         raise http.Http404
-    return standardShowAction(request, "school_report", formname, 
-                        report_title, report_template)           
+    return standardShowAction(request, classname="school_report", 
+                form_class=form_class, title_suffix=report_title, 
+                template=report_template, page_path_action = "Push")           
     
 def processAjaxRequest(request):
     """
@@ -829,21 +843,27 @@ def showHistory(request):
     try:
         validate_user(request)
         parent_object = getprocessed().requested_instance
-        field_name = getprocessed().values["field_name"]
+        field_name = getprocessed().values.get("field_name", None)
         if (not parent_object):
             history_entries = [{'end_date': '-----', 'start_date': '-----', 
             'value': u'No information for %s. The form has not been saved yet.' 
-                                %getprocessed().values["display_name"]}]
+                    %getprocessed().values.get("display_name",
+                                        "Unknown Field")}]
             title_suffix = " Not Available"
         else:
-            history = get_history_field(parent_object, field_name)
+            if (field_name):
+                history = get_history_field(parent_object, field_name)
+            else:
+                history = None
             if (not history):
                 history_entries = [{'end_date': '-----', 'start_date': '-----', 
                 'value': u'No history yet. The form has not been saved with a value for %s.' 
-                                    %getprocessed().values["display_name"]}]
+                    %getprocessed().values.get("display_name", 
+                                               "Unknown Field")}]
             else:
                 history_entries = history.get_entries_dict_list()
-            title_suffix = getprocessed().values["display_name"] + \
+            title_suffix = getprocessed().values.get("display_name", 
+                                               "Unknown Field") + \
                              " History: " + unicode(parent_object)
         params = create_standard_params_dict(title_suffix, "")
         params["title_prefix"] = ""
@@ -898,10 +918,24 @@ def showSelectDialog(request):
         length = len(splitpath)
         select_type = splitpath[1]
         title_prefix = None
+        select_class_name = splitpath[2]
         if (select_type == "initialselect"):
             select_template = "select_short"
             template_requested_action = "Further Selection"
             title_prefix = "Select a "
+        elif ((not users.is_current_user_admin()) and (
+            #a quick hack that probably should be changed
+            #but it is necessary to block creation of organizations from
+            #just about everyone. It will need to be opened to the 
+            #division to create schools at some future time.
+            (select_class_name=="region") or
+            (select_class_name== "province") or
+            (select_class_name=="municipality") or
+            (select_class_name=="community") or
+            (select_class_name=="division") or
+            (select_class_name=="school"))):
+            select_template = "select_no_create"
+            template_requested_action = "Edit"
         else:
             select_template = "select_full"
             template_requested_action = "Create"
@@ -1284,6 +1318,18 @@ def respond(template, params=None):
         template += '.html'
     return shortcuts.render_to_response(template, params)
 
+#----------------------------------------------------------------------
+class ProhibitedURLForm(forms.Form):
+    """
+    A trivial form that just throws a 404 error. This is used for page
+    mapping into prohibited places for the user. Normally never used
+    and probably never should happen if validate user works correctly.
+    """
+    @staticmethod
+    def process_request(data):
+        #this will end all further processing of the request
+        raise ProhibitedURLError, data.path
+    
 #----------------------------------------------------------------------
 
 class BaseStudentDBForm(forms.Form):
@@ -1835,7 +1881,7 @@ class StudentForm(PersonForm):
 
     def modify_params(self, param_dict):
         for name_tuple in (("student_status", "Enrollment Status","*"),
-                           ("class_year", "Class Year", ""),
+                           ("class_year", "Year Level", ""),
                            ("section","Section", ""),
                            ("student_major","Student Major", ""),
                            ("ranking","Ranking", ""),
@@ -1950,7 +1996,7 @@ class StudentForm(PersonForm):
                  "fieldType":"view", "value":student_status_name_value},
                 {"name":"student_status","label":"Hidden",
                  "fieldType":"hidden", "value": student_status_value},
-                {"name":"class_year","label":"Class Year",
+                {"name":"class_year","label":"Year Level",
                  "fieldType":"view"},
                 {"name":"section_name","label":"Section","fieldType":"view"},
                 {"name":"section","label":"Hidden","fieldType":"hidden"}]})
@@ -2099,7 +2145,7 @@ class SectionForm(StudentGroupingForm):
     def generate_select_javascript_code(javascript_generator, 
                                         select_field):      
         javascript_generator.add_javascript_params (
-            {"auxFields":[{"name":"class_year","label":"Class Year",
+            {"auxFields":[{"name":"class_year","label":"Year Level",
                            "fieldType":"view"}]})
         clsyr, clsrm, sect_type = \
              SectionForm.generate_class_javascript_code(
@@ -2126,11 +2172,11 @@ class SectionForm(StudentGroupingForm):
     def save(self, instance):
         """
         Perform normal actions and then, if a teacher has been assigned
-        as section advisor add the sectin to the teachers "my sections"
+        as section advisor add the section to the teachers "my sections"
         list. There is no problem performing this repeatedly -- nothing
         will be added to the teachers record if it is already there.
         """
-        StudentGroupingForm.save(self, instance, 
+        return StudentGroupingForm.save(self, instance, 
                     model_class = Section)
         
 #---------------------------------------------------------------------- 
@@ -2949,7 +2995,7 @@ class ClassSessionForm(StudentGroupingForm):
                   "fieldType":"view"},
                  {"name":"student_major","label":"Hidden",
                   "fieldType":"hidden"},
-                 {"name":"class_year","label":"Class Year",
+                 {"name":"class_year","label":"Year Level",
                   "fieldType":"view"},
                  {"name":"section_name","label":"Section",
                   "fieldType":"view"},
@@ -2990,7 +3036,8 @@ class ClassSessionForm(StudentGroupingForm):
         list. There is no problem performing this repeatedly -- nothing
         will be added to the teachers record if it is already there.
         """
-        StudentGroupingForm.save(self, instance, model_class = ClassSession)
+        return StudentGroupingForm.save(self, instance, 
+                                        model_class = ClassSession)
 
 #----------------------------------------------------------------------
 class CreateClassSessionsForm(BaseStudentDBForm):
@@ -3033,7 +3080,7 @@ class CreateClassSessionsForm(BaseStudentDBForm):
                          creator.process_request()
             #now report the initial result
             #specialShowAction(instance=None, requested_action="save", 
-                    #classname="", formname=CreateClassSessionsFormStep2,
+                    #classname="", form_class=CreateClassSessionsFormStep2,
                     #title_suffix="Confirm Multiple Class Sessions Creation",
                     #template="create_class_sessions_step2",
                     #extra_params={"request_table":request_table, 
@@ -3348,7 +3395,7 @@ class GradingInstanceForm(GradeWorkForm):
     def create_new_instance(self):
         return SchoolDB.models.GradingInstance.create(
             name=self.cleaned_data["name"], 
-            class_session=convert_string_to_key(
+            owner=convert_string_to_key(
                 self.cleaned_data["class_session"]),
             planned_date=self.cleaned_data["planned_date"])
 
@@ -3605,7 +3652,7 @@ class AchievementTestGradesForm(BaseStudentDBForm):
     This form is used to set or view grades for all subjects on an 
     achievement test by section.
     """
-    class_year = forms.CharField(required=True, label="Class Year",
+    class_year = forms.CharField(required=True, label="Year Level",
                                  widget=forms.TextInput(attrs={
                                      'class':'autofill required entry-field'}))
     section_name = forms.CharField(required=False, label="Section",
@@ -3752,22 +3799,6 @@ class GradingPeriodResultsForm(BaseStudentDBForm):
              "user_is_teacher":self.user_is_teacher})
 
     #@staticmethod
-    #def initialize(data):
-        #"""
-        #Initialize the class year and section to the users section.
-        #Note: This should be done only when coming from the teacher's       
-        #My Work page.
-        #"""
-        #if (getprocessed()):
-            #if (getprocessed().return_page == "Fmy_work"):
-                #class_session_keystr = \
-                    #getprocessed().cookies["aC"]
-                #if class_session_keystr:
-                    #class_session = SchoolDB.models.get_instance_from_key_string(
-                        #class_session_keystr, SchoolDB.models.ClassSession)
-                    #if class_session:
-                        #data["class_session"] = class_session_keystr
-        #data["requested_action"] = "Ignore"
             
 #---------------------------------------------------------------------- 
 class AttendanceForm(BaseStudentDBForm):
@@ -3863,8 +3894,7 @@ class UserTypeForm(BaseStudentDBForm):
                                         select_field):
         javascript_generator.add_javascript_params ({"titleName":"User Type",
                     "titleNamePlural":"User Types", "fieldName":"User Type"})
-        select_field.add_extra_params({"filter_school":"false",
-                                       "leading_value_field":"name"})
+        select_field.add_extra_params({"filter_school":"false"})
 
 #----------------------------------------------------------------------     
 
@@ -3964,7 +3994,7 @@ class MasterDatabaseUserForm(BaseStudentDBForm):
             javascript_generator)
         select_field.add_dependency(org, True)
         select_field.add_extra_params({
-            "extra_fields":"first_name|middle_name|user_type|organization|person|email",
+            "extra_fields":"first_name|middle_name",
             "format": "last_name_only",
             "leading_value_field":"last_name"})
 
@@ -3986,10 +4016,10 @@ class StandardDatabaseUserForm(BaseStudentDBForm):
                     label="Gmail Address*", widget=forms.TextInput(attrs=
                          {'class':'required email entry-field',
                           "minlength":"7"}))
-    person_name = forms.CharField(required=False, 
+    person_name = forms.CharField(required=True, 
             label="Person*:", widget=forms.TextInput(attrs=
                                 {'class':'required autofill entry-field'}))
-    person = forms.CharField(required=False, widget=forms.HiddenInput)
+    person = forms.CharField(required=True, widget=forms.HiddenInput)
     guidance_counselor = forms.BooleanField(required=False, initial=False)
     other_information = forms.CharField(required=False,
         max_length=1000, widget=forms.Textarea( 
@@ -4000,43 +4030,93 @@ class StandardDatabaseUserForm(BaseStudentDBForm):
 
     def generate_javascript_code(self, javascript_generator):
         pers = javascript_generator.add_autocomplete_field(
-            class_name = "paygrade", field_name = "id_paygrade")
-        pers.set_local_choices_list(
-            SchoolDB.models.DatabaseUser.get_candidate_persons())
+            class_name = "person", field_name = "id_person_name",
+            use_key = True)
+        #if (self.data.get("state","") == "Exists"):
+            #candidates = [{"value":self.data.get("person_name",""), 
+                          #"label":self.data.get("person_name",""),
+                          #"key":self.data.get("person","")}]
+        #else:
+            #candidates = SchoolDB.models.DatabaseUser.get_candidate_persons()
+        #if len(candidates):
+        pers.set_local_choices_list(self.data.get("candidates",[]))
+        #else:
+            #self.data["person"] = ""
+            #self.data["person_name"] = "No Users Unregistered"
+            #self.data["requested_action"] = "None"
+            #pers.set_local_choices_list([{"value":"No Users Unregistered", 
+                        #"label":"No Users Unregistered", "key":"Invalid"}])
         pers.add_extra_params({"use_key":"!true!"})
     
     @staticmethod
+    def process_request(data):
+        if (data.get("person","")):
+            data["candidates"] = [{"value":data.get("person_name",""), 
+                              "label":data.get("person_name",""),
+                              "key":data.get("person","")}]
+        else:
+            data["candidates"] = \
+                SchoolDB.models.DatabaseUser.get_candidate_persons()
+        if not data["candidates"]:
+            data["person"] = ""
+            data["person_name"] = "No Users Unregistered"
+            data["requested_action"] = "None"
+            data["candidates"] = [{"value":"No Users Unregistered", 
+                        "label":"No Users Unregistered", "key":"Invalid"}]
+            
+    @staticmethod
     def initialize(data):
         initialize_fields([("person", "person_name")], data)
-        
+                    
     def save(self, instance):
         """
-        Create or update a database user. This is a special action because the entity is not identified directly by the name field in the object. That and most of the other data must be created from implied information derived from the person of the user. 
+        Create or update a database user. This is a special action
+        because the entity is not identified directly by the name field
+        in the object. That and most of the other data must be created
+        from implied information derived from the person of the user.
         """
-        current_user = getActiveDatabaseUser().get_active_user()
-        create_type = current_user.get_user_create_type(same_level=True)
+        current_user = getActiveDatabaseUser().get_active_user()      
+        person = get_instance_from_key_string(
+            self.cleaned_data.get("person",None),Person)
+        email = self.cleaned_data.get("email", None)
+        if (person and email):
+            create_type, organization = \
+                       current_user.get_user_create_type(person, 
+                                        same_organization=True)
+        else:
+            #nothing to be done. Should complain to user...
+            return
         if (not create_type):
             error_string = "Attempted to create a database user but did not have permission to do so user: '%s' usertype: '%s'" \
                 %(getActiveDatabaseUser().get_active_user_name(),
                   getActiveDatabaseUser().get_active_user_type_name())
             raise ProhibitedError, error_string
-        person = self.cleaned_data["person"]
-        if not person:
-            #nothing to be done
-            return
-        #search for existing record for conflicts
-        query = DatabaseUser.all()
-        query.filter("person =", person)
-        database_user = query.get()
-        if (not database_user):
-            database_user = DatabaseUser()
-        database_user.user_type = create_type
-        database_user.first_name = person.first_name
-        database_user.middle_name = person.middle_name
-        database_user.last_name = person.last_name
-        database_user.name = unicode(person)
-        database_user.email = self.cleaned_data["email"]
-        database_user.user = self.cleaned_data["email"]
+        edited_user = \
+            SchoolDB.utility_functions.get_instance_from_key_string(
+                self.cleaned_data.get("object_instance", None),
+                DatabaseUser)
+        if edited_user:
+            if (edited_user.person.key() != person.key()):
+                logging.error("Attempted to change person for user")
+            else:
+                database_user = edited_user
+        else:
+            query = DatabaseUser.all()
+            query.filter("person =", person)
+            database_user = query.get()
+            if (not database_user):
+                database_user = DatabaseUser(organization=organization,
+                                             email=email)
+                database_user.person = person
+                database_user.user_type = create_type
+                database_user.first_name = person.first_name
+                database_user.middle_name = person.middle_name
+                database_user.last_name = person.last_name
+                store = SchoolDB.assistant_classes.InformationStoreDict()
+                database_user.private_info = store.put_data()
+                database_user.usage = 0
+        database_user.email = email
+        database_user.user = users.User(email)
         database_user.other_information = self.cleaned_data[
             "other_information"]
         database_user.organization = \
@@ -4044,8 +4124,18 @@ class StandardDatabaseUserForm(BaseStudentDBForm):
         database_user.guidance_counselor = \
                      self.cleaned_data["guidance_counselor"]
         database_user.put()
-        
-        
+
+    @staticmethod
+    def generate_select_javascript_code(javascript_generator,
+                                        select_field):
+        javascript_generator.add_javascript_params ({
+            "titleName":"Database User",
+            "titleNamePlural":"Database Users", 
+            "fieldName":"Database User Family Name"})
+        select_field.add_extra_params({
+            "extra_fields":"first_name|middle_name",
+            "format": "last_name_only",
+            "leading_value_field":"last_name"})
 #----------------------------------------------------------------------  
 class SelectForm(BaseStudentDBForm):
 
@@ -4589,7 +4679,7 @@ class BaseSummaryForm(BaseStudentDBForm):
     by_gender = forms.BooleanField(required=False, 
                                        label="Show By Gender")
     by_class_year = forms.BooleanField(required=False, 
-                                       label="Summarize by Class Year")
+                                       label="Summarize by Year Level")
     single_line_per_school = forms.BooleanField(required=False, 
 label="Single Line Per School")
     
@@ -4967,7 +5057,7 @@ def map_page_to_usertype(page, perform_mapping = True):
         return_page = page
     return return_page
 #----------------------------------------------------------------------
-def map_form_to_usertype(formname, perform_mapping = True):
+def map_form_to_usertype(form_class, perform_mapping = True):
     """
     Some pages are different for each type of user. All top level pages
     and some others are different. This function performs the mapping
@@ -4976,23 +5066,45 @@ def map_form_to_usertype(formname, perform_mapping = True):
     common to all users are passed through unchanged. The mapping
     dictionaries are included within this function. 
     """
-    teacher = {}
+    teacher = {StandardDatabaseUserForm:ProhibitedURLForm}
     school_db_administrator = {
-        "StandardDatabaseUserForm":"StandardDatabaseUserForm"}
-    upper_level_user = {}
+        StandardDatabaseUserForm:StandardDatabaseUserForm}
+    upper_level_user = {StandardDatabaseUserForm:ProhibitedURLForm}
     upper_level_db_administrator = {
-        "StandardDatabaseUserForm":"StandardDatabaseUserForm"}
-    master = {"StandardDatabaseUserForm":"MasterDatabaseUserForm"}
+        StandardDatabaseUserForm:StandardDatabaseUserForm}
+    master = {StandardDatabaseUserForm:MasterDatabaseUserForm}
     dict_map = {"Master":master,"Teacher":teacher, 
               "SchoolDbAdministrator":school_db_administrator, 
               "UpperLevelUser":upper_level_user,
               "UpperLevelDbAdministrator":upper_level_db_administrator}
     form_map = dict_map[unicode(getActiveDatabaseUser().get_active_user_type())]
     if perform_mapping:
-        return_form = form_map.get(formname, formname)
-    else:
-        formname = formname
-    return formname
+        form_class = form_map.get(form_class, form_class)
+    return form_class
+#----------------------------------------------------------------------
+def map_template_to_usertype(template, perform_mapping = True):
+    """
+    Some pages are different for each type of user. All top level pages
+    and some others are different. This function performs the mapping
+    for the template. Pages which are common to all users are passed
+    through unchanged. The mapping dictionaries are included within
+    this function.
+    """
+    teacher = {"standard_database_user":""}
+    school_db_administrator = {
+        "standard_database_user":"standard_database_user"}
+    upper_level_user = {StandardDatabaseUserForm:ProhibitedURLForm}
+    upper_level_db_administrator = {
+        "standard_database_user":"standard_database_user"}
+    master = {"standard_database_user":"generic"}
+    dict_map = {"Master":master,"Teacher":teacher, 
+              "SchoolDbAdministrator":school_db_administrator, 
+              "UpperLevelUser":upper_level_user,
+              "UpperLevelDbAdministrator":upper_level_db_administrator}
+    template_map = dict_map[unicode(getActiveDatabaseUser().get_active_user_type())]
+    if perform_mapping:
+        template = template_map.get(template, template)
+    return template
 #----------------------------------------------------------------------
 
 def perform_utilities():
@@ -5144,7 +5256,7 @@ def create_class_session_students_table(parameter_dict, primary_object,
         selection_keys.append(str(student.key()))
     table_description = [('name', 'string', 'Name'),
                 ('gender', 'string', 'Gender'),
-                ('class_year','string','Class Year'),
+                ('class_year','string','Year Level'),
                 ('section', 'string', 'Section')]
     return(table_description, selection_table, selection_keys, None, "")
 
@@ -5233,7 +5345,7 @@ def create_students_eligible_for_class_table(parameter_dict, primary_object,
         selection_keys.append(str(student.key()))
     table_description = [('name', 'string', 'Name'),
                 ('gender', 'string', 'Gender'),
-                ('class_year','string','Class Year'),
+                ('class_year','string','Year Level'),
                 ('section', 'string', 'Section')]
     #for student in eligible_students:
         #table_entry = (student.last_name, student.first_name, 
@@ -5258,6 +5370,27 @@ def initialize_fields(fields_list, data):
             if (linked_object):
                 data[data_value[1]] = unicode(linked_object)
 
+def get_active_pages_from_cookies():
+    """
+    Initialize the class year and section to the users section.
+    Note: This should be done only when coming from the teacher's       
+    My Work page.
+    """
+    section = None
+    class_session = None
+    if (getprocessed()):
+        section_keystr = \
+            getprocessed().cookies["aS"]
+        if section_keystr:
+            section = SchoolDB.models.get_instance_from_key_string(
+                section_keystr, SchoolDB.models.Section) 
+        class_session_keystr = \
+            getprocessed().cookies["aC"]
+        if class_session_keystr:
+            class_session = SchoolDB.models.get_instance_from_key_string(
+                class_session_keystr, SchoolDB.models.ClassSession)
+    return section, class_session
+
 #----------------------------------------------------------------------
 
 def get_form_from_class_name(class_name_string):
@@ -5267,7 +5400,7 @@ def get_form_from_class_name(class_name_string):
     """
     form_class = None
     if (class_name_string):
-        class_formname_map = {
+        class_form_class_map = {
             "my_choices":(MyChoicesForm),
             "achievement_test":(AchievementTestForm),
             "administrator":(AdministratorForm),
@@ -5306,7 +5439,7 @@ def get_form_from_class_name(class_name_string):
             "versioned_text_manager":(VersionedTextManagerForm),
             "versioned_text":(VersionedTextForm)
         }
-        form_class = class_formname_map.get(class_name_string, None)
+        form_class = class_form_class_map.get(class_name_string, None)
     return form_class
 
 #----------------------------------------------------------------------
@@ -5512,12 +5645,17 @@ class BreadcrumbGenerator:
         "choose_custom_report":"Choose a Custom Report",
         "custom_report":"Custom Report", 
         "student_record_check":"Student Record Check",
+        "form1":"Form 1",
+        "form2":"Form 2",
+        "form14":"Form 14",
+        "custom_report":"Custom Report",
         "grades":"Grades", 
         "grading_instance":"Grading Instance",
         "enter_grades":"Enter Grades",
         "grading_period_results":"Grading Period Grades",
         "gradebook_entry_calendar":"Gradebook Entry Calendar",
         "summary_student":"School Summary",
+        "summary_at":"Achievement Test Summary",
         "utilrequest":"Run Utility",
         "utilresponse":"Utility Response"
     }
@@ -5556,6 +5694,8 @@ class BreadcrumbGenerator:
                 name = "Choose "
             if (path.startswith("reports/")):
                 path = path.replace("reports/", "")
+            if (path.startswith("custom_report/")):
+                path = "custom_report"
             map_name = self.name_map.get(path, "Current Page")
             name = name + map_name + name_end
             name_list.append((full_path,name))
@@ -5632,7 +5772,7 @@ class ProhibitedUserError(ProhibitedError):
         params = {}
         logging.warning("Unknown user: %s", args.email())
         params["account_name"] = args.email()
-        params["database_name"] = "Philippines School Database"
+        params["database_name"] = "Philippines School Information System"
         params["retry_url"] = users.create_logout_url("/")
         self.response = shortcuts.render_to_response(template_name, params)
         
@@ -5684,7 +5824,7 @@ class InstanceActionProhibitedError(ProhibitedError):
             %(active_user.get_active_user_name(),
             active_user.get_active_organization_name(),
             target_action, unicode(target_object), 
-            SchoolDB.models.get_model_class_from_name(target_class).classname)
+            target_class.classname)
         if reason:
             log_string += " Reason: '%s'" %reason
         #log(log_string)

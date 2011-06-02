@@ -149,9 +149,10 @@ class BulkClassSessionsCreator:
         #use dictionary hashing to simplify matching
         filter_dict = {}
         for session in current_class_sessions:
-            section_keystr = str(session.section.key())
-            subject_keystr = str(session.subject.key())
-            filter_dict[section_keystr+subject_keystr] = session
+            if (session.section and session.subject):
+                section_keystr = str(session.section.key())
+                subject_keystr = str(session.subject.key())
+                filter_dict[section_keystr+subject_keystr] = session
         for row in sessions_request_array:
             compare_key = row[1] + row[3]
             if filter_dict.has_key(compare_key):

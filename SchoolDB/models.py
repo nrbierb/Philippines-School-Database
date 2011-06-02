@@ -1828,7 +1828,7 @@ class ClassPeriod(MultiLevelDefined):
         filled with some value that is safe for computation but
         obviously wrong
         """
-        default_time = datetime.time(0,0)
+        default_time = time(0,0)
         return ClassPeriod(name=name, parent=organization,
                            start_time=default_time, end_time=default_time)
 
@@ -2900,8 +2900,7 @@ class StudentGrouping(polymodel.PolyModel):
         Perform actions that modify data in the model other than the
         form fields. All of the data from the form has already been
         loaded into the model ' instance so this processing does not
-        need the form at all. For this class this is jus a default
-        funcion that does nothing.
+        need the form at all. This will update the histories
         """
         self.update_my_histories()
 
@@ -3158,7 +3157,7 @@ class Section(StudentGrouping):
         
     @staticmethod
     def get_field_names():
-        field_names = [("class_year", "Class Year"),
+        field_names = [("class_year", "Year Level"),
                        ("section_type", "Section Type"), 
                        ("classroom", "Classroom"), ("teacher", "Teacher"),
                        ("teacher_change_date", "Teacher Change Date"),
@@ -3195,6 +3194,7 @@ class ClassSession(StudentGrouping):
     school_year = db.ReferenceProperty(SchoolYear)
     credit_units = db.FloatProperty()
     grade_instance_ordered_list = db.ListProperty(db.Key)
+    students_list = db.ListProperty(db.Key)
     classname = "Class Session"    
 
     def detailed_name(self):
@@ -3425,7 +3425,13 @@ class ClassSession(StudentGrouping):
         Add a student to the class by creating a StudentsClass instance 
         for the class session. If the student is already assigned to the class 
         then no new record will be added.
+        Also add the student to the entity list of students
         """
+        student_key = student.key()
+        try:
+            self.students_list.index(key)
+        except:
+            self.students_list.append(key)
         if (not start_date):
             start_date = self.start_date
         students_class = student.assign_class_session(self, self.subject,
@@ -4812,7 +4818,7 @@ class StudentsClass(db.Model):
         if (grade_info):
             element_total_percentage = 0.0
             grades = grade_info.get_grades(None, start_date, cutoff_date)
-            for element in self.grade_info(start_date,
+            for element in grade_info(start_date,
                                            cutoff_date):
                 element_percentage = element.get_percentage_of_final()
                 if (not element.extra_credit):
@@ -4820,7 +4826,7 @@ class StudentsClass(db.Model):
                     #it for scaling
                     element_total_percentage += element_percentage
                 (element_grade, initial_grade) = \
-                 self.grade_info.get_grade(element)
+                 grade_info.get_grade(element)
                 period_grade += element_grade * element_percentage
                 initial_period_grade += initial_grade * element_percentage
             #rescale because the achievable fraction may be less than 1 if 
@@ -5365,7 +5371,7 @@ class Student(Person):
         choices, False for other types that just have a freeform text field.
         """
         type_mapping = {"student_status":("Choice", "Student Status"), 
-                        "class_year":("Choice", "Class Year"),
+                        "class_year":("Choice", "Year Level"),
                         "section":("Choice", "Section"),
                         "student_major":("Choice", "Student Major"),
                         "special_designation":("Choice","Special Designation"),
@@ -5445,8 +5451,8 @@ class Student(Person):
         field_names.extend([("birthdate", "Birthdate"),
                             ("student_status", "Student Status"),
                             ("student_status_change_date", "Student Status Change Date"),
-                            ("class_year", "Class Year"),
-                            ("class_year_change_date", "Class Year Change Date"),
+                            ("class_year", "Year Level"),
+                            ("class_year_change_date", "Year Level Change Date"),
                             ("section", "Section"),
                             ("section_change_date", "Section Change Date"),
                             ("student_major", "Student Major"),
@@ -5588,7 +5594,7 @@ class UserType(db.Model):
         if (self.active_permissions_vault == None):
             UserType.prepare_for_use(self)
         return self.active_permissions_vault.action_ok(action_name,
-                                                       target_name, target_instance)
+                                        target_name, target_instance)
 
     @staticmethod    
     def custom_query(organization, leading_value, value_dict):
@@ -5789,7 +5795,6 @@ class DatabaseUser(db.Model):
         """
         """
         self.user = users.User(self.email)
-        self.name = unicode(self)
         store = SchoolDB.assistant_classes.InformationStoreDict()        
         self.private_info = store.put_data()
         self.usage = 0
@@ -5839,7 +5844,7 @@ class DatabaseUser(db.Model):
         candidate_selection_list = []
         for person in candidates:
             name = person.full_name_lastname_first()
-            entry = {"value":name, "label":name, "key": person.key()}
+            entry = {"value":name, "label":name, "key": str(person.key())}
             candidate_selection_list.append(entry)
         return candidate_selection_list
 
@@ -6055,11 +6060,37 @@ class DatabaseUser(db.Model):
 
     @staticmethod
     def get_field_names():
-        field_names = [("name", "Name")]
+        field_names = [("first_name", "First Name"),
+                     ("middle_name", "Middle Name")]
         return field_names
+    
+    def get_user_create_type(self, person, same_organization = True):
+        """
+        Test permissions to determine if the user can create other
+        users. "same_level" means for the organization that the user is
+        in. If it is legal for this usr to create a database user of
+        the appropriate type then return the type. If not, return None.
+        """
+        if (self.organization.key() == person.organization.key()):
+            user_type = SchoolDB.models.getActiveDatabaseUser().get_active_user_type()
+            if (self.organization.classname == "School"):
+                #Should be a schooldb admin if here
+                return (
+                    SchoolDB.utility_functions.get_entities_by_name(
+                        UserType, "Teacher"), self.organization)
+            elif ((self.organization.classname == "Division") or
+                  (self.organization.classname == "Region")):
+                return (
+                    SchoolDB.utility_functions.get_entities_by_name(
+                        "UpperLevelUser", UserType), self.organization)
+        else:
+            #really need to address subordinate creation -- but not yet
+            return None, None
+                
 
-    def remove(self):
-        self.delete()
+            
+        def remove(self):
+            self.delete()
 
 #----------------------------------------------------------------------
 
@@ -6089,15 +6120,16 @@ class GradingPeriodResult(db.Model):
     def create(class_session, grading_period, student, assigned_grade = None,
                computed_grade = None):
         gp_result = GradingPeriodResult(parent = student, 
-                                        computed_grade = computed_grade, 
-                                        assigned_grade = assigned_grade,
-                                        grading_period = grading_period, 
-                                        class_session = class_session,
-                                        initial_editor = getActiveDatabaseUser().get_active_user(),
-                                        last_editor = getActiveDatabaseUser().get_active_user(),
-                                        initial_assigned_date = date.today(),
-                                        initial_assigned_grade = assigned_grade)
+            computed_grade = computed_grade, 
+            assigned_grade = assigned_grade,
+            grading_period = grading_period, 
+            class_session = class_session,
+            initial_editor = getActiveDatabaseUser().get_active_user(),
+            last_editor = getActiveDatabaseUser().get_active_user(),
+            initial_assigned_date = date.today(),
+            initial_assigned_grade = assigned_grade)
         gp_result.put()
+        return gp_result
 
 
     def set_grade(self, assigned_grade = None, computed_grade = None, 
@@ -6144,12 +6176,26 @@ class GradingPeriodResult(db.Model):
             self.assigned_grade = self.computed_grade
 
     @staticmethod
-    def get_results_for_class_session(class_session):
+    def get_results_for_class_session(class_session,
+                                      grading_period_key = None):
+        """
+        Get all grading period results associated with the class
+        session and then filter the list for the grading period. Return
+        a list of all grading instances for the class in the grading
+        period.
+        """
+        result_list = []
         if class_session:
-            return class_session.gradingperiodresult_set.fetch(500)
-        else:
-            return []
-
+            result_list = \
+                class_session.gradingperiodresult_set.fetch(500)
+            if grading_period_key:
+                single_period_results = []
+                for res in result_list:
+                    if (res.grading_period.key() == grading_period_key):
+                        single_period_results.append(res)
+                result_list = single_period_results
+        return result_list
+    
 #----------------------------------------------------------------------
 
 class VersionedTextManager(History):
@@ -6508,8 +6554,8 @@ def _update_history(instance, value_name, create_params,
                               %(unicode(instance), value_name))
                 instance.__setattr__(history_name,None)
                 if not already_tried:
-                    _update_history(instance, value_name, create_params,
-                                 aready_tried = True)
+                    _update_history(instance, value_name, 
+                                    create_params, True)
                 else:
                     logging.error("_update_history already retried once.")
                 

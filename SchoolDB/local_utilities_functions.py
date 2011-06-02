@@ -26,7 +26,7 @@ from google.appengine.api import memcache
 import SchoolDB.models
 
 
-def change_parameter(obj, change_parameters):
+def change_parameter(keystr, change_parameters):
     """
     This function is designed to provide simple support for parameter
     change from a task. It depends upon the task creator to select
@@ -39,21 +39,40 @@ def change_parameter(obj, change_parameters):
     the following values:
     1. changed_parameter
     2. new_value
-    If parameter has associated history:
-    3. change_date
-    4. date_parameter
+    3. change_date (arg is an integer for the date ordinal)
+    4. date_parameter 
     5. history_parameter
     6. value_is_reference
-    If the changed_parameter does not have a history then dictionary entries 3-5 
-    need not be defined. 
+    If the changed_parameter does not have a history then dictionary 
+    entries 3-6 need not be defined.
     """ 
     try:
-        setattr(obj, change_parameters["changed_parameter"],
-            change_parameters["new_value"])
-        if (change_parameters.has_key("change_date")):
+        obj = SchoolDB.models.get_instance_from_key_string(keystr)
+        has_history = (change_parameters.has_key("change_date") and 
+            change_parameters.has_key("date_parameter"))
+        if has_history:
+            prior_date = getattr(obj, 
+                    change_parameters["date_parameter"]).toordinal()
+            if (prior_date > change_parameters["change_date"]):
+                #change occured later than date to be set leave unchanged
+                return True
+        new_value = change_parameters["new_value"]
+        old_value = getattr(obj, 
+                        change_parameters["changed_parameter"])
+        if change_parameters.get("value_is_reference", False):
+            new_value = SchoolDB.models.get_key_from_string(new_value)
+            old_value = old_value.key()
+        if (new_value == old_value):
+            #If the value is already set to new value do nothing
+            #This saves time (the history is already idempotent)
+            return True
+        setattr(obj, change_parameters["changed_parameter"], new_value)
+        if has_history:
+            change_date = datetime.date.fromordinal(
+                change_parameters["change_date"])
             if (change_parameters.has_key("date_parameter")):
                 setattr(obj, change_parameters["date_parameter"],
-                        change_parameters["change_date"])
+                        change_date)
             if (change_parameters.has_key("history_parameter")):
                 history = getattr(obj, 
                             change_parameters["history_parameter"])
@@ -61,12 +80,12 @@ def change_parameter(obj, change_parameters):
                     "value_is_reference", False)
                 if (is_reference):
                     string_val = ""
-                    ref_val = change_parameters["new_value"]
+                    ref_val = new_value
                 else:
-                    string_val = change_parameters["new_value"]
+                    string_val = new_value
                     ref_val = None
                 history.add_or_change_entry_if_changed(
-                    start_date=change_parameters["change_date"],
+                    start_date=change_date,
                     info_str=string_val, info_reference= ref_val)
         obj.put()
         return True
@@ -98,8 +117,8 @@ def bulk_update_by_task(model_class, filter_parameters, change_parameters,
     4. date_parameter
     5. history_parameter
     6. value_is_reference
-    If the changed_parameter does not have a history then dictionary entries 3-5 
-    need not be defined.
+    If the changed_parameter does not have a history then dictionary 
+    entries 3-6 need not be defined.
     
     This utility function uses tasks to perform the actions so there is no 
     worry about exceeding the time limit or cousing long wait times for the 
@@ -117,7 +136,7 @@ def bulk_update_by_task(model_class, filter_parameters, change_parameters,
             qmkr_query = SchoolDB.assistant_classes.QueryMaker(
                 model_class, qmkr_desc)
             query_iterator = qmkr_query.get_objects()
-            if query_iterator:
+            if query_iterator and query_iterator.count():
                 task_generator =SchoolDB.assistant_classes.TaskGenerator(
                     task_name=task_name, function = 
                     "SchoolDB.local_utilities_functions.change_parameter", 
@@ -186,7 +205,7 @@ def update_student_summary_utility(logger, encompassing_organization_name="",
     update_student_summary_by_task(encompassing_organization, (force != ""))
     logger.add_line("Queued all")
  
-def update_section_initial_student_counts(loggger=None):
+def update_section_initial_student_counts(logger=None):
     try:
         organization = \
             SchoolDB.models.getActiveOrganization()
@@ -214,9 +233,11 @@ def update_section_initial_student_counts(loggger=None):
 #----------------------------------------------------------------------
 # Specific limited purpose utilities
 
-def bulk_student_status_change_utilty(logger, class_year, 
-                    prior_status_name, prior_status_oldest_change_date, 
-                    new_status_name, change_date = None, year_end = True,
+def bulk_student_status_change_utility(logger, class_year, 
+                        prior_status_name = "Enrolled", 
+                        new_status_name="Not Currently Enrolled",
+                    prior_status_oldest_change_date = None, 
+                    change_date = None, year_end = True,
                     organization=None):
     """
     Change the student status for students of a single class year to
@@ -240,7 +261,8 @@ def bulk_student_status_change_utilty(logger, class_year,
     prior_student_status_object = SchoolDB.models.get_entities_by_name(
         SchoolDB.models.StudentStatus, prior_status_name)
     new_student_status_object = \
-            SchoolDB.models.get_entities_by_name(SchoolDB.models.StudentStatus, new_status_name)[0]
+            SchoolDB.models.get_entities_by_name(SchoolDB.models.StudentStatus, new_status_name)
+    new_student_status_keystring = str(new_student_status_object.key())
     if (prior_student_status_object and new_student_status_object):
         model_class = SchoolDB.models.Student
         query_filters = [("class_year = ", class_year),
@@ -249,13 +271,29 @@ def bulk_student_status_change_utilty(logger, class_year,
                           prior_status_oldest_change_date)
                           ]
         change_parameters = {"changed_parameter":"student_status",
-                             "new_value":new_student_status_object,
-                             "change_date":change_date,
+                             "new_value":new_student_status_keystring,
+                             "change_date":change_date.toordinal(),
                              "date_parameter":"student_status_change_date",
                              "history_parameter":"student_status_history",
                              "value_is_reference":True}
         bulk_update_by_task(model_class, query_filters, 
                             change_parameters, organization=organization)
+
+def end_of_year_update_school(logger):
+    logging.info("Starting stat change")
+    for class_year in ["First Year", "Second Year", "Third Year"]:
+        bulk_student_status_change_utility(logger, class_year, 
+                            prior_status_name = "Not Currently Enrolled", 
+                            new_status_name="Enrolled",
+                            change_date = datetime.date(2011,3,31))
+        logging.info("Called bulk for " + class_year)
+    bulk_student_status_change_utility(logger, "Fourth Year", 
+                            prior_status_name = "Enrolled", 
+                            new_status_name="Graduated",
+                            change_date = datetime.date(2011,3,30))
+    logging.info("Called bulk for Fourth Year")
+    logging.info("All bulk called")
+                            
     
 def create_new_attendance_record(student_keystring):
     """
@@ -464,8 +502,9 @@ def fake_gp_grades(class_session_keystr, grading_period_keystr):
                      view_grading_periods=[], students=[], 
                      results_table=results_table)
         gp_handler.set_grades()
-        logging.info('Fake GP grades set for %d students in class "%s"' \
-                     %(len(students), unicode(class_session)))
+        logging.info('Fake GP grades set for %d students in class "%s" for grading period "%s"' \
+                     %(len(students), unicode(class_session),
+                       unicode(SchoolDB.utility_functions.get_instance_from_key_string(grading_period_keystr))))
         return True
     except StandardError, e:
         logging.error('fake_gp_grades failed for class "%s": %s'\
@@ -504,10 +543,13 @@ def create_fake_at_grades(class_year, achievement_test_keystr):
                 %(unicode(achievement_test), class_year))
 
 
-def create_fake_gp_grades(class_year, grading_period_keystr):
+def create_fake_gp_grades(class_year, grading_period_name):
     """
     Set fake grades for grading period. This uses a completly different set of software than achievement tests to get and set grades. The two parts are:
     """
+    grading_period = SchoolDB.utility_functions.get_entities_by_name(
+        SchoolDB.models.GradingPeriod, "First Grading Period")
+    grading_period_keystr = str(grading_period.key())
     query = SchoolDB.models.ClassSession.all()
     query.filter("organization =", SchoolDB.models.getActiveOrganization())
     query.filter("class_year =", class_year)
@@ -522,7 +564,7 @@ def create_fake_gp_grades(class_year, grading_period_keystr):
         successful, result_string = task_generator.queue_tasks()
         logging.info("Queued grading period fake grades for %s",
                          unicode(class_session))
-        logging.info("All fake grades enqueued")
+    logging.info("All fake grades enqueued")
         
 
 

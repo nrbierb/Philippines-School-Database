@@ -221,8 +221,8 @@ class ValuesDictGenerator:
         """
         Set dict values that are different depending upon class year
         """
-        base_elementary_graduation_date = date.toordinal(date(2010,3,30))
-        base_change_date = date.toordinal(date(2010,6,15))
+        base_elementary_graduation_date = date.toordinal(date(2010,12,30))
+        base_change_date = date.toordinal(date(2011,3,1))
         self.values_dict["student_major"] = random.choice(self.majors_list)
         if (self.class_year == "First Year"):
             offset = 0
@@ -235,6 +235,8 @@ class ValuesDictGenerator:
         self.values_dict["elementary_graduation_date"] = \
             str(base_elementary_graduation_date + offset)
         self.values_dict["student_major_change_date"] = \
+            str(base_change_date + offset)
+        self.change_date = \
             str(base_change_date + offset)
     
     def set_low_probability_values(self):

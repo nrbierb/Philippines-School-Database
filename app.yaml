@@ -1,12 +1,11 @@
-application: pi-schooldb-practice
-version: 1--0-13
+application: pi-schooldb-dev
+version: 1--0-14
 runtime: python
 api_version: 1
 
 handlers:
 
 - url: /static_pages
-
   static_dir: static_pages
  
 - url: /js

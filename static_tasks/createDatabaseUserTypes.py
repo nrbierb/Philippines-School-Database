@@ -117,6 +117,8 @@ def build_teacher_permissions():
             'othertypes':False,
             'otherwork':False,
             'database_user':False,
+            'standard_database_user':False,
+            'master_database_user':False,
             'user_type':False,
             'runtest':False,
             'utilrequest':False}
@@ -130,7 +132,9 @@ def build_teacher_permissions():
                           "class_session":standard_edit,
                           "class_period":standard_view,
                           "classroom":standard_view,
-                          "contact":standard_broad_view, 
+                          "contact":standard_broad_view,
+                          "standard_database_user":standard_prohibited,
+                          "master_database_user":standard_prohibited,
                           "database_user":standard_prohibited,
                           "division":standard_broad_view,
                           "family":standard_edit,
@@ -184,7 +188,8 @@ def build_school_db_administrator_permissions():
     url_changes = {"school_admin_home":True,
                    "othertypes":True,
                    #"otherwork":True,
-                   "database_user":True}
+                   "database_user":True,
+                   "standard_database_user":True}
     class_permission_changes = {"adminstrator":local_edit_broad_view,
                 "community":standard_broad_edit,
                 "class_period":standard_edit,
@@ -194,6 +199,7 @@ def build_school_db_administrator_permissions():
                 #The special edit function for only up to teacher must
                 #be written and tested. For now, just give standard edit
                 #permissions
+                "standard_database_user":standard_edit,
                 "database_user":standard_edit,
                 "grading_period":standard_edit,
                 "municipality":standard_broad_edit,
@@ -207,71 +213,53 @@ def build_school_db_administrator_permissions():
     perms["function_permissions"].update(function_permission_changes)
     return perms
 
-def build_student_permissions():
-    default_url = False;
-    urls = {"student_home":True,
-                 "select":True,
-                 "attendance":True,
-                 "enter_grades":True}
-    default_target_permission = standard_prohibited
-    class_permissions = {"grading_instance":standard_view,
-                                 "section":standard_view_special,
-                                 "class_session":standard_view_special,
-                                 "grading_instance":standard_view_special}
-    function_permissions = {"enter_grades":standard_edit_special,
-                                          "attendance":standard_edit_special}
-    permissions = {"default_url":default_url,
-        "url_permissions":urls, 
-        "default_target_permission":default_target_permission,
-        "class_permissions":class_permissions,
-        "function_permissions":function_permissions}
-    return permissions
+#def build_student_permissions():
+    #default_url = False;
+    #urls = {"student_home":True,
+                 #"select":True,
+                 #"attendance":True,
+                 #"enter_grades":True}
+    #default_target_permission = standard_prohibited
+    #class_permissions = {"grading_instance":standard_view,
+                                 #"section":standard_view_special,
+                                 #"class_session":standard_view_special,
+                                 #"grading_instance":standard_view_special}
+    #function_permissions = {"enter_grades":standard_edit_special,
+                                          #"attendance":standard_edit_special}
+    #permissions = {"default_url":default_url,
+        #"url_permissions":urls, 
+        #"default_target_permission":default_target_permission,
+        #"class_permissions":class_permissions,
+        #"function_permissions":function_permissions}
+    #return permissions
 
 def build_upper_level_permissions():
     default_url = True
     default_target_permission = \
             SchoolDB.models.TargetTypePermission(standard_broad_view)
     default_target_permission.load_permissions(standard_broad_view)
-    urls = {'index':True,
-            'upperlevel_home':True,
-            'person':True,
-            'teacher':True,
-            'select':True,
-            'initialselect':True,
-            'choose':True,
-            'choose_report':True,
-            'choose_custom_report':True,
-            'reports':True,
-            'history':True,
-            'school_year':True,
-            'school_calendar':True,
-            'grading_period':True,
-            'class_period':True,
-            'school':True,
-            'organization':True,
-            'region':True,
-            'contact':True,
-            'student_status':True,
-            'student':True,
-            'parent':True,
-            'student_major':True,
-            'subject':True,
-            'section_type':True,
-            'special_designation':True,
-            'summary_reports':True,
-            'municipality':True,
-            'province':True,
-            'community':True,
-            'division':True,
-            'region':True,
-            'manual':True,
-            'ajax':True}
+    urls = {'masterhome':False,
+            "schoolhome":False,
+            'schooladminhome':False,
+            'upperlevel_adminhome':False,
+            'schooladmin_maint':False,
+            'upperlevel_adminhome':False,
+            'othertypes':False,
+            'otherwork':False,
+            'database_user':False,
+            'standard_database_user':False,
+            'master_database_user':False,
+            'user_type':False,
+            'runtest':False,
+            'utilrequest':False}
     class_permissions = {"administrator":standard_broad_view,
                           "community":standard_broad_view,
                           "class_session":standard_prohibited,
                           "class_period":standard_view,
                           "contact":standard_broad_view, 
                           "database_user":standard_prohibited,
+                          "standard_databaser_user":standard_prohibited,
+                          "master_database_user":standard_prohibited,
                           "division":standard_broad_view,
                           "family":standard_prohibited,
                           "grading_instance":standard_prohibited,

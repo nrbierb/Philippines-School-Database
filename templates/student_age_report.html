@@ -2,7 +2,7 @@
 {% block script %} {{ block.super }}
 <script type="text/javascript">
 var sectionField = {"id":"id_section","name":"Section","required":false};
-var yearField = {"id":"id_class_year","name":"Class Year","required":false};
+var yearField = {"id":"id_class_year","name":"Year Level","required":false};
 
 function setParametersForRequest(class_year, section) {
 	var param_dict = {
@@ -32,7 +32,7 @@ $(function() {
 			var params = setParametersForRequest();
 			var titleString = '<p class="report-title"> Student Age Distribution</p>';
 			$('#report_title').html(titleString);
-			var headerString = '<p class="report-subtitle">Class Year: ' + $("#id_class_year").val() +
+			var headerString = '<p class="report-subtitle">Year Level: ' + $("#id_class_year").val() +
 				' -- Section: ' + $('#id_section_name').val() + '</p>';
 			$('#report_header').html(headerString);
 			requestTable("/ajax/calculated_table", params, reportTable);
@@ -45,7 +45,7 @@ $(function() {
 <fieldset class="std-block" id="id_table_fieldset">
 	<legend>Setup Report</legend>
 	<table id="setup_table" class="centered-object">
-	<tr><th>Class Year</th><th>Section</th><th>Date</th>
+	<tr><th>Year Level</th><th>Section</th><th>Date</th>
 	<th>Min Age</th><th>Max Age</th><th>Trim Years</th>
 	<th>Restrict Years</th><th>Age Type</th>
 	<tr>

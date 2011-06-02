@@ -1440,7 +1440,8 @@ class GradingPeriodGradesHandler:
         table = [list(row) for i in range(len(self.class_roster))]
         for j, period_key in enumerate(self.reporting_periods):
             grading_period_results = \
-                                   SchoolDB.models.GradingPeriodResult.get_results_for_class_session(db.get(period_key))
+                SchoolDB.models.GradingPeriodResult.get_results_for_class_session(
+                                       self.class_session, period_key)
             for i, (student, name) in enumerate(self.class_roster):
                 table[i][0] = name
                 student_keylist.append(student)
@@ -1499,7 +1500,7 @@ class GradingPeriodGradesHandler:
         return json_results
 
     def _set_grading_period_grade(self, grading_period, student_key, 
-                                  grading_period_results, grade_value_string):
+                        grading_period_results, grade_value_string):
         """
         Search through list of grading period results for the student and
         grading period. If found, set new value. If not found, create it.
@@ -1541,7 +1542,7 @@ class GradingPeriodGradesHandler:
         for x, gd_inst_keystr in enumerate(self.results_table["columns"]):
             gd_period = \
                       SchoolDB.models.get_instance_from_key_string(gd_inst_keystr)
-            grading_period_results = SchoolDB.models.GradingPeriodResult.get_results_for_class_session(gd_period)
+            grading_period_results = SchoolDB.models.GradingPeriodResult.get_results_for_class_session(self.class_session,gd_period)
             for y, student_keystr in enumerate(self.results_table["keys"]):
                 student_key = \
                             SchoolDB.models.get_key_from_string(student_keystr)
