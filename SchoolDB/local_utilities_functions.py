@@ -135,7 +135,7 @@ def bulk_update_by_task(model_class, filter_parameters, change_parameters,
             qmkr_desc.set("keys_only", True)
             qmkr_query = SchoolDB.assistant_classes.QueryMaker(
                 model_class, qmkr_desc)
-            query_iterator = qmkr_query.get_objects()
+            query_iterator, extra_data = qmkr_query.get_objects()
             if query_iterator and query_iterator.count():
                 task_generator =SchoolDB.assistant_classes.TaskGenerator(
                     task_name=task_name, function = 
@@ -294,7 +294,35 @@ def end_of_year_update_school(logger):
     logging.info("Called bulk for Fourth Year")
     logging.info("All bulk called")
                             
-    
+def check_encoding_count(logger):
+    """
+    Scan all schools to count of students encoded by section. This
+    first version just uses the logging to report results.
+    This uses logging level warning just to allow it to be easily 
+    filtered. It is really just an info message -- not a warning
+    """
+    logging.warning("Begining encoding count check.")
+    school_query = SchoolDB.models.School.all()
+    enrolled_key = SchoolDB.models.get_entities_by_name(
+        SchoolDB.models.StudentStatus, "Enrolled", True)    
+    for school in school_query:
+        school_name = school.name
+        logging.info("----------------- %s --------------" %school_name)
+        section_query = SchoolDB.models.Section.all()
+        section_query.ancestor(school)
+        for section in section_query:
+            section_name = section.name
+            student_query = SchoolDB.models.Student.all()
+            student_query.filter("section =", section.key())
+            student_query.filter("student_status =", enrolled_key)
+            count = student_query.count()
+            logging.info("--%s  %d" %(section_name, count))
+            #for student in student_query:
+                #if not student.attendance:
+                    #logging.info("   ++missing attendance: %s" %unicode(student))
+    logging.warning("Encoding count check complete.")
+    logger.add_line("finished scanning")
+
 def create_new_attendance_record(student_keystring):
     """
     Create a new attendance record for a student.
@@ -302,7 +330,7 @@ def create_new_attendance_record(student_keystring):
     try:
         student = SchoolDB.utility_functions.get_instance_from_key_string(
             student_keystring)
-        start_date = datetime.date(2011,1,1)
+        start_date = datetime.date(2011,6,6)
         student.attendance = SchoolDB.models.StudentAttendanceRecord.create(
             parent_entity = student, start_date = start_date)
         student.put()
