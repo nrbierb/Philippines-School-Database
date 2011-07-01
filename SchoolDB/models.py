@@ -706,16 +706,27 @@ class History(polymodel.PolyModel):
                 show_end_date, field_size))
         return entries_choice_list
 
-    def remove(self):
+    def remove(self, perform_remove):
         """
         Clean up all history elements in this history.
         Then delete self. This will provide a clean deletion of the 
         history.
         """  
-        if (self.is_private_reference_object):
-            for entry in self.entries_list:
-                entry.remove_reference()
-        self.delete()
+        name = self.attribute_name
+        logging.info("History '%s' beginning remove." %name)
+        try:
+            if (self.is_private_reference_object):
+                for entry in self.entries_list:
+                    entry.remove_reference(perform_remove)
+            if perform_remove:
+                self.delete()
+            else:
+                logging.info("Only simulating removal of History %s" %name)
+        except StandardError, e:
+            logging.error("History %s failed remove %s" \
+                          %(name))
+        logging.info("History '%s' completed remove." %name)
+        return perform_remove
 
 #----------------------------------------------------------------------
 class Organization(polymodel.PolyModel):
@@ -894,8 +905,14 @@ class Organization(polymodel.PolyModel):
                        ("address", "Address")]
         return field_names
 
-    def remove(self):
-        self.delete()
+    def remove(self, perform_remove):
+        """
+        Remove the entity via function simple_remove and
+        report success via logging.
+        """
+        return SchoolDB.utility_functions.simple_remove(self, 
+                                perform_remove)
+
 
 #----------------------------------------------------------------------
 class Contact(db.Model):
@@ -950,8 +967,13 @@ class Contact(db.Model):
     def in_organization(self, organization_key, requested_action):
         return (self.parent == organization_key)
 
-    def remove(self):
-        self.delete()
+    def remove(self, perform_remove):
+        """
+        Remove the entity via function simple_remove and
+        report success via logging.
+        """
+        return SchoolDB.utility_functions.simple_remove(self, 
+                                perform_remove)
 
 #----------------------------------------------------------------------
 class National(Organization):
@@ -1143,9 +1165,13 @@ class Municipality(Organization):
         """
         self.deped_org = False
 
-    @staticmethod
-    def remove(municipality):
-        fully_delete_entity(municipality, [Community])
+    def remove(self, perform_remove):
+        """
+        Remove self and all communities that are in the municipality.
+        This uses the function fully_delete_entity which will not
+        actually perform the removal if perform_remove is False.
+        """
+        fully_delete_entity(self, [Community], perform_remove)
 
     @staticmethod
     def custom_query(query_descriptor):
@@ -1158,7 +1184,7 @@ class Municipality(Organization):
             object_list = school.students_municipalities
         except:
             object_list = []
-        return object_list    
+        return object_list,  " "    
 
     @staticmethod
     def get_field_names():
@@ -1220,7 +1246,7 @@ class Community(Organization):
 
 class StudentStatus(db.Model):
     """
-    A simple class that dfines a name and some other properties for the
+    A simple class that defines a name and some other properties for the
     status of a student. Note that this is not a multilevel and can be
     edited only by the master user. This must be strict for consistency
     at all levels of DepEd organization.
@@ -1251,8 +1277,13 @@ class StudentStatus(db.Model):
         """
         return (requested_action == "View")
 
-    def remove(self):
-        self.delete()
+    def remove(self, perform_remove):
+        """
+        Remove the entity via function simple_remove and
+        report success via logging.
+        """
+        return SchoolDB.utility_functions.simple_remove(self, 
+                                perform_remove)
 
 #----------------------------------------------------------------------
 
@@ -1289,8 +1320,13 @@ class SchoolDayType(db.Model):
         """
         return (requested_action == "View")
 
-    def remove(self):
-        self.delete()
+    def remove(self, perform_remove):
+        """
+        Remove the entity via function simple_remove and
+        report success via logging.
+        """
+        return SchoolDB.utility_functions.simple_remove(self, 
+                                perform_remove)
 
 #----------------------------------------------------------------------
 
@@ -1318,7 +1354,8 @@ class MultiLevelDefined(polymodel.PolyModel):
     @staticmethod
     def create(name, organization):
         return MultiLevelDefined(name=name, 
-                                 parent=organization)
+                    parent=organization, organization=organization)
+
     def __unicode__(self):
         return self.name
 
@@ -1353,6 +1390,27 @@ class MultiLevelDefined(polymodel.PolyModel):
         """
         keylist = MultiLevelDefined.build_hierarchy_keylist(organization)
         keylist.reverse()
+        choices = []
+        for key in keylist:
+            choices.append([key, unicode(Organization.get(key))])
+        return choices
+
+    @staticmethod
+    def create_limited_org_choice_list(organization, requested_action):
+        """
+        Create a list of tuples (org_key, org_name) in inverse
+        heirarchical order for use in gui choices. This will only be a
+        single value that is the user organization unless the request is
+        for a "View" or the user is the application admin user. This is
+        the standard action for webpages.
+        """
+        if ((requested_action != "View") and 
+            (not users.is_current_user_admin())):
+            keylist = [organization.key()]
+        else:
+            #build the full keylist
+            keylist = MultiLevelDefined.build_hierarchy_keylist(organization)
+            keylist.reverse()
         choices = []
         for key in keylist:
             choices.append([key, unicode(Organization.get(key))])
@@ -1420,6 +1478,7 @@ class MultiLevelDefined(polymodel.PolyModel):
         """
         organization = getActiveDatabaseUser().get_active_organization()
         merge_list = []
+        all_extra_data = None
         query_descriptor.set("use_class_query", False)
         query_descriptor.set("filter_by_organization", False)
         keylist = MultiLevelDefined.build_hierarchy_keylist(organization)
@@ -1427,12 +1486,17 @@ class MultiLevelDefined(polymodel.PolyModel):
             query_descriptor.set("filters", [("organization", authority)])
             query = SchoolDB.assistant_classes.QueryMaker(target_class, 
                                                           query_descriptor)
-            object_list =  query.get_objects()                        
+            object_list, extra_data =  query.get_objects()                        
             merge_list = MultiLevelDefined.merge_lists(merge_list,
                                                        object_list)
+            if (extra_data):
+                if (all_extra_data):
+                    all_extra_data += extra_data
+                else:
+                    all_extra_data = extra_data
         if (sort_function):
             merge_list = sort_function(merge_list)
-        return merge_list
+        return merge_list, all_extra_data
 
     @staticmethod    
     def sort_by_org_level(instances):
@@ -1496,8 +1560,13 @@ class MultiLevelDefined(polymodel.PolyModel):
                        ("other_information", "Other Information")]
         return field_names
 
-    def remove(self):
-        self.delete()
+    def remove(self, perform_remove):
+        """
+        Remove the entity via function simple_remove and
+        report success via logging.
+        """
+        return SchoolDB.utility_functions.simple_remove(self, 
+                                perform_remove)
 #----------------------------------------------------------------------
 class DateBlock(MultiLevelDefined):
     start_date = db.DateProperty()
@@ -2023,9 +2092,15 @@ class Person(polymodel.PolyModel):
         This assures that the first name, middle name, and last name
         fields will be capitalized.
         """
-        self.first_name = clean_up_letter_casing(self.first_name)
-        self.middle_name = clean_up_letter_casing(self.middle_name)
-        self.last_name = clean_up_letter_casing(self.last_name)
+        self.first_name = \
+            SchoolDB.utility_functions.clean_up_letter_casing(
+                self.first_name)
+        self.middle_name = \
+               SchoolDB.utility_functions.clean_up_letter_casing(
+                   self.middle_name)
+        self.last_name = \
+               SchoolDB.utility_functions.clean_up_letter_casing(
+                   self.last_name)
 
     def form_data_post_processing(self):
         """
@@ -2046,7 +2121,7 @@ class Person(polymodel.PolyModel):
         return (query.get())
 
     def in_organization(self, organization_key, requested_action):
-        if self.organization.key():
+        if (self.organization):
             return (self.organization.key() == organization_key)
         else:
             #if no organization key (parents, for example) then 
@@ -2114,12 +2189,24 @@ class Person(polymodel.PolyModel):
                              value_dict["filterkey-organization"])
         query.leading_value_filters = [("last_name", leading_value, True)]
         query.sort_params = ["last_name", "first_name"]
-        return query.get_keys_and_names(Person.full_name_lastname_first)
+        return query.get_keys_and_names(Person.full_name_lastname_first), " "
 
-    def remove(self):
-        if (self.organization_history):
-            self.organization_history.remove()
-        self.delete()
+    def remove(self, perform_remove):
+        if perform_remove: 
+            action_text = ""
+        else:
+            action_text = "simulated "
+        name = unicode(self)
+        logging.info("Beginning %sremoval of %s %s" \
+                     %(action_text, self.classname, name))
+        try: 
+            fully_delete_entity(self, [History], perform_remove)        
+            logging.info("%s Removal of %s complete." %(action_text,
+                                                       name))
+        except StandardError, e:
+            logging.error = "Failed to remove %s %s. Error: %s" \
+                   %(self.classname, unicode(self), e)
+        return perform_remove
     
     @staticmethod
     def compare_by_name(person1, person2):
@@ -2264,6 +2351,14 @@ class StudentSchoolSummaryHistory(History):
         except StandardError, e:
             result = "Student School Summary failed: %s" %e
             
+    def remove(self, perform_remove):
+        """
+        Remove the entity via function simple_remove and
+        report success via logging.
+        """
+        return SchoolDB.utility_functions.simple_remove(self, 
+                                perform_remove)
+
 #------------------------------------------------------------------
 class StudentSchoolSummary(db.Model):
     """
@@ -2315,7 +2410,10 @@ class StudentSchoolSummary(db.Model):
             section_summary = self.get_section_summary(section_key)
             if (not section_summary):
                 section_summary = self.create_section_summary(section_key)
-          
+                logging.info(
+                    "Created section summary information for new section %s")\
+                       %unicode(Section.get(section_key))
+                
     def mark_section_needs_update(self, section_key, put_self=True):
         """
         When a student record for the section is created or changed
@@ -2348,9 +2446,11 @@ class StudentSchoolSummary(db.Model):
     def force_update(self):
         """
         Mark all sections to require update, then call update_if_necessary
-        to perform it.
+        to perform it. This will also add any new sections.
         """
-        for section_key in SchoolDB.summaries.StudentSchoolSectionDict.get_section_keys(
+        self.add_sections_if_necessary()
+        for section_key in \
+            SchoolDB.summaries.StudentSchoolSectionDict.get_section_keys(
             self.section_dict):
             self.mark_section_needs_update(section_key, put_self = False)
         self.put()
@@ -2394,7 +2494,7 @@ class StudentSchoolSummary(db.Model):
             school_name = unicode(self.school)
             logging.info("Starting '%s' student summary update" %school_name)
             is_current = \
-                    SchoolDB.summaries.StudentSchoolSectionDict.get_is_current(
+                SchoolDB.summaries.StudentSchoolSectionDict.get_is_current(
                         self.section_dict)
             if (not is_current):
                 need_update_list = \
@@ -2500,11 +2600,19 @@ class StudentSchoolSummary(db.Model):
             if (len(median_age[i])):
                 median_age[i].sort()
                 cy_summary.median_age[i] = \
-                           median_age[i][len(median_age) / 2]
+                           median_age[i][len(median_age[i]) / 2]
             else:
                 median_age[i] = 0        
         return cy_summary
-        
+
+    def remove(self, perform_remove):
+        """
+        Remove the entity via function simple_remove and
+        report success via logging.
+        """
+        return SchoolDB.utility_functions.simple_remove(self, 
+                                perform_remove)
+
 #----------------------------------------------------------------------
 class StudentSectionSummary(db.Model):
     """
@@ -2564,11 +2672,8 @@ class StudentSectionSummary(db.Model):
         
     def update(self):
         try:
-            logging.info("starting section update")
             summary_data = self.get_data()
-            logging.info("summary_data ok")
             summary_data.update_student_information(self.section)
-            logging.info("update complete")
             self.data_store = summary_data.put_data()
             self.mark_current()
             self.put()
@@ -2586,7 +2691,8 @@ class StudentSectionSummary(db.Model):
     def perform_update_task(section_summary_keystr):
         """
         Update the section summary data and mark both self and school
-        summary status as section current.
+        summary status as section current. Return a boolean for the
+        success of the action.
         """
         section_summary = get_instance_from_key_string(
             section_summary_keystr)
@@ -2594,6 +2700,15 @@ class StudentSectionSummary(db.Model):
             return section_summary.update()
         else:
             return False
+        
+    def remove(self, perform_remove):
+        """
+        Remove the entity via function simple_remove and
+        report success via logging.
+        """
+        return SchoolDB.utility_functions.simple_remove(self, 
+                                perform_remove)
+
 #----------------------------------------------------------------------
 class School(Organization):
     """
@@ -2798,12 +2913,6 @@ class Teacher(Person):
             ("organization", "Organization")])
         return field_names
 
-    def remove(self):
-        self.employment_history.remove()
-        self.section_advisor_history.remove()
-        self.class_session_teacher_history.remove()
-        self.delete()
-    
 #----------------------------------------------------------------------
 class Classroom(db.Model):
     """
@@ -2860,8 +2969,13 @@ class Classroom(db.Model):
     def in_organization(self, organization_key, requested_action):
         return (self.organization.key() == organization_key)
 
-    def remove(self):
-        self.delete()
+    def remove(self, perform_remove):
+        """
+        Remove the entity via function simple_remove and
+        report success via logging.
+        """
+        return SchoolDB.utility_functions.simple_remove(self, 
+                                perform_remove)
     
 #----------------------------------------------------------------------
 
@@ -2956,9 +3070,6 @@ class StudentGrouping(polymodel.PolyModel):
                        ("teacher_change_date", "Teacher Change Date")]
         return field_names
 
-    def remove(self):
-        self.teacher_history.remove()
-        self.delete()
 
 #----------------------------------------------------------------------
 class KeysList(db.Model):
@@ -3429,9 +3540,9 @@ class ClassSession(StudentGrouping):
         """
         student_key = student.key()
         try:
-            self.students_list.index(key)
+            self.students_list.index(student_key)
         except:
-            self.students_list.append(key)
+            self.students_list.append(student_key)
         if (not start_date):
             start_date = self.start_date
         students_class = student.assign_class_session(self, self.subject,
@@ -3482,10 +3593,15 @@ class ClassSession(StudentGrouping):
         The class session will be given to all students in the section.
         Most classes are taught in this manner (i.e., the session is
         for all only the students in a single section) so this allows
-        for easy entry of most of students schedules.
+        for easy entry of most of students schedules. The class may be
+        created before any students are added to the section. If so, do
+        nothing.
         """
         students_list = self.section.get_students()
-        return self.add_students_to_class(students_list)
+        if students_list:
+            return self.add_students_to_class(students_list)
+        else:
+            return (True, "No students")
 
     def get_grading_instances(self, keys_only=False):
         """
@@ -3685,9 +3801,26 @@ class GradingInstance(db.Model):
             #sum += students_grade.grade
         #average = sum / len(grades)
         #return average            
+
+    def remove(self, perform_remove):
+        """
+        Remove the entity via function simple_remove and
+        report success via logging.
+        """
+        return SchoolDB.utility_functions.simple_remove(self, 
+                                perform_remove)
+#----------------------------------------------------------------------  
+class AchievementTestNew(db.Model):
+    """
+    A representation of an achievement test from either the school or higher level organizations so it is a MultiLevelDefined child class.  The test may
+    have separate parts for each subject that are graded individually and
+    are normally either for all class years or only single years. This
+    class contains information for only one class year. 
+    """
+    
 #----------------------------------------------------------------------  
 
-class AchievementTest(db.Model):
+class AchievementTest(MultiLevelDefined):
     """
     A representation of an achievement test from a higher level
     organization such as a national, regional, or division test. These may
@@ -3699,10 +3832,6 @@ class AchievementTest(db.Model):
     GradingInstance/GradingEvent pairs for each subject on the test.
     """
     classname = "Achievement Test"
-    last_edit_time = db.DateTimeProperty(auto_now=True)
-    last_editor = db.ReferenceProperty()
-    organization = db.ReferenceProperty(Organization)
-    name = db.StringProperty(required=True)
     date = db.DateProperty()
     percent_grade = db.FloatProperty()
     class_years = db.ListProperty(str)
@@ -3712,17 +3841,14 @@ class AchievementTest(db.Model):
     #The subject list should include only those at the national level
     subjects = db.ListProperty(db.Key)
     summary_blob = db.BlobProperty()
-    other_information = db.StringProperty(multiline=True)
 
     @staticmethod
     def create(name, organization):
         """
         Set organization and parent to users org upon creation
         """
-        new_instance = AchievementTest(name=name, parent=organization, 
+        return AchievementTest(name=name, parent=organization, 
                                        organization=organization)
-        new_instance.put()
-        return new_instance
 
     @staticmethod
     def findAchievementTest(organization, 
@@ -3818,7 +3944,7 @@ class AchievementTest(db.Model):
         self.subjects = subjects.keys()
         self.save_summary(summary)
     
-    def in_organization(self, organization,other):
+    def in_organization(self, organization, other):
         #>>>>>FIX THIS HACK SOON!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!<<<<
         return True
     
@@ -4021,14 +4147,25 @@ class AchievementTest(db.Model):
     def post_creation(self):
         pass
 
-    def remove(self):
+    def remove(self, perform_remove):
         """
         Remove all associated grading instances and then self. Note:
         Dangerous to do if it has already been used.
         """
-        grading_instances = self.get_grading_instances()
-        grading_instances.delete()
-        self.delete()
+        if perform_remove: 
+            action_text = ""
+        else:
+            action_text = "simulated "
+        logging.info("Beginning %sremoval of %s %s" \
+                     %(action_text, self.classname, unicode(self)))
+        try: 
+            fully_delete_entity(self, [GradingInstance], perform_remove)
+            logging.info("%s Removal of %s complete." (action_text,
+                                                       unicode(self)))
+        except StandardError, e:
+            logging.error = "Failed to remove student %s. Error: %s" \
+                   %(unicode(self), e)
+        return perform_remove
         
 #----------------------------------------------------------------------
 class Family(db.Model):
@@ -4072,24 +4209,6 @@ class Family(db.Model):
         instances = self.students_set.fetch(100)
         return self.filter_class(instances, "class_year")
 
-    def remove(self, last_student = None):
-        """
-        The family object can only be removed after student objects 
-        that refer to it are gone themselves. Do nothing otherwise.
-        ParentsOrGuardians are connected only throught the family
-        object so delete them just before self.
-        The last student will still have a reference at this point,
-        so confirm that that the final reference is the caller.
-        """
-        siblings = self.get_siblings()
-        if (((len(siblings) == 1) and \
-             (siblings[0].key() == last_student.key())) or \
-            (len(siblings)== 0)):
-            parents = self.get_parents()
-            for parent in parents:
-                parent.remove()
-            self.delete()
-
     def in_organization(self, organization_key, requested_action):
         """
         The family's organization is simply that of the first students
@@ -4112,6 +4231,29 @@ class Family(db.Model):
         field_names = [("name", "Name")]
         return field_names
 
+    def remove(self, perform_remove, last_student = None):
+        """
+        The family object can only be removed after student objects 
+        that refer to it are gone themselves. Do nothing otherwise.
+        ParentsOrGuardians are connected only throught the family
+        object so delete them just before self.
+        The last student will still have a reference at this point,
+        so confirm that that the final reference is the caller.
+        """
+        siblings = self.get_siblings()
+        if (((len(siblings) == 1) and \
+             (siblings[0].key() == last_student.key())) or \
+            (len(siblings)== 0)):
+            try:
+                parents = self.get_parents()
+                logging.info("Beginning remove of family %s" %unicode(self))
+                for parent in parents:
+                    parent.remove(perform_remove)
+                return SchoolDB.utility_functions.simple_remove(self, 
+                                    perform_remove)
+            except StandardError, e:
+                logging.error("Failed to remove family %s. Error: %s" \
+                              %(unicode(self), e))
 
 #----------------------------------------------------------------------
 class ParentOrGuardian(Person):
@@ -4505,7 +4647,47 @@ class StudentAttendanceRecord(db.Model):
         valid = self.is_valid(info[0])
         schoolday = self.is_schoolday(info[0])
         return (morning, afternoon, valid, schoolday)
-
+    
+    def get_days_since_set(self):
+        """
+        Scan the record to determine the last date that the student has
+        had the attendance set. That is, the last date that is both a
+        school day and is known. Return the number of days since last set and an explanatory phrase for other conditions
+        """
+        days_checked = 90
+        test_date = date.today() - timedelta(days_checked)
+        was_set = False
+        school_day_in_period = False
+        result_string = ""
+        days = -1
+        start_date_in_period = (test_date < self.get_start_date())
+        if (start_date_in_period):
+            test_date = self.get_start_date()
+        period_data = self.get_period_info_by_date(test_date,date.today())
+        periods_count = len(period_data)           
+        for i in xrange(1, periods_count + 1):
+            period = period_data[periods_count-i]
+            if (StudentAttendanceRecord.is_valid(period)):
+                school_day_in_period = True
+                if (StudentAttendanceRecord.is_known(period) and 
+                    StudentAttendanceRecord.is_schoolday(period)):
+                    break
+        if (i < periods_count):
+            days = int (i / 2)  
+            result_string = "%d" %days
+        elif (not school_day_in_period):
+            #some days were school days so nothing was set
+            result_string = "No school days for last %d days" %days_checked
+            days = -1
+        elif (start_date_in_period):
+            result_string = "Never set"
+            days = 1000
+        else:
+            result_string = "> %d" \
+                          %days_checked
+            days = days_checked + 1
+        return result_string, days
+            
     def student_status_changed(self, day_date, is_active):
         """
         When the status changes set all days of the array from the
@@ -4530,7 +4712,15 @@ class StudentAttendanceRecord(db.Model):
             else:
                 self.attendance_array[i] = 0
         self._put_array()
-
+    
+    def remove(self, perform_remove):
+        """
+        Remove the entity via function simple_remove and
+        report success via logging.
+        """
+        return SchoolDB.utility_functions.simple_remove(self, 
+                                perform_remove)
+    
 #----------------------------------------------------------------------
 class StudentTransfer(db.Model):
     """
@@ -4635,9 +4825,74 @@ class StudentTransfer(db.Model):
         field_names = [("name", "Name")]
         return field_names
 
-    def remove(self):
-        self.delete()
-
+    def remove(self, perform_remove):
+        """
+        Remove the entity via function simple_remove and
+        report success via logging. 
+        """
+        return SchoolDB.utility_functions.simple_remove(self, 
+                                perform_remove)
+#------------------------------------------------------------------
+class StudentAchievementTestResult(db.Model):
+    """
+    This is a simple class that contains the results for a single
+    achievement test for a single student. The subject list is simply a
+    copy of the list in the achievement test but is there to assure the
+    correct association of subjects and grades.
+    """
+    achievement_test = db.ReferenceProperty(AchievementTest, required=True)
+    grade_list = db.ListProperty(int)
+    subject_list = db.ListProperty(db.Key)
+    
+    @staticmethod
+    def create(student, achievement_test):
+        subject_list=list(achievement_test.subjects)
+        grade_list = [ 0 for i in subject_list ]
+        test_result = StudentAchievementTestResult(parent=student,
+                        achievement_test=achievement_test,
+                        subject_list=subject_list, grade_list=grade_list)
+        return test_result
+    
+    def _build_subjects_dict(self):
+        """
+        Use the subjects list to create a dictionary for the grades
+        keyed by the subject. This must be done because the database
+        does not support dictionaries
+        """
+        subject_grades_dict = []
+        for i in range(len(self.subject_list)):
+            subject_grades_dict[self.subject_list[i]] = self.subject_list[i]
+        return subject_grades_dict
+    
+    def set_grade(self, subject, grade):
+        """
+        Set a single grade.
+        """
+        try:
+            i = self.subject_list.index(subject)
+            self.grade_list[i] = grade
+        except:
+            pass
+        
+    def get_grade(self, subject):
+        """
+        Get a single grade.
+        """
+        try:
+            i = self.subject_list.index(subject)
+            return self.grade_list[i]
+        except:
+            return 0
+    
+    def get_grades(self, subject_list):
+        """
+        Return a list of grades in the same order as the subject list
+        """
+        grades_dict = self._build_subjects_dict()
+        grades = [grades_dict.get(subject, 0) for subject in subject_list]
+        return grades
+                                
+        
 #------------------------------------------------------------------
 class StudentsClass(db.Model):
     """
@@ -4916,9 +5171,14 @@ class StudentsClass(db.Model):
                 return True
         return False
 
-    def remove(self):
-        self.delete()
-
+    def remove(self, perform_remove):
+        """
+        Remove the entity via function simple_remove and
+        report success via logging. 
+        """
+        return SchoolDB.utility_functions.simple_remove(self, 
+                                perform_remove)
+    
 #----------------------------------------------------------------------
 class Student(Person):
     """
@@ -5046,12 +5306,32 @@ class Student(Person):
                                                       #False, True)
         self.put()
 
-    def remove(self):
-        if self.family:
-            self.family.remove(self)
-        fully_delete_entity(self, [History, StudentsClass,
+    def remove(self, perform_remove):
+        """
+        Remove the student entity and all entities owned by the
+        student. This is a large number of entities because the student
+        class is complex. If perform_remove is false all removal
+        actions of the owned entities are emulated but nothing is
+        actually removed.
+        """
+        if perform_remove: 
+            action_text = ""
+        else:
+            action_text = "simulated "
+        logging.info("Beginning %sremoval of %s %s" \
+                     %(action_text, self.classname, unicode(self)))
+        try: 
+            if self.family:
+                self.family.remove(perform_remove, self)
+            fully_delete_entity(self, [History, StudentsClass,
                                    StudentAttendanceRecord,
-                                   StudentTransfer])
+                                   StudentTransfer], perform_remove)        
+            logging.info("%s Removal of %s complete." %(action_text,
+                                                       unicode(self)))
+        except StandardError, e:
+            logging.error = "Failed to remove student %s. Error: %s" \
+                   %(unicode(self), e)
+        return perform_remove
 
     def form_data_post_processing(self):
         """
@@ -5068,7 +5348,8 @@ class Student(Person):
         self.create_section_change_events(student_changes)
         #if there has been a student status change then change the 
         #attendance record as well
-        if (student_changes["student_status"]["value"]):
+        if (student_changes["student_status"] and 
+            student_changes["student_status"]["value"]):
             change = student_changes["student_status"]
             try:
                 status = db.get(change["value"])
@@ -5140,32 +5421,36 @@ class Student(Person):
         cause.
         """
         target_section = self.section
-        if (changes["transfer"]["value"]):
-            change = changes["transfer"]
-            target_section.add_section_roster_change(self, 
-                change["date"], "transfer", change["value"])
-        elif (changes["student_status"]["value"]):
-            change = changes["student_status"]
-            status = db.get(change["value"])
-            if (status.active_student):
-                direction = "In"
-            else:
-                direction = "Out"
-            target_section.add_section_roster_change(self, 
-                change["date"], "student_status", direction)
-        elif (changes["section"]["value"]):
-            change = changes["section"]
-            #A section change that also needs to be recorded in the
-            #old one
-            target_section.add_section_roster_change(self, 
-                change["date"], "reassign", "In")
-            prior_section_key = change["prior"]
-            try:
-                prior_section = db.get(prior_section_key)
-                prior_section.add_section_roster_change(self, 
-                    change["date"], "reassign", "Out")
-            except:
-                pass
+        #A section might not be set. This is legal when creating a record.
+        #No section - no section changes...
+        if target_section:
+            if (changes["transfer"] and changes["transfer"]["value"]):
+                change = changes["transfer"]
+                target_section.add_section_roster_change(self, 
+                    change["date"], "transfer", change["value"])
+            elif (changes["student_status"] and 
+                  changes["student_status"]["value"]):
+                change = changes["student_status"]
+                status = db.get(change["value"])
+                if (status.active_student):
+                    direction = "In"
+                else:
+                    direction = "Out"
+                target_section.add_section_roster_change(self, 
+                    change["date"], "student_status", direction)
+            elif (changes["section"] and changes["section"]["value"]):
+                change = changes["section"]
+                #A section change that also needs to be recorded in the
+                #old one
+                target_section.add_section_roster_change(self, 
+                    change["date"], "reassign", "In")
+                prior_section_key = change["prior"]
+                try:
+                    prior_section = db.get(prior_section_key)
+                    prior_section.add_section_roster_change(self, 
+                        change["date"], "reassign", "Out")
+                except:
+                    pass
         
             
     def assign_class_session(self, class_session, subject, start_date = None):
@@ -5422,8 +5707,8 @@ class Student(Person):
             sort_params.append("-gender")
         descriptor.set("sort_order", sort_params)
         descriptor.set("leading_value", "last_name")
-        q = SchoolDB.assistant_classes.QueryMaker(Student, descriptor)
-        student_list = q.get_objects()
+        query = SchoolDB.assistant_classes.QueryMaker(Student, descriptor)
+        student_list, extra_data = query.get_objects()
         students = []
         return_string = ""
         for student in student_list:
@@ -5606,8 +5891,13 @@ class UserType(db.Model):
         field_names = [("name", "Name")]
         return field_names
 
-    def remove(self):
-        self.delete()
+    def remove(self, perform_remove):
+        """
+        Remove the entity via function simple_remove and
+        report success via logging.
+        """
+        return SchoolDB.utility_functions.simple_remove(self, 
+                                perform_remove)
 
 #The next two classes are not data models in themselves but rather provide
 #support for the user model class
@@ -5681,6 +5971,14 @@ class TargetTypePermission():
     def needs_special_action(self, action, target_in_organization):
         action += "_special"
         return self.is_legal(action, target_in_organization)
+    
+    def remove(self, perform_remove):
+        """
+        Do nothing except report that it cannot be removed via remove
+        """
+        logging.warning("Cannot remove a Target Type Permission via remove.")
+        return False
+
 
 class UserPermissionsVault():
     """
@@ -5743,6 +6041,12 @@ class UserPermissionsVault():
         data = bz2.decompress(saved_instance)
         return pickle.loads(data)
 
+    def remove(self, perform_remove):
+        """
+        Do nothing except report that it cannot be removed via remove
+        """
+        logging.warning("Cannot remove a UserPermissionsVault via remove.")
+        return False
 
 #----------------------------------------------------------------------
 
@@ -6089,8 +6393,13 @@ class DatabaseUser(db.Model):
                 
 
             
-        def remove(self):
-            self.delete()
+    def remove(self, perform_remove):
+        """
+        Remove the entity via function simple_remove and
+        report success via logging.
+        """
+        return SchoolDB.utility_functions.simple_remove(self, 
+                                perform_remove)
 
 #----------------------------------------------------------------------
 
@@ -6114,7 +6423,7 @@ class GradingPeriodResult(db.Model):
     change_date = db.DateProperty()
     last_editor = db.ReferenceProperty(DatabaseUser,
                                        collection_name="last_editor")
-
+    classname = "GradingPeriodResult"
 
     @staticmethod
     def create(class_session, grading_period, student, assigned_grade = None,
@@ -6196,6 +6505,17 @@ class GradingPeriodResult(db.Model):
                 result_list = single_period_results
         return result_list
     
+    def __unicode__(self):
+        return ("Grading Result %s:%s" %(unicode(self.class_session),
+                                         unicode(self.grading_period)))
+    
+    def remove(self, perform_remove):
+        """
+        Remove the entity via function simple_remove and
+        report success via logging.
+        """
+        return SchoolDB.utility_functions.simple_remove(self, 
+                                perform_remove)
 #----------------------------------------------------------------------
 
 class VersionedTextManager(History):
@@ -6369,7 +6689,11 @@ class VersionedTextManager(History):
             return help_dialog_text, balloon_help_dict      
 
     def remove(self, remove_references=True):
-        History.remove(True)
+        """
+        Remove the entity via function simple_remove and
+        report success via logging.
+        """
+        return History.remove(True)
 
 #----------------------------------------------------------------------
 
@@ -6401,9 +6725,6 @@ class VersionedText(db.Model):
         user_email = self.author.email()
         return(person_name, user_email)
 
-    def remove(self):
-        self.delete()
-
     def parse_help_formatted_page(self):
         """
         This is a secific function for use with a page constructed for 
@@ -6423,6 +6744,14 @@ class VersionedText(db.Model):
             help_dialog_text = ""
             balloon_dict = {}
         return (help_dialog_text, balloon_dict)
+
+    def remove(self, perform_remove):
+        """
+        Remove the entity via function simple_remove and
+        report success via logging.
+        """
+        return SchoolDB.utility_functions.simple_remove(self, 
+                                perform_remove)
 
 #----------------------------------------------------------------------
 
@@ -6632,20 +6961,6 @@ def filter_by_date(query, before_or_after = "after", parameter =
     query.filter(match, compare_date)
     return query
 
-def clean_up_letter_casing(target_string):
-    """
-    Set capitalization appropriate for names. If both capital and
-    lower case letters are present leave unchanged. Otherwise capitalize the 
-    first letter of each word.
-    """
-    uppers = re.search(r'[A-Z]',target_string)
-    lowers = re.search(r'[a-z]',target_string)
-    if (not uppers or not lowers):
-        new_string = target_string.title()
-    else:
-        new_string = target_string
-    return target_string
-
 def is_school_day(date, section = None):
     """
     Get the school day appropriate for section. Return two
@@ -6799,17 +7114,24 @@ def all_children(entity, childrens_classes):
         children.extend(q.fetch(1000))
     return children
 
-def fully_delete_entity(entity, childrens_classes):
+def fully_delete_entity(entity, childrens_classes, perform_remove):
     """
     Delete not only the specific entity but also all of its children.
     This can clean up after a complex object. Childrens classes is a list of
     data classes that can be children of the entity. They are used to
     in the queries for children.
     """
-    targets = [entity]
-    targets.extend(all_children(entity, childrens_classes))
-    db.delete(targets)
-
+    try:
+        targets = all_children(entity, childrens_classes)
+        for target in targets:
+            target.remove(perform_remove)
+        #perform direct delete for entity because the remove function is
+        #how we reached this point
+        SchoolDB.utility_functions.simple_remove(entity, perform_remove)
+    except StandardError, e:
+        logging.error("Failed to fully delete %s. Error: %s" \
+                      %(unicode(entity), e))
+    return perform_remove
 
 def get_school_year_for_date(day_date = date.today()):
     """
@@ -6835,7 +7157,10 @@ def get_class_years_only():
 def get_possible_subjects(filter_string):
     """
     Get a dict of subject names by keys and an ordered list of keys for
-    subjects defined at the national level. The filter_string is used to add another filter. If the result is meant for achievement tests then the string is "used_in_achievement_tests =", if for class_session creation then the string is "taught_by_section =".
+    subjects defined at the national level. The filter_string is used
+    to add another filter. If the result is meant for achievement tests
+    then the string is "used_in_achievement_tests =", if for
+    class_session creation then the string is "taught_by_section =".
     """
     query = Subject.all()
     query.filter("organization =", National.get_national_org()) 
@@ -6875,7 +7200,7 @@ def custom_query(organization, leading_value, value_dict, target_class):
     filter value is the "name" field. The list is ordered by name
     """
     query = SchoolDB.assistant_classes.QueryMaker(target_class, value_dict)
-    return query.get_keys_and_names()    
+    return query.get_keys_and_names(),  " "    
 
 def get_key_list(key_string_list, object_class):
     """
