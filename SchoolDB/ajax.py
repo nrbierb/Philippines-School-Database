@@ -26,8 +26,10 @@ import exceptions, re
 import logging
 from datetime import date, timedelta
 from google.appengine.ext import db
+import django
 from django import http
 from django.utils import simplejson
+import settings
 import SchoolDB
 import SchoolDB.student_attendance
 
@@ -46,7 +48,7 @@ class AJAXSimpleExceptionResponse:
                 response += "TRACEBACK:\n"    
                 for tb in traceback.format_tb(tb):
                     response += "%s\n" % tb
-                return HttpResponseServerError(response)
+                return http.HttpResponseServerError(response)
 
 class AjaxServer():
     def __init__(self, request):
@@ -199,11 +201,11 @@ class AjaxServer():
         """
         Process an ajax request for a selection list to be returned via json.
         """
-        qmkr_query = SchoolDB.assistant_classes.QueryMaker(self.target_class,
+        query = SchoolDB.assistant_classes.QueryMaker(self.target_class,
                                             self._build_query_descriptor())
-        object_list = qmkr_query.get_objects()        
+        object_list, extra_data = query.get_objects()        
         result_list, key_list, combined_list = \
-            qmkr_query.get_keys_names_fields_from_object_list(object_list,
+            query.get_keys_names_fields_from_object_list(object_list,
                 extra_fields = self.extra_fields, 
                 special_format = self.argsDict.get("format", None))
         self.return_string = simplejson.dumps(combined_list)
@@ -226,8 +228,8 @@ class AjaxServer():
         
         query = SchoolDB.assistant_classes.QueryMaker(self.target_class,
                                             self._build_query_descriptor())
-        object_list = query.get_objects()        
-        self._produce_table_from_object_list(object_list)
+        object_list, extra_data = query.get_objects()        
+        self._produce_table_from_object_list(object_list, extra_data)
         
     def _generated_object_table(self):
         """
@@ -250,7 +252,7 @@ class AjaxServer():
                                secondary_key)
         self._produce_table_from_object_list(object_list)
     
-    def _produce_table_from_object_list(self, object_list):
+    def _produce_table_from_object_list(self, object_list, extra_data = None):
         result_list, key_list, combined_list = \
             SchoolDB.assistant_classes.QueryMaker.get_keys_names_fields_from_object_list(object_list,
                 extra_fields = self.extra_fields, 
@@ -263,7 +265,8 @@ class AjaxServer():
             field_title = field.replace("_", " ")
             table_description.append((field, "string", 
                                       field_title.title())) 
-        self._produce_table(table_description, result_list, key_list)
+        self._produce_table(table_description, result_list, key_list, 
+                            extra_data)
         
     def _calculated_table(self):
         function = self._get_mapped_function()
@@ -281,11 +284,11 @@ class AjaxServer():
                            extra_data=None):
         json_table = self._make_table(table_description, table_data)
         json_key_list = simplejson.dumps(key_list)
-        json_combined = simplejson.dumps({"keysArray":json_key_list, 
-                                          "tableDescriptor":json_table})
-        if (extra_data):
-            json_combined = simplejson.dumps({"table":json_combined,
-                                             "extra_data":extra_data})
+        json_extra_data = simplejson.dumps(extra_data)
+        json_combined = simplejson.dumps({
+            "extraData":json_extra_data,
+            "keysArray":json_key_list, 
+            "tableDescriptor":json_table})
         self.return_string = json_combined
         
     def _set_single_value(self):
@@ -297,10 +300,10 @@ class AjaxServer():
 
     def _children_list(self):
         if (self.target_object):
-            q = SchoolDB.assistant_classes.QueryMaker(
+            query = SchoolDB.assistant_classes.QueryMaker(
                 self.secondary_class, self._build_query_descriptor())
-            q.ancestor = self.target_object
-            object_list = q.get_objects()
+            query.ancestor = self.target_object
+            object_list, extra_data = query.get_objects()
             self._process_object_list(object_list)
         else:
             self.error_string = "No usable parent instance could be found in this Ajax children_list request."
@@ -315,7 +318,7 @@ class AjaxServer():
         else:
             childrens_classes = []
         SchoolDB.models.fully_delete_entity(self.target_object,
-                                   childrens_classes)
+                                   childrens_classes, True)
         self.return_string = simplejson.dumps('"%s" deleted.'  
                                               %object_name)
         
@@ -477,7 +480,7 @@ class AjaxServer():
         """
         query =  SchoolDB.assistant_classes.QueryMaker(
             SchoolDB.models.Student, self._build_query_descriptor())
-        siblings_list = query.get_objects()
+        siblings_list, extra_data = query.get_objects()
         self._filter_out_object(siblings_list, self.target_object)
         self._produce_table_from_object_list(siblings_list)
         
@@ -741,6 +744,9 @@ class AjaxServer():
         birthday
         """
         q = SchoolDB.models.Student.all()
+        organization = \
+            SchoolDB.models.getActiveDatabaseUser().get_active_organization_key()
+        q.filter("organization =", organization)
         q.filter("last_name =", self.argsDict["last_name"])
         matches = []
         match = None
@@ -748,16 +754,18 @@ class AjaxServer():
         found_match = False
         for student in q:
             score = 0
-            birthdate_string = student.birthdate.strftime("%m/%d/%Y")
-            if (birthdate_string == str(self.argsDict["birthdate"])):
-                score = 100
+            if student.birthdate:
+                birthdate_string = student.birthdate.strftime("%m/%d/%Y")
+                if (birthdate_string == str(self.argsDict["birthdate"])):
+                    score = 50
             if (student.first_name.lower() == \
                 self.argsDict["first_name"].lower()):
                 score += 50
             if (self.argsDict["community"]):
                 community_key = SchoolDB.models.get_key_from_string(
                     self.argsDict["community"])
-                if (student.community.key() == community_key):
+                if (student.community and 
+                    student.community.key() == community_key):
                     score += 25
             if (score > 50):
                 matches.append((student,score))
@@ -766,21 +774,51 @@ class AjaxServer():
             match = matches[0][0]
             score = 0
             if (len(matches) > 1):
-                for i in matches:
-                    if (matches[match][1] > score):
-                        score = i[1]
-                        match = i[0]
+                for mt in matches:
+                    if (mt[1] > score):
+                        score = mt[1]
+                        match = mt[0]
         if (match):
             found_match = True
-            result["last_name"] = match.last_name
-            result["first_name"] = match.first_name
-            result["municipality"] = unicode(match.municipality)
-            result["community"] = unicode(match.community)
-            if (match.birthdate):
-                result["birthdate"] = match.birthdate.strftime("%m/%d/%Y")
+            if (match.municipality):
+                    municipality = unicode(match.municipality)
             else:
-                result["birthdate"] = "Unknown"
-        return_data = {"FoundMatch":found_match, "match":result}
+                municipality = "Unknown"
+            if (match.community):
+                community = unicode(match.community)
+            else:
+                community = "Unknown"
+            if (match.birthdate):
+                birthdate = match.birthdate.strftime("%m/%d/%Y")
+            else:
+                birthdate = "Unknown"
+            dialog_html = """
+                    <div id="contain" class="warning-window">
+                <h2>Warning!</h2>
+                <p>This student may already be in the database.</p>
+                <p>The student's information is:</p>
+                Name: %s %s<br/>
+                Municipality: %s <br/>
+                Barangay: %s <br/>
+                Birthdate: %s <br/>
+                <p>If this is the same student please <em>Do Not Save</em>. 
+                Two entries for the same student can be a very big problem.</p>
+                <p> Click the <em>"Cancel"</em> button at the bottom of the 
+                entry page to return to the "Work With Students" page.
+                Choose <em>"Edit"</em> and clear all boxes. Then type in
+                "%s" in the Family Name box and select the student with 
+                the same first name.
+                If the student is the same then edit that record. </p>
+                <p>Create a new student only after you have checked the 
+                student record and you are know that
+                this is a different student.</p>
+                <p>Click <em>"Help"</em> for further information.</p>
+                </div>                        
+                """ %(match.first_name, match.last_name, municipality,
+                      community,birthdate, match.last_name)
+        else:
+            dialog_html = ""
+        return_data = {"FoundMatch":found_match, "dialogHtml":dialog_html}
         json_data = simplejson.dumps(return_data)
         self.return_string = json_data
 
@@ -1033,6 +1071,9 @@ class AjaxServer():
         elif (self.function_name == "create_achievement_test_summary"):
             function = \
                 SchoolDB.reports.AchievementTestReport.create_report_table
+        elif (self.function_name == "create_encoding_check_table"):
+            function = \
+                SchoolDB.reports.EncodingCheck.create_report_table
         else: 
             function = None
         #It is assumed that the function is always needed. If it is

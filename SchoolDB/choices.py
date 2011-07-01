@@ -87,7 +87,9 @@ TeacherPaygrade = [
     "Level One",
     "Level Two",
     "Level Three",
-    "Master" ]
+    "Master",
+    "Master Teacher 1",
+    "Master Teacher 2"]
 
 SchoolDayType = [
     "School Day",

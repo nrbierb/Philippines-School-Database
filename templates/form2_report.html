@@ -17,12 +17,10 @@ function requestForm2Data(url, params, targetTable, headerHtml){
 		url: url,
 		data: params,
 		success: function(ajaxResponse){
-			var response = eval(ajaxResponse);
-			var tableData = json_parse(response.table);	
-			var extraData = json_parse(response.extra_data);
+			var extraData = jQuery.parseJSON(ajaxResponse.extraData);
 			var fullHeader = headerHtml + extraData;
 			$("#report_header").html(fullHeader);
-			targetTable.loadAjaxResponse(tableData);
+			targetTable.loadAjaxResponse(ajaxResponse);
 			targetTable.finalizeTable();
 			$.loadanim.stop();
 		},

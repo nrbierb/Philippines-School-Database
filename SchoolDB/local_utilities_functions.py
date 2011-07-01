@@ -323,6 +323,198 @@ def check_encoding_count(logger):
     logging.warning("Encoding count check complete.")
     logger.add_line("finished scanning")
 
+def find_duplicate_students(logger):
+    """
+    Build a list of all students in the school with last name, first name, and
+    birthday. Sort in same order and look for matches.
+    """
+    student_list = []
+    logging.info("Starting find_duplicate students")
+    query = SchoolDB.models.Student.all()
+    query.filter("organization =", SchoolDB.models.getActiveOrganization())
+    student_list = []
+    for student in query:
+        if student.birthdate:
+            birthday = student.birthdate.toordinal()
+        else:
+            birthday = 1
+        student_list.append([student.last_name, student.first_name, birthday])
+    logging.info("Found %d students." %len(student_list))
+    list.sort(student_list, key=lambda student:student[2])
+    list.sort(student_list, key=lambda student:student[1])
+    list.sort(student_list, key=lambda student:student[0])
+    student_dict = {}
+    matches = {}
+    for student in student_list:
+        key = student[0]
+        if student_dict.has_key(key):
+            matches[key] = 1
+            student_dict[key].append(student)
+        else:
+            student_dict[key] = [student]
+    sorted_matches = matches.keys()
+    list.sort(sorted_matches)
+    text = "Found %d matches %d dict entries." %(len(sorted_matches),
+                                                       len(student_dict))
+    logging.info(text)
+    logger.add_line(text)
+    logger.add_line('"Last Name","Birthday", "First Name"')
+    try:
+        for key in sorted_matches:
+            logger.add_line('"---","%s","%d"' %(key, len(student_dict[key])))
+            for student in student_dict[key]:
+                text = '"%s","%s","%d"' %(student[0],
+                        student[1],student[2])
+                logging.info(text)
+                logger.add_line(text)
+    except StandardError, e:
+        text = "Failed during print Error: %s" %e
+        logging.info(text)
+        logger.add_line(text)
+    logging.info("Completed find_duplicate students")
+    logger.add_line("Completed find_duplicate students")   
+
+def get_duplicate_student_info(logger):
+    """
+    Return two lists of records from a list of student names.
+    The first list is the records with "No current enrollment" as the
+    status, the second is all other records.
+    The student records are selected by query from the "test_list"
+    which is inserted in this code uniquely each time this function is
+    used. This assures that there is no problem with function argument length
+    """
+    #example test_list
+    #test_list = [["Jones", "Ricky"],["Hendrix","Jimmy"]]
+    test_list = []
+    not_current_student_list = []
+    enrolled_student_list = []
+    other_student_list = []
+    for name in test_list:
+        query = SchoolDB.models.Student.all()
+        query.filter("organization =", SchoolDB.models.getActiveOrganization())
+        query.filter("last_name =", name[0])
+        query.filter("first_name =", name[1])
+        students = query.fetch(5)
+        for student in students:
+            if (not student.student_status):
+                other_student_list.append(student)
+            elif (student.student_status.name == "Not Currently Enrolled"):
+                not_current_student_list.append(student)
+            elif (student.student_status.name == "Enrolled"):
+                enrolled_student_list.append(student)
+            else:
+                other_student_list.append(student)
+    logging.info("%d not current" %len(not_current_student_list))
+    logging.info("%d current" %len(enrolled_student_list))
+    logging.info("%d other" %len(other_student_list))
+    try:
+        logger.add_line('"Last Name", "First Name","Change Date","Year Level"')
+        for filtered_list, list_name in (
+            (not_current_student_list, "Not Currently Enrolled"),
+            (enrolled_student_list, "Currently Enrolled"),
+            (other_student_list, "Other Status")):
+            text = '"---->","%s"," "," "' %list_name
+            logging.info(text)
+            logger.add_line('" "," "," "," "')
+            logger.add_line(text)
+            logger.add_line('" "," "," "," "')
+            for student in filtered_list:
+                if student.student_status_change_date:
+                    change_date = student.student_status_change_date.isoformat()
+                else:
+                    change_date = "?"
+                text = '"%s","%s","%s","%s","%s","%s"' %(student.last_name, 
+                        student.first_name, change_date,
+                        student.class_year, student.student_status.name,
+                        str(student.key()))
+                logging.info(text)
+                logger.add_line(text)
+    except StandardError, e:
+        text = "Failed during print Error: %s" %e
+        logging.info(text)
+        logger.add_line(text)
+    text = "Completed get_duplicate_student_info"
+    logging.info(text)
+    logger.add_line(text)   
+
+def remove_by_key(logger, keylist=[], perform_remove=False):
+    """
+    This is a dangerous action that will remove all entities that have
+    a key in the remove_key_list. If perform_remove is false all
+    entities that would be removed will report in the log but nothing
+    will actually be removed. This function should be left commented
+    out unless needed.
+    """
+    
+    perform_remove=False
+    text = "remove_by_key has been disabled in the code to prevent a dangerous mistake. Only the 'fake' removal will be performed to show what would have been deleted. If you need to actually delete some entities then edit the code to comment out these lines."
+    logger.add_line(text)
+    logging.error(text)    
+    if not keylist:
+        logger.add_line("Nothing to remove")
+        return False
+    if perform_remove:
+        action_text = "starting"
+    else:
+        action_text = "simulating"
+    text = ">>>remove_by_key %s removal of %d entities" \
+         %(action_text,len(keylist))
+    logging.info(text)
+    logger.add_line(text)
+    for key in keylist:
+        try:
+            entity = SchoolDB.utility_functions.get_instance_from_key_string(
+                key)
+            if entity:
+                do_nothing = True #empty value statement for fill
+                #dont actually remove!!!
+                #entity.remove(perform_remove)
+        except StandardError, e:
+            text = "Removal of an entity failed. Key: %s Error: %s" \
+                 %(key, e)
+            logging.info(text)
+            logger.add_line(text)            
+    if perform_remove:
+        text = ">>>remove_by_key removal completed"
+    else:
+        text = '>>>simulated remove_by_key function completed'
+    logging.info(text)
+    logger.add_line(text)
+    
+def section_name_letter_case_cleanup(logger, section_name):
+    """
+    Change name letter casing to correct format. The students are
+    chosen by section name to correct for sloppy teacher entry. This
+    will probably be run very rarely because the initial correction is
+    now working. Comment out or remove after a year.
+    """
+    section = SchoolDB.utility_functions.get_entities_by_name(
+        SchoolDB.models.Section, section_name)
+    change_count = 0
+    query = SchoolDB.models.Student.all()
+    query.filter("section =", section.key())
+    for student in query:
+        original_name = unicode(student)
+        student.first_name = \
+            SchoolDB.utility_functions.clean_up_letter_casing(
+                student.first_name)
+        student.middle_name = \
+               SchoolDB.utility_functions.clean_up_letter_casing(
+                   student.middle_name)
+        student.last_name = \
+               SchoolDB.utility_functions.clean_up_letter_casing(
+                   student.last_name)
+        #save only if changes
+        new_name = unicode(student)
+        if (new_name != original_name):
+            change_count += 1
+            student.put()   
+            logging.info("Changed name '%s' to '%s'" \
+                         %(original_name, new_name))
+    result = "Fixed %d names" %change_count
+    logging.info(result)
+    logger.add_line(result)
+            
 def create_new_attendance_record(student_keystring):
     """
     Create a new attendance record for a student.
@@ -345,7 +537,7 @@ def create_new_attendance_records_utility(logger):
     Generate tasks using the function "create_new_attendance_records"
     to create a new attendance record for every student. This assumes
     that all old attendance records have been deleted. This will work
-    across all schools - it is desiged for a simple hard replace action
+    across all schools - it is designed for a simple hard replace action
     on a test database. >>Do NOT use on live database!<<
     """
     try:

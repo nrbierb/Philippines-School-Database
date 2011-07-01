@@ -15,7 +15,7 @@
 #along with SchoolsDatabase.  If not, see <http://www.gnu.org/licenses/>.
 
 from datetime import date, timedelta
-import time
+import time, logging
 import exceptions
 from google.appengine.ext import db
 from django.utils import simplejson
@@ -442,6 +442,15 @@ class RosterChangeEvent():
         """
         cause_names = {"student_status":0, "transfer":1, "reassign":2}
         self.student_key = student_key
+        #There should always be a date here but it seems to sometimes
+        #not happen. As A temporary fix we use the current date because
+        #this is likely to be close to the correct date. Log the error
+        #if a date is not there.
+        if (not event_date):
+            event_date = date.today()
+            logging.warning(
+                "Needed to add an arbitrary date for the change '%s' on student %s" \
+                %(cause_name, unicode(db.get(student_key))))            
         self.date_ordinal = event_date.toordinal()
         self.cause = cause_names[cause_name]
         self.direction = 1
@@ -463,7 +472,7 @@ class RosterChangeEvent():
                      ("Mv Out", "Mv In")]
         name = unicode(db.get(self.student_key))
         reason = report_abbrev[self.cause][self.direction]
-        return name + " " + reason
+        return name + " -- " + reason
     
     def add_to_section(self):
         return self.direction
@@ -536,10 +545,19 @@ class SectionRosterProcessor:
         event_texts.
         """
         student_key = event.student_key
+        #try:
+            #logging.info(">>Processing event on day index %d" %day_index)
+            #logging.info("--Processing event: '%s'" %event.get_event_text())
+            #logging.info("--Processing event -key: %s" %str(student_key))
+            #logging.info("<<Processing event student name '%s'" 
+                         #%unicode(db.get(student_key)))
+        #except:
+            #logging.error("+++Failed in logging in process_event")            
         if event.add_to_section():
             #The student was not in the section yesterday but
             #already have her in the list of students 
-            del(scratchpad_dict[student_key])
+            if scratchpad_dict.has_key(student_key):
+                del(scratchpad_dict[student_key])
         else:
             #The student is no longer in the section as of today.
             #Thus there has been no record of the student in our
@@ -601,13 +619,13 @@ class SectionRosterChanges(SchoolDB.assistant_classes.InformationContainer):
         """
         self.change_events = []
         
-    def add_change_event(self, event_date, student_key, cause_name, 
+    def add_change_event(self, student_key, event_date, cause_name, 
                          direction):
         """
         Create a new change event and add to list of events
         """
-        event = RosterChangeEvent(event_date, student_key, cause_name, 
-                         direction)
+        event = RosterChangeEvent(student_key, event_date,
+                                  cause_name, direction)
         self.change_events.append(event)
         self.change_events.sort(key=lambda event: event.date_ordinal)
 
@@ -893,8 +911,7 @@ class Form2Report:
               (self.data["male_current"] + self.data["female_current"]) * 
               100.0 /
               (self.data["male_initial"] + self.data["female_initial"]))
-        full_table = date_line + row1 + row2 + row3 + row4 + row5
-        self.extra_data = simplejson.dumps(full_table)
+        self.extra_data = date_line + row1 + row2 + row3 + row4 + row5
     
     def generate_main_table(self):
         """
@@ -976,8 +993,9 @@ class Form2Report:
              ('remarks', 'string', 'Remarks')]
     
     def _generate_main_table_day(self, day_index, summary_line):
-        day_name = ("%d" %(day_index + 1))
+        #day_name = ("%d" %(day_index + 1))
         day = self.start_date + timedelta(day_index)
+        day_name = day.strftime("%a, %b %d")
         registered_totals = [0,0]
         morning_totals = [0,0]
         afternoon_totals = [0,0] 

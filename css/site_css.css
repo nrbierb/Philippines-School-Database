@@ -21,6 +21,7 @@ em {
 	font-style:normal;
 	font-size:110%;
 }
+
 .centered-object {
 	margin-left:auto;
 	margin-right:auto;
@@ -44,6 +45,7 @@ img.centered {
 .float-right {
 	float: right;
 }
+
 input.btn.help {
 	float:right;
 	border-style:outset;
@@ -429,13 +431,16 @@ ul.errorlist{
 .warning-field{
 	color: #9b2a2a;
 	font-family:"Times" , serif;
-	font-variant: small-caps;
+}
+
+div.warning-window{
+	background-color:#ffb8be;
+	font-weight: bold;
 }
 
 .error{
 	color: #dd1111;
 	font-family:"Times" , serif;
-	font-variant: small-caps;
 }
 
 .hidden {
@@ -724,7 +729,7 @@ input.ac_flash {
 .btn.main_page {font-weight:inherit;}
 * html .btn span,
 * html .btn i { background-image: none; cursor: pointer; }
-.btn.inside { background: #5c7a99; padding: 3px; font-size: 0.9em ;}
+.btn.inside { background: #466280; padding: 3px; font-size: 0.9em ;}
 .btn.blue { background: #264580; }
 .btn.green { background: #378c29; }
 .btn.important { background:#972d41; }

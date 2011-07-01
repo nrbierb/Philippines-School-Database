@@ -10,6 +10,10 @@ function createWidgetTable(ajaxResponse) {
 		selectionTable.setHeight(selectionTable.keysArray.length);
 		selectionTable.initializeTableParams();
 		selectionTable.finalizeTable();
+		var extraData = jQuery.parseJSON(ajaxResponse.extraData);
+		if (extraData !== null){
+			reportError(extraData, "Not All Choices Shown");
+		}
 	}
 }
 

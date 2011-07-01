@@ -65,21 +65,10 @@ function updateSiblingSelectTable(){
 		};
 	requestTable("/ajax/suggest_siblings", params, siblingSelectTable);
 }
-
-$("#dialog_duplicate_warning").dialog(simple_ok_dialog);
-function showMatchWarn(first_name, last_name, municipality, community, birthdate){
-	$("#duplicate_student_name").text("Name: " +first_name + " " + last_name);
-	$("#duplicate_municipality").text("Municipality: " + municipality);
-	$("#duplicate_community").text("Barangay: " + community);
-	$("#duplicate_birthdate").text("Birthdate: " + birthdate);
-	$("#dialog_duplicate_warning").dialog('open');
-}
 	
 function showMatchWarnIfNeeded(matchInfo) {
 	if (matchInfo.FoundMatch) {
-		var match = matchInfo.match;
-		showMatchWarn(match.first_name, match.last_name, 
-		match.municipality, match.community, match.birthdate);
+		reportError( matchInfo.dialogHtml, "Student Already in Database");
 	}
 }
 
@@ -287,9 +276,10 @@ $.windowMsg("child_closing", function(message){
 });
 
 $('#id_birthdate').datepicker({
-	minDate: '-25Y',
-	maxDate: '-10Y',
+	//minDate: '-25Y',
+	//maxDate: '-9Y',
 	defaultDate: "-13Y",
+	yearRange: "-25:-9",
 	changeMonth: true,
 	changeYear: true
 });

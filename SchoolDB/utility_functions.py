@@ -18,6 +18,7 @@
 This file contains miscellaneous functions that are used in several files.
 """
 from datetime import date, timedelta, time
+import logging, re
 from google.appengine.ext import db
 from django.utils import simplejson
 import SchoolDB.gviz_api
@@ -83,7 +84,7 @@ def clean_up_letter_casing(target_string):
         new_string = target_string.title()
     else:
         new_string = target_string
-    return target_string
+    return new_string
 
 def create_choice_array_from_query(query):
     results = query.fetch(1000)
@@ -397,6 +398,24 @@ def get_keys_for_class(classname):
     key_list = query.fetch(50000)
     return key_list 
 
+def simple_remove(entity,perform_remove):
+    """
+    Delete the entity if perform_remove is True. Report deletion
+    or, if perform remove is False delete emulation, via logging.
+    """
+    try:
+        if perform_remove:
+            entity.delete()
+            text = "Removed %s %s" %(entity.classname, unicode(entity))
+        else:
+            text = "Simulated removal of %s %s" %(entity.classname, 
+                                                  unicode(entity))
+        logging.info(text)
+    except StandardError, e:
+        logging.error("Failed %s Error: %s" %(text, e))
+        perform_remove = False
+    return perform_remove
+    
 def cleanup_django_escaped_characters(s):
     """
     Django replaces some key characters in strings for safety. They must be reconverted befor the string can be used.

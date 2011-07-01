@@ -432,12 +432,13 @@ function getHelpInfo(pagename, testText){
 }
 
 $(function(){
-    $('input.popup-calendar').datepicker({});
+    $('input.popup-calendar').datepicker();
     $('input.date-mask').mask("99/99/9999");
     $('input.month-mask').mask("99/9999");
     $('input.time-mask').mask("99:99");
     $('input.year-mask').mask("9999");
     $('input.percentage-mask').mask("999.9");
+	$('input.simple-percentage-mask').mask("99");
     $('input.integer-mask').mask("99999");
     
     
@@ -510,7 +511,7 @@ $(function(){
 $.datepicker.setDefaults({
     changeMonth: true,
 	changeYear: true,
-	yearRange: "-5:+0",
+	yearRange: "-5:+2",
     showOn: 'button',
     buttonImageOnly: true,
     buttonImage: '/media/calendar.gif',
@@ -963,6 +964,7 @@ selectableElements.prototype.getSelectedElements = function(){
 //The result should be a complete table.
 function requestTable(url, params, targetTable){
     $.ajax({
+        type: "POST",
         url: url,
         data: params,
         success: function(ajaxResponse){

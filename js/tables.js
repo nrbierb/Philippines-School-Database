@@ -53,6 +53,7 @@ StandardTable.prototype.isInitialized = function() {
 
 StandardTable.prototype.loadAjaxResponse = function(parsedAjaxResponse){
 	if (parsedAjaxResponse) {
+		var keysArray = parsedAjaxResponse.keysArray;
 		this.keysArray = jQuery.parseJSON(parsedAjaxResponse.keysArray);
 		this.tableDescriptor = eval('(' + parsedAjaxResponse.tableDescriptor + ')');
 	}

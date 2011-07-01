@@ -161,7 +161,7 @@ def build_school_db_administrator_permissions():
                    "othertypes":True,
                    #"otherwork":True,
                    "database_user":True}
-    class_permission_changes = {"adminstrator":local_edit_broad_view,
+    class_permission_changes = {"administrator":local_edit_broad_view,
                 "community":standard_broad_edit,
                 "class_period":standard_edit,
                 "classroom":standard_edit,
@@ -294,7 +294,7 @@ def build_upper_level_admin_permissions():
                    "othertypes":True,
                    #"otherwork":True,
                    "database_user":True}
-    class_permission_changes = {"adminstrator":local_edit_broad_view,
+    class_permission_changes = {"administrator":local_edit_broad_view,
                                 "achievement_test":standard_broad_edit,
                 "community":standard_broad_edit,
                 "class_period":standard_edit,

@@ -37,8 +37,8 @@ function atBuildSubjectsTable(class_year) {
 		}
 		subjectsRows += '<tr class="subject-row">' + subjectTr[0]+ subjectTr[1] + '</tr>';
 	}
-	subjectsTh = '<tr><th class="width75">Name</th><th></th><th class="width120"># Questions</th> ' +
-		'<th class="width75">Name</th><th></th><th style="width=120"># Questions</th></tr>';
+	subjectsTh = '<tr><th class="width75">Name</th><th></th><th class="width120"># Test Items</th> ' +
+		'<th class="width75">Name</th><th></th><th style="width=120"># Test Items</th></tr>';
 	subjectsTable = '<table class="at-subjects thin-border hidden" id="subject-table-' + class_year +'"><tbody>' + subjectsTh + subjectsRows + '</tbody></table>';
 	return subjectsTable;	
 }

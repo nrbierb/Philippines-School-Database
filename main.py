@@ -39,10 +39,6 @@ from google.appengine.ext.webapp import util
 
 # Import the part of Django that we use here.
 import django.core.handlers.wsgi
-#import the datastore caching code from 
-#http://www.snippetin.com/snippet/view/memcaching-all-entities-for-google-app-engine-datastore
-#import SchoolDB.datastore_cache
-#SchoolDB.datastore_cache.DatastoreCachingShim.Install()
 import SchoolDB.views
     
 def main():
@@ -51,8 +47,7 @@ def main():
         sys.path.insert(1, django_zip_path)
   
     # Create a Django application for WSGI.
-    application = django.core.handlers.wsgi.WSGIHandler()
-  
+    application = django.core.handlers.wsgi.WSGIHandler()  
     # Run the WSGI CGI handler with that application.
     util.run_wsgi_app(application)
 

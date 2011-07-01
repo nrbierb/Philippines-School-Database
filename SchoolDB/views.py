@@ -25,6 +25,7 @@ from datetime import date
 import logging
 import exceptions
 from google.appengine.api import users
+from google.appengine.api import mail
 from google.appengine.ext import db
 from google.appengine.ext.db import djangoforms
 from django import http
@@ -57,8 +58,6 @@ from SchoolDB.utilities.add_student_major_history import \
      assign_student_majors_for_test_database
 from SchoolDB.utilities.create_schooldays import create_schooldays
 from SchoolDB.utilities.createStudents import create_students_for_school
-from SchoolDB.utilities.replace_histories import replace_histories
-
 import SchoolDB.utilities
 result_string = ""
 __http_request__ = None
@@ -158,10 +157,12 @@ def validate_action(target_action, error_report_function,
         legal_action = user_type.action_ok(target_action, target_class, 
                                           target_object)
         if (not legal_action and (target_action != "View")):
-            view_only = user_type.action_ok("View", target_class, target_object)
+            view_only = user_type.action_ok("View", target_class, 
+                                            target_object)
     if (not legal_action and not view_only):
         raise InstanceActionProhibitedError ((target_action, 
-                error_report_function, target_class, target_object, "Not allowed for this user"))    
+                error_report_function, target_class, target_object, 
+                "Not allowed for this user"))    
     return (legal_action, view_only)
 
 def prompt_for_login(minutes_since_last):
@@ -237,12 +238,12 @@ def showStatic(request, page_name, title_suffix,
 
 def showStaticTop(request, page_name, title_suffix, extra_params = {},
                   page_path_action = "Index"):
-        logout_url = users.create_logout_url("http://www.google.com")
-        extra_params["logout_url"] = logout_url
-        return showStatic(request = request, page_name = page_name, 
-                          title_suffix = title_suffix, 
-                          extra_params = extra_params,
-                          page_path_action=page_path_action)
+    logout_url = users.create_logout_url("http://www.google.com")
+    extra_params["logout_url"] = logout_url
+    return showStatic(request = request, page_name = page_name, 
+                      title_suffix = title_suffix, 
+                      extra_params = extra_params,
+                      page_path_action=page_path_action)
 #def showIndex(request):
     #try:
         #validate_user(request)
@@ -756,6 +757,9 @@ def showReports(request):
     elif(report_type == "section_grading_period_grades"):
         form_class = SectionGradingPeriodGradesForm
         report_title = "Section Grading Period Grades Report"
+    elif (report_type == "encoding_check"):
+        form_class = StandardEncodingCheckForm
+        report_title = 'Encoding Check Report'
     elif (report_type == "form1"):
         form_class = Form1ReportForm
         report_title = 'Form 1'
@@ -1293,6 +1297,7 @@ def showForm(template, form, page_path_action, params,
             return respond(template, params)
     return_page = get_return_page_from_cookie()
     return_page = map_page_to_usertype(return_page)
+    return_page = set_fixed_return_url(return_page, params)
     if (return_page != "NoReturnPage"):
         return http.HttpResponseRedirect(return_page)
     else:
@@ -2231,7 +2236,7 @@ class SchoolForm(OrganizationForm):
     municipality_name = forms.CharField(required = False, 
                                         label="Municipality*",
                                         widget=forms.TextInput(attrs=
-                                                               {'class':'ui-widget autofill required entry-field'}))
+                                                               {'class':'ui-widget autofill entry-field'}))
     municipality = forms.CharField(required = False, 
                                    widget=forms.HiddenInput, initial="")
     principal_name = forms.CharField(required = False, 
@@ -2510,15 +2515,17 @@ class MultiLevelDefinedForm(BaseStudentDBForm):
     #organization = forms.CharField(required=False, label="Organization",
             #widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
     other_information = forms.CharField(required=False, 
-                                        max_length = 250, widget=forms.Textarea(
-                                            attrs={'cols':50, 'rows':2, 'class':'entry-field'}))    
+                        max_length = 250, widget=forms.Textarea(
+                            attrs={'cols':50, 'rows':2, 
+                                   'class':'entry-field'}))    
     element_names = ["name", "organization", "other_information"]
     parent_form = BaseStudentDBForm
 
     def generate_choices(self):
         self.fields["organization"].choices = \
-            SchoolDB.models.MultiLevelDefined.create_org_choice_list(
-                SchoolDB.models.getActiveDatabaseUser().get_active_organization())
+            SchoolDB.models.MultiLevelDefined.create_limited_org_choice_list(
+                SchoolDB.models.getActiveDatabaseUser().get_active_organization(),
+                getprocessed().requested_action)
 
 #----------------------------------------------------------------------   
 
@@ -2537,9 +2544,9 @@ class DateBlockForm(MultiLevelDefinedForm):
         javascript_generator.add_javascript_code(
             """
             $('#id_start_date').datepicker({changeMonth: true,
-                changeYear: true});
+                minDate:'-4Y', maxDate:'+2Y'});
             $('#id_end_date').datepicker({changeMonth: true, 
-            changeYear: true});
+            changeYear: true,  minDate:'-4Y', maxDate:'+2Y'});
             """)
 
     @staticmethod
@@ -2975,9 +2982,9 @@ class ClassSessionForm(StudentGroupingForm):
         javascript_generator.add_javascript_code(
             """
             $('#id_start_date').datepicker({changeMonth: true,
-                changeYear: true});
+                changeYear: true,  minDate:'-4Y', maxDate:'+2Y'});
             $('#id_end_date').datepicker({changeMonth: true, 
-            changeYear: true});
+            changeYear: true,  minDate:'-4Y', maxDate:'+2Y'});
             """ )
 
 
@@ -3484,7 +3491,7 @@ class AchievementTestForm(BaseStudentDBForm):
             widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
     percent_grade = forms.FloatField(required=False, label="% Class Grade:",
             min_value=1, max_value=100, widget=forms.TextInput(
-                    attrs={'class':'entry-field small-numeric-field percentage-mask'}))
+                    attrs={'class':'entry-field small-numeric-field simple-percentage-mask'}))
     other_information=forms.CharField(required=False, max_length=1000,
                 label="Other Information:", widget=forms.Textarea(attrs={
                         'cols':50, 'rows':2, 'class':'entry-field'}))
@@ -3763,12 +3770,12 @@ class GradingPeriodResultsForm(BaseStudentDBForm):
         class="period-view centered-object" type="checkbox" value=%s></td>
         """ %(period_names[i], period_dates[i], id_string, 
                   period_keystrs[i])
-        if user_is_teacher :
-            html_string += """
-        <td><input name="period-checkbox" id="%s-edit" 
-        class="period-edit centered_object" type="checkbox" value=%s></td>
-            """  %(id_string, period_keystrs[i])
-        html_string += "</tr></table>"
+            if user_is_teacher :
+                html_string += """
+            <td><input name="period-checkbox" id="%s-edit" 
+            class="period-edit centered_object" type="checkbox" value=%s></td>
+                """  %(id_string, period_keystrs[i])
+            html_string += "</tr></table>"
         return html_string
                         
     def modify_params(self, param_dict):
@@ -4216,7 +4223,7 @@ class SelectForm(BaseStudentDBForm):
                 javascript_generator.get_javascript_param("titleNamePlural")
         if (not javascript_generator.get_javascript_param("title")):
             javascript_generator.add_javascript_params({"title":self.title})
-        #return the select_field fo further work by child classes
+        #return the select_field for further work by child classes
         return select_field   
 #----------------------------------------------------------------------  
 class DatabrowserForm(SelectForm):
@@ -4667,6 +4674,40 @@ class Form14ReportForm(BaseStudentDBForm):
             field_name = "id_achievement_test_name",
             key_field_name = "id_achievement_test")
 
+#----------------------------------------------------------------------  
+class StandardEncodingCheckForm(BaseStudentDBForm):
+    """
+    This form reports the data entry status for each section of the
+    school. It has a table of section name, class year, teacher, number
+    of students, and days since attendance was entered. This is meant
+    to be used by the guidance counselor to monitor the section
+    advisors data entry.
+    """
+
+    def modify_params(self, params):
+        params["title_prefix"] = "Create"
+
+#----------------------------------------------------------------------  
+class AdminOnlyEncodingCheckForm(BaseStudentDBForm):
+    """
+    This form reports the data entry status for each section of the
+    school. It has a table of section name, class year, teacher, number
+    of students, and days since attendance was entered. This is meant
+    to be used by the guidance counselor to monitor the section
+    advisors data entry.
+    """
+    school_name = forms.CharField(required=False, label="School",
+            widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
+    school = forms.CharField(required=False,
+                              widget=forms.HiddenInput, initial = "")
+
+    def modify_params(self, params):
+        params["title_prefix"] = "Create"
+
+    def generate_javascript_code(self, javascript_generator):
+        schl= javascript_generator.add_autocomplete_field(
+            class_name = "school", field_name = "id_school_name",
+            key_field_name = "id_school")
 
 #----------------------------------------------------------------------  
 class BaseSummaryForm(BaseStudentDBForm):
@@ -5006,6 +5047,16 @@ def get_return_page_from_cookie():
         return_page = "/index"
     return return_page
 
+#----------------------------------------------------------------------
+def set_fixed_return_url(return_page, params):
+    """
+    If there is a fixed return url go to it instead.
+    """
+    if (params.get("fixed_return_url", False)):
+        return params["fixed_return_url"]
+    else:
+        return return_page
+    
 #----------------------------------------------------------------------
 def map_page_to_usertype(page, perform_mapping = True):
     """

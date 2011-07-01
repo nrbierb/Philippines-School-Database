@@ -1570,7 +1570,7 @@ class QueryDescriptor:
                      "sort_order":(),
                      "use_class_query":False,
                      "filter_by_organization":True,
-                     "maximum_count":600,
+                     "maximum_count":400,
                      "count_only":False,
                      "keys_only":False,
                      "return_iterator":False}
@@ -1667,12 +1667,32 @@ class QueryMaker:
             query.order(sort_param)
         if (self.descriptor.get("return_iterator")):
             #return the query itself for use as iterator
-            return query
+            return query, None
         else:
-            #return the results as a list of objects
+            #check the number of found compared with the max number 
+            #to show. If greater add a warning text.
+            extra_data = None
+            total_found = query.count()
+            total_returned = total_found
+            maximum_count = int(self.descriptor.get("maximum_count"))
+            if (total_found > maximum_count):
+                total_returned = maximum_count
+                if (total_found == 1000):
+                    leader_string = "More than "
+                else:
+                    leader_string = ""
+                extra_data = \
+                """
+                <p><em>Warning:</em></p> 
+                <p>%s%d entries found but only %d entries shown.</p>
+                <p>Click 'Help' to learn how to correct this problem.</p>
+                """ \
+                %(leader_string, total_found, total_returned)
+            logging.info("count: %d returned %d max_count %d" 
+                         %(total_found, total_returned, maximum_count))
             object_list = \
-                        query.fetch(int(self.descriptor.get("maximum_count")))
-            return object_list
+                        query.fetch(maximum_count)
+            return object_list, extra_data
 
     def _build_lower_match_string(self, initial, should_capitalize):
         lower_match = initial.strip()
