@@ -78,7 +78,6 @@ class InformationContainer():
             stored_data = None
         return stored_data
 
-
 #----------------------------------------------------------------------
 class InformationStoreDict(InformationContainer):
     """
@@ -97,7 +96,7 @@ class InformationStoreDict(InformationContainer):
         A static method that performs a get_data to expand the blob and
         then directly references the dictionary. No save is needed.
         """
-        store_dict = blob.get_data()
+        store_dict = InformationStoreDict.get_data(blob)
         return store_dict.get_value(key)
     
 
@@ -384,9 +383,15 @@ class StudentsGradingValue():
 
     def change(self, newvalue, editor, 
                changedate = datetime.datetime.now()):
-        self.value = newvalue
-        self.lasteditor = editor
-        self.changedate = changedate
+        """
+        If the newvalue is different from the current value change the
+        value and record the editor and date of change. Do nothing if
+        the value is the same.
+        """
+        if (newvalue != self.value):
+            self.value = newvalue
+            self.lasteditor = editor
+            self.changedate = changedate
 
     def was_changed(self):
         return (self.changedate != None)
@@ -786,6 +791,94 @@ class GradingEvents(InformationContainer):
             valid = event.is_valid()
         return valid
 
+#------------------------------------------------------------------
+class StudentAchievementTestVault(InformationStoreDict):
+    """
+    This is a simple class that stores all of a single student's
+    achievement test grades in a blob contained in the student entity.
+    It is based upon an InformationStoreDict to easily transform and
+    store the data. The top level dictionary key is the achievement
+    test key. Each entry contains another dictionary that uses the
+    subject key as the key and the grade as the value. The grade is
+    restored as a grading value to maintain full information about its
+    encoding.
+    """
+    
+    def __init__(self, version_id = 1):
+        InformationStoreDict.__init__(self, version_id)
+        
+    @staticmethod
+    def simple_get_test(blob, test_key):
+        """
+        Get the full grade data for an achievement test of test_key.
+        This does not retain the expanded blob for further work nor
+        will it create an entry if it does not exist. Use when the
+        action will be read only.
+        """
+        return StudentAchievementTestVault.get_stored_value(blob,test_key)
+    
+    @staticmethod
+    def full_get_test(blob, test_key):
+        """
+        Get the full grade data for the test. Return the expanded blob
+        as well. If the entry for the key does not exist create it and
+        add it to the dictionary. This is used during initial storage or update.
+        """
+        vault = InformationContainer.get_data(blob)
+        test_data = vault.get_value(test_key)
+        if not test_data:
+            test_data = {}
+            vault.set_value(test_key, test_key)
+        return vault, test_data
+    
+    @staticmethod    
+    def get_grades(blob, test_key, grading_instance_keys_list):
+        """
+        Return a list of grades for the test in the order specified by
+        the subjects_list. If the test entry does not exist simply
+        return 0 for all subjects. The return value includes a boolean
+        value that shows if the entry existed.
+        """
+        test_data = StudentAchievementTestVault.simple_get_test(blob, test_key)
+        if test_data:
+            exists = True
+            grades = []
+            for key in grading_instance_keys_list:
+                grading_value = test_data.get(key, None)
+                if grading_value:
+                    grade = grading_value.get_grade()[0]
+                else:
+                    grade = 0
+                grades.append(grade)
+        else:
+            exists = False
+            grades = []
+        return exists, grades
+    
+    @staticmethod
+    def set_grades(blob, test_key, grades_dict, change_date, editor):
+        """
+        Create or update all grades for an achievement test. Create the
+        test entry if it does not exist. This is the primary function
+        called externally to set the grades for the student. It returns
+        the recompressed blob ready for storage.
+        """
+        vault, test_data = StudentAchievementTestVault.full_get_test(blob,test_key)
+        for gd_inst, grade_str in grades_dict.items():
+            if grade_str:
+                grade = int(grade_str)
+            else:
+                grade = 0
+            grading_value = test_data.get(gd_inst, None)
+            if grading_value:
+                grading_value.change(grade, editor, change_date)
+            elif (grade):
+                grading_value = StudentsGradingValue(grade, 0, change_date, editor)
+            if grading_value:
+                test_data[gd_inst] = grading_value
+        vault.set_value(test_key, test_data)
+        return vault.put_data()
+
 #----------------------------------------------------------------------
 class AjaxGetGradeHandler:
     """
@@ -818,11 +911,20 @@ class AjaxGetGradeHandler:
         try:
             self.data = simplejson.loads(json_data)
             self.requested_action = self.data["requested_action"]
-            self.achievement_test = self.data.get(
+            achievement_test_key_string = self.data.get(
                 "achievement_test", None)
+            if (achievement_test_key_string):
+                self.achievement_test = \
+                    SchoolDB.utility_functions.get_instance_from_key_string(
+                        achievement_test_key_string, SchoolDB.models.AchievementTest)
+            else:
+                self.achievement_test = None
             self.gender = self.data.get("gender", None)
-            grading_instances_key_strings = simplejson.loads(
-                self.data["gi_keys"])
+            if self.data.has_key("gi_keys"):
+                grading_instances_key_strings = simplejson.loads(
+                    self.data["gi_keys"])
+            else:
+                grading_instances_key_strings = []
         except StandardError, e:
             raise StandardError, ("Failed in init for get_grades: " + str(e))
         (self.grading_instances_key_strings, self.grading_instances_keys, 
@@ -881,20 +983,10 @@ class AjaxGetGradeHandler:
         for i in xrange(len(self.grading_instances_keys)):
             subjects_dict[self.grading_instances_keys[i]] = \
                           gd_inst_list[i].subject.key()
-        self.students = self.student_group.get_students()
+        self.students = self.student_group.get_students(gender=self.gender)
         for student in self.students:
-            student_record_by_subject = \
-                student.get_class_records_by_subject(subjects_dict.values(),
-                                                     known_class_sessions)
-            student_record_by_gd_inst_key = {}
-            for gd_inst_key in self.grading_instances_keys:
-                subject_key = subjects_dict[gd_inst_key] 
-                student_record_by_gd_inst_key[gd_inst_key] = \
-                        student_record_by_subject.get(subject_key, None)
-            self.student_record_keys.append(student_record_by_gd_inst_key)
-            self.student_record_keys_dict[student.key()] = \
-                student_record_by_gd_inst_key
-
+            self.student_record_keys_dict[student.key()] = {}
+        self.student_record_keys = []
             
     def create_class_roster_and_json(self, keys_only=False, 
                                      show_gender=False):
@@ -936,6 +1028,26 @@ class AjaxGetGradeHandler:
         return (self.grading_instances_key_strings, 
                 self.grading_instance_detail_dict, json_string)
 
+    def create_achievement_test_table_header(self):
+        """
+        Create a list of header parameters to be used by the google
+        table widget. In addition, create a list of grading instances
+        that can be used to get further information from the grading
+        instances associated with the column.
+        """
+        header = [("name","string","Student Name")]
+        grading_instances = self.achievement_test.get_grading_instances(
+            section = self.student_group)
+        self.grading_instance_keys = [instance.key() for instance in grading_instances]
+        self.grading_instances_key_strings = [str(instance_key) for instance_key
+                                              in self.grading_instance_keys]
+        for grading_instance in grading_instances:
+            title = "%s %d" %(unicode(grading_instance.subject), 
+                              grading_instance.number_questions)
+            header.append(
+                (str(grading_instance.key()), "string", title))
+        return header
+
     def create_table_header(self):
         """
         Create a list of header parameters to be used by the google
@@ -959,7 +1071,41 @@ class AjaxGetGradeHandler:
             grading_instances_list.append(grading_instance)
         return header, grading_instances_list
 
-       
+    def create_achievement_test_table_data(self):
+        """
+        Create a two level array in the form to be used by the google
+        table widget. The first column is the student name, the
+        subsequent columns are the students grading instances values.
+        The values come from the students achievement test record.
+        """
+        raw_data = []
+        table_data = []
+        test_key = self.achievement_test.key()
+        for y, student in enumerate(self.students):
+            raw_row = [student.full_name_lastname_first()]
+            table_row = [student.full_name_lastname_first()]
+            has_record, grades_list = student.get_achievement_test_grades(
+                test_key, self.grading_instance_keys)
+            if has_record:
+                values_list = []
+                for grade in grades_list:
+                    if grade:
+                        values_list.append("%d" %grade)
+                    else:
+                        values_list.append("")
+            else:
+                grades_list = [0 for g in self.grading_instance_keys]
+                values_list = ["" for g in self.grading_instance_keys]
+            raw_row.extend(grades_list)
+            raw_data.append(raw_row)
+            for x, grade_str in enumerate(values_list):
+                table_row.append(
+                    '<input type="text" class="entry-field numeric-field" '+\
+                    'id="%s-%s-%s" value="%s"></input>' %(self.table_name, x, 
+                                                        y, grade_str))
+            table_data.append(table_row)
+        return (table_data, [], raw_data)
+    
     def create_table_data(self):
         """
         Create a two level array in the form to be used by the google
@@ -1008,9 +1154,15 @@ class AjaxGetGradeHandler:
         Create the ajax return value for a full table representation
         with the Google table. 
         """
-        table_header, grading_instances_list = self.create_table_header()
-        table_data, student_record_data, raw_data = \
-                  self.create_table_data()
+        if self.achievement_test:
+            table_header = \
+                        self.create_achievement_test_table_header()
+            table_data, student_record_data, raw_data = \
+                      self.create_achievement_test_table_data()
+        else:
+            table_header, grading_instances_list = self.create_table_header()
+            table_data, student_record_data, raw_data = \
+                      self.create_table_data()
         data_table = SchoolDB.gviz_api.DataTable(table_header)
         data_table.LoadData(table_data)
         json_table = data_table.ToJSon()
@@ -1112,7 +1264,7 @@ class AjaxSetGradeHandler:
     it is as efficient as possible.
     """
 
-    def __init__(self, student_grouping, gi_owner, gi_key_strings, 
+    def __init__(self, student_grouping, gi_owner_type, gi_owner, gi_key_strings, 
                  student_record_key_strings, 
                  grades_table,
                  student_class_records_table,
@@ -1131,6 +1283,7 @@ class AjaxSetGradeHandler:
         """
 
         self.student_grouping = student_grouping
+        self.gi_owner_type = gi_owner_type
         self.grading_instance_owner = gi_owner
         self.grading_instances_key_strings, self.grading_instances_keys, \
             self.grading_instance_keys_dict, all_valid = \
@@ -1164,12 +1317,13 @@ class AjaxSetGradeHandler:
         normally only the gi date which may be set the first time that
         grades are entered for the set.
         """
-        self._check_table_consistency()
-        self._load_student_class_records()
         if (self.gi_changes):
             for grading_instance_key in self.gi_changes.keys():
                 self.save_grading_instance_change(grading_instance_key)
-        self.save_grades()
+        if (self.gi_owner_type == SchoolDB.models.AchievementTest):
+            self.save_achievement_test_grades()
+        else:
+            self.save_grades()
         self._update_summary_data_if_necessary()
         return_string = \
                       simplejson.dumps("Successfully saved %d students grades" \
@@ -1210,11 +1364,32 @@ class AjaxSetGradeHandler:
             raise SchoolDB.ajax.AjaxError(
                 "Records table size is wrong. No records saved.")
 
+    def save_achievement_test_grades(self):
+        """
+        Save the table data from each row into the student record
+        associated with the row. This saves the data into the student's
+        achievement test vault.
+        """
+        grading_instances_list = self.grading_instances_keys
+        achievement_test = self.grading_instance_owner.key()
+        for row_index in xrange(self.rows_count):
+            grades_row = self.grades_table[row_index]
+            student = SchoolDB.utility_functions.get_instance_from_key_string(
+                self.student_record_keystrings[row_index], SchoolDB.models.Student)
+            grades_dict = {}
+            for i in range(len(grades_row)):
+                grades_dict[grading_instances_list[i]] = grades_row[i]
+            student.set_achievement_test_grades(achievement_test, grades_dict, 
+                        self.grade_recording_date, self.editor)
+            
     def save_grades(self):
         """
-        Save the table data from one row into the student record
-        associated with the row. 
+        Save the table data for each row into the student record
+        associated with the row. This saves the date into each student's
+        set of class recors associated with the grading instance.
         """
+        self._check_table_consistency()
+        self._load_student_class_records()
         for row_index in xrange(self.rows_count):
             grades_row = map(convert_to_float, self.grades_table[row_index])
             records_row = self.student_class_records_table[row_index]

@@ -6,12 +6,13 @@ function setupPage() {
 	 	$('#id_achievement_test_name').val() + "</em> Section:  <em>" +
 		$('#id_section_name').val() + "</em></p>";
 	$("#grades_title").replaceWith(titleText);
+	showGradesDiv();
 }
 
 $(function() {
 	$("#get_grades_btn").click(function(){
 		setupPage();
-		loadAchievementTestGrades();
+		getAchievementTestGrades();
 		});
 });	
 $(function() {

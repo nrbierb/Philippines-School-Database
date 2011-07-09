@@ -2509,8 +2509,7 @@ class ContactForm(BaseStudentDBForm):
 
 class MultiLevelDefinedForm(BaseStudentDBForm):
     name = forms.CharField(required=True, max_length=60, label="Name*",
-                           widget=forms.TextInput(attrs={'class':'required entry-field', 
-                                                         'minlength':'2'}))
+                           widget=forms.TextInput(attrs={'class':'required entry-field', "size":35, 'minlength':'2'}))
     organization = forms.ChoiceField(required=False)
     #organization = forms.CharField(required=False, label="Organization",
             #widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
@@ -2554,7 +2553,7 @@ class DateBlockForm(MultiLevelDefinedForm):
                                         select_field):
         select_field.add_extra_params({
             "extra_fields":"organization|start_date|end_date",
-            "use_class_query":"True"})
+            "use_class_query":"!true!"})
 
 
 #----------------------------------------------------------------------
@@ -2610,7 +2609,7 @@ class SchoolDayForm(MultiLevelDefinedForm):
                                         select_field):
         select_field.add_extra_params({
             "extra_fields":"date|organization|day_type",
-            "use_class_query":"True"})
+            "use_class_query":"!true!"})
         javascript_generator.add_javascript_params ({
             "titleName":"School Day", 
             "titleNamePlural":"School Days"})
@@ -3484,6 +3483,7 @@ class AchievementTestForm(BaseStudentDBForm):
     name = forms.CharField(required=True, label="Name*:",
             widget=forms.TextInput(attrs={'class':'required entry-field', 
                                            "size":35, 'minlength':'5'}))
+    organization = forms.ChoiceField(required=False)
     date = forms.DateField(required=True, label="Test Date:*",
         widget=forms.DateInput(format="%m/%d/%Y", attrs={"size":12,
             "class":"date-mask popup-calendar entry-field"}))
@@ -3499,7 +3499,7 @@ class AchievementTestForm(BaseStudentDBForm):
     json_classyear_names = forms.CharField(widget=forms.HiddenInput)
     json_testing_info = forms.CharField(required=False, max_length=1000, 
                                         widget=forms.HiddenInput)
-    element_names = ["name", "date", "grading_type", "percent_grade",
+    element_names = ["name", "date", "organization", "grading_type", "percent_grade",
                      "other_information"]
     parent_form = BaseStudentDBForm
 
@@ -3510,8 +3510,8 @@ class AchievementTestForm(BaseStudentDBForm):
         within associated instances of different classes
         """
         return SchoolDB.models.AchievementTest.create(
-            self.cleaned_data["name"],
-            SchoolDB.models.getActiveDatabaseUser().get_active_organization())
+            self.cleaned_data["name"], 
+            db.Key(self.cleaned_data["organization"]))
         
     def modify_params(self, param_dict):
         param_dict["title_bridge"] = " an "
@@ -3543,6 +3543,16 @@ class AchievementTestForm(BaseStudentDBForm):
         except ValueError:
             pass
         
+    def generate_choices(self):
+        """
+        Create a choice list that is limited to that which the user can set. This 
+        is always only a single value unless the user is admin
+        """
+        self.fields["organization"].choices = \
+            SchoolDB.models.MultiLevelDefined.create_limited_org_choice_list(
+                SchoolDB.models.getActiveDatabaseUser().get_active_organization(),
+                getprocessed().requested_action)
+    
     @staticmethod
     def generate_javascript_code(javascript_generator):
         grading_type= javascript_generator.add_autocomplete_field(
@@ -3568,7 +3578,8 @@ class AchievementTestForm(BaseStudentDBForm):
         grading_type = AchievementTestForm.generate_javascript_code(
             javascript_generator)
         select_field.add_dependency(grading_type,False)
-        select_field.add_extra_params({"extra_fields":"grading_type|date"})
+        select_field.add_extra_params({"extra_fields":"grading_type|date",
+                                       "use_class_query":"True"})
 
     @staticmethod    
     def generate_testing_info(instance_string):
@@ -3579,7 +3590,8 @@ class AchievementTestForm(BaseStudentDBForm):
         information is encoded also.
         """
         subject_names, class_years, view_info = \
-                SchoolDB.models.AchievementTest.get_info_for_view(instance_string)
+                SchoolDB.models.AchievementTest.get_test_elements_for_view(
+                    instance_string)
         testing_info = []
         for subject_instance in view_info:
             try:
@@ -4652,6 +4664,9 @@ class Form14ReportForm(BaseStudentDBForm):
                               widget=forms.HiddenInput, initial = "")   
     gender = forms.ChoiceField(required=False, label="Gender",
             choices=(("Male","Male"), ("Female","Female")), initial="Male")
+    report_type = forms.ChoiceField(required=False, label="Report Type",
+            choices=(("Standard","Standard"), ("Percentage","Percentage")), 
+            initial="Standard")
     parent_form = BaseStudentDBForm
     
     def modify_params(self, params):
@@ -4672,7 +4687,9 @@ class Form14ReportForm(BaseStudentDBForm):
         achtest = javascript_generator.add_autocomplete_field(
             class_name = "achievement_test", 
             field_name = "id_achievement_test_name",
-            key_field_name = "id_achievement_test")
+            key_field_name = "id_achievement_test",
+            ajax_root_path = "/ajax/get_achievement_tests_for_section")
+        achtest.add_dependency(sect, True)
 
 #----------------------------------------------------------------------  
 class StandardEncodingCheckForm(BaseStudentDBForm):

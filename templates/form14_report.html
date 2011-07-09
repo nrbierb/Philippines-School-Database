@@ -10,6 +10,7 @@ function setParametersForRequest(section, achievementTest) {
 		'secondary_class':"achievement_test",
 		"secondary_key":achievementTest,
 		"gender":$("#id_gender").val(),
+		"report_type":$("#id_report_type").val(),
 		"function":"create_form14_table"
 		};
 	return param_dict;
@@ -51,10 +52,16 @@ $(function() {
 <fieldset class="std-block" id="id_table_fieldset">
 	<legend>Setup Report</legend>
 	<table id="setup_table" class="centered-object">
-	<tr><td>Section</td><td>{{form.section_name}}</td>
-	<td>Achievement Test</td><td>{{form.achievement_test_name}}</td>
-	<td>{{form.gender.label}}</td><td>{{form.gender}}</td></tr>
-	<tr><td colspan='6'><input type="button" id="generate_report_button" value="Create Report" 
+	<tr><td>Section</td>
+	<td>Achievement Test</td>
+	<td>Gender</td>
+	<td>Type</td></tr>
+	<tr>
+		<td>{{form.section_name}}</td>
+		<td>{{form.achievement_test_name}}</td>
+		<td>{{form.gender}}</td>
+		<td>{{form.report_type}}</td></tr>		
+	<tr><td colspan='4'><input type="button" id="generate_report_button" value="Create Report" 
 		class="btn inside centered-object"></input></td></tr>
 	</table>
 </fieldset>

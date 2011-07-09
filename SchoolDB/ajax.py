@@ -356,8 +356,7 @@ class AjaxServer():
                 raise AjaxError, self.error_string
         else:
             self.error_string = "Incorrect or missing class session db key."
-            raise AjaxError, self.error_string
-                  
+            raise AjaxError, self.error_string                  
 
     def _set_grades(self):
         """
@@ -381,17 +380,16 @@ class AjaxServer():
                             return_data.get('keys', None)
                 grades_table = return_data.get('data',None)
                 student_class_records_encoded = return_data.get(
-                    "json_student_records","")
-            json_student_records = self.argsDict.get('json_student_records',
-                                                      "")
-            student_class_records_table = simplejson.loads(json_student_records)
-            json_gi_changes = self.argsDict.get('json_gi_changes', None)
-            if json_gi_changes:
-                gi_changes = simplejson.loads(json_gi_changes)
-            else:
-                gi_changes = {}
+                    'json_student_records','[]')
+                student_class_records_table = simplejson.loads(
+                    student_class_records_encoded)
+                json_gi_changes = self.argsDict.get('json_gi_changes', None)
+                if json_gi_changes:
+                    gi_changes = simplejson.loads(json_gi_changes)
+                else:
+                    gi_changes = {}
             if not (gi_key_strings and student_record_key_strings and
-                    grades_table and student_class_records_table):
+                    grades_table):
                 raise AjaxError, \
                       "Missing some grades data. No grade information saved"
             if (len(gi_key_strings) and len(student_record_key_strings)):
@@ -401,6 +399,7 @@ class AjaxServer():
                 grade_handler = \
                     SchoolDB.assistant_classes.AjaxSetGradeHandler(
                         student_grouping = self.target_object, 
+                        gi_owner_type = self.secondary_class,
                         gi_owner = self.secondary_object,
                         gi_key_strings = gi_key_strings,
                         student_record_key_strings = \
@@ -470,7 +469,7 @@ class AjaxServer():
         ajax calls.
         """
         if (self.target_object):
-            self.target_object.remove()
+            self.target_object.remove(True)
         
     def _suggest_siblings(self):
         """

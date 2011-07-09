@@ -514,15 +514,15 @@ class SectionRosterProcessor:
         """
         if len(self.change_events):
             event_index = len(self.change_events) - 1
-            while (self.change_events[event_index].date_ordinal >
-                   self.end_date_ordinal):
+            while ((event_index > -1) and (self.change_events[event_index].date_ordinal >
+                   self.end_date_ordinal)):
                 event = self.change_events[event_index]
                 student_key = event.student_key
                 if event.add_to_section():
                     # add is in forward direction - for reverse we
                     # remove it
                     if self.all_students_dict.has_key(student_key):
-                        del(self.all_students_dict[student_key])             
+                        del self.all_students_dict[student_key]             
                 else:
                     self.all_students_dict[student_key] = \
                         db.get(student_key)
@@ -923,12 +923,15 @@ class Form2Report:
             load_daytypes_lists(self.start_date, self.total_days,
                                 self.section, self.total_days)
         num_school_days = 0
+        active_days_list = []
         for day in day_type_list:
-            if (((day[0] & \
+            active = (((day[0] & \
                 SchoolDB.models.StudentAttendanceRecord.school_day)) or
                 ((day[1] & \
-                  SchoolDB.models.StudentAttendanceRecord.school_day))):
-                    num_school_days +=1 
+                  SchoolDB.models.StudentAttendanceRecord.school_day)))
+            active_days_list.append(active)
+            if active:
+                num_school_days +=1 
         section_roster_changes = self.section.get_section_roster_changes()
         self.all_students_dict, self.active_students_daily_dicts, \
             self.event_texts = \
@@ -939,7 +942,7 @@ class Form2Report:
             for i in xrange(self.total_days):
                 self.table_data.append(
                     self._generate_main_table_day(
-                        i, summary_line)[0])
+                        i, active_days_list[i], summary_line)[0])
             if (len(self.table_data)):
                 for i in range(3,7):
                     if (num_school_days):
@@ -953,7 +956,7 @@ class Form2Report:
                 for i in range(1,3):
                     summary_line[i] = \
                             round((float(summary_line[i])/ 
-                                   self.total_days),1)  
+                                   num_school_days),1)  
                 summary_line[7] = "               "
         self.table_data.append(summary_line)
         final_row = self.table_data[self.total_days - 1]
@@ -964,10 +967,16 @@ class Form2Report:
                                       summary_line[6] )/2.0 
             self.data["aa_combined"] = (self.data["aa_male"] + \
                 self.data["aa_female"]) /2.0
-            self.data["pa_male"] = \
-                self.data["aa_male"] * 100.0 / summary_line[1]
-            self.data["pa_female"] = \
-                self.data["aa_female"] * 100.0 / summary_line[2]
+            if summary_line[1]:
+                self.data["pa_male"] = \
+                    self.data["aa_male"] * 100.0 / summary_line[1]
+            else:
+                self.data["pa_male"] = 0.0
+            if summary_line[2]:
+                self.data["pa_female"] = \
+                    self.data["aa_female"] * 100.0 / summary_line[2]
+            else:
+                self.data["pa_female"] = 0.0
             self.data["pa_combined"] = (self.data["pa_male"] + \
                 self.data["pa_female"])/ 2.0
         else:
@@ -992,7 +1001,7 @@ class Form2Report:
              ('f_aft', 'number', 'Female Afternoon'),
              ('remarks', 'string', 'Remarks')]
     
-    def _generate_main_table_day(self, day_index, summary_line):
+    def _generate_main_table_day(self, day_index, active_day, summary_line):
         #day_name = ("%d" %(day_index + 1))
         day = self.start_date + timedelta(day_index)
         day_name = day.strftime("%a, %b %d")
@@ -1017,8 +1026,9 @@ class Form2Report:
                     morning_totals[0], morning_totals[1],
                     afternoon_totals[0],afternoon_totals[1],
                     self.event_texts[day_index]]
-        for i in range(1, len(day_line)-1):
-            summary_line[i] += day_line[i] 
+        if active_day:
+            for i in range(1, len(day_line)-1):
+                summary_line[i] += day_line[i] 
         return day_line, summary_line
                         
     def get_initial_student_count(self):

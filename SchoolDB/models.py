@@ -740,7 +740,7 @@ class Organization(polymodel.PolyModel):
     general_info = db.StringProperty(required=False, multiline=True)
     address = db.StringProperty(required=False, multiline=True)
     location = db.GeoPtProperty(required=False)
-    postal_address = db.StringProperty(required=False)
+    postal_address = db.StringProperty(required=False, multiline=True)
     inactive = db.BooleanProperty()
     inactive_date = db.DateProperty()
     deped_org = db.BooleanProperty(default=True)
@@ -1022,6 +1022,13 @@ class National(Organization):
                     region.get_subordinate_organizations(active_only))
         return subordinates
 
+    def get_schools(self):
+        """
+        Get all schools because all schools are in system
+        """
+        query = School.all()
+        return query.fetch(3000)
+    
 #----------------------------------------------------------------------
 class Region(Organization):
     """
@@ -1575,7 +1582,7 @@ class DateBlock(MultiLevelDefined):
 
     @staticmethod
     def create(name, organization):
-        return DateBlock(name=name, parent=organization)
+        return DateBlock(name=name, parent=organization, organization = organization)
 
     def in_block(self, date):
         return ((date >= self.start_date) and 
@@ -1632,7 +1639,7 @@ class SchoolYear(DateBlock):
 
     @staticmethod
     def create(name, organization):
-        return SchoolYear(name=name, parent=organization)
+        return SchoolYear(name=name, parent=organization, organization = organization)
 
     @staticmethod
     def custom_query(query_descriptor):
@@ -1722,7 +1729,7 @@ class GradingPeriod(DateBlock):
 
     @staticmethod   
     def create(name, organization):
-        return GradingPeriod(name=name, parent=organization)
+        return GradingPeriod(name=name, parent=organization, organization = organization)
 
     @staticmethod
     def custom_query(query_descriptor):
@@ -1898,7 +1905,7 @@ class ClassPeriod(MultiLevelDefined):
         obviously wrong
         """
         default_time = time(0,0)
-        return ClassPeriod(name=name, parent=organization,
+        return ClassPeriod(name=name, parent=organization, organization = organization,
                            start_time=default_time, end_time=default_time)
 
     def in_class_period(self, time_val):
@@ -1937,7 +1944,7 @@ class Subject (MultiLevelDefined):
     
     @staticmethod
     def create(name, organization):
-        return Subject(name=name, parent=organization,
+        return Subject(name=name, parent=organization, organization = organization,
                        used_in_achievement_tests =
                        (organization == National.get_national_org()))
 
@@ -1952,7 +1959,7 @@ class SectionType (MultiLevelDefined):
 
     @staticmethod
     def create(name, organization):
-        return SectionType(name=name, parent=organization)
+        return SectionType(name=name, parent=organization, organization = organization)
 
 
     @staticmethod
@@ -1981,7 +1988,8 @@ class SpecialDesignation (MultiLevelDefined):
 
     @staticmethod
     def create(name, organization):
-        return SpecialDesignation(name=name, parent=organization)
+        return SpecialDesignation(name=name, parent=organization, 
+                                  organization = organization)
 
 
     @staticmethod
@@ -2727,6 +2735,7 @@ class School(Organization):
     division = db.ReferenceProperty(Division)
     principal = db.ReferenceProperty(Person)
     school_creation_date = db.DateProperty()
+    school_closure_date = db.DateProperty()
     students_municipalities = db.ListProperty(db.Key)
     student_summary = db.ReferenceProperty(StudentSchoolSummaryHistory)
     classname = "School"
@@ -2768,6 +2777,10 @@ class School(Organization):
         Schools are the lowest level DepEd org.
         """
         return True
+    
+    def is_active(self, compare_date = date.today()):
+        return (not self.school_closure_date or 
+                     (self.school_closure_date >= compare_date))
 
     def update_student_summary(self, force_update=False):
         """
@@ -3118,7 +3131,7 @@ class Section(StudentGrouping):
         student_key = query.get()
         return (student_key != None)
 
-    def get_students(self):
+    def get_students(self, gender = None):
         """
         Create a list of references to student instances that are
         in a single section at a school. Sort by gender and last
@@ -3127,6 +3140,8 @@ class Section(StudentGrouping):
         query = Student.all()
         active_student_filter(query)
         query.filter("section =", self)
+        if (gender):
+            query.filter("gender =", gender)
         query.order("last_name")
         query.order("first_name")
         results = query.fetch(500)
@@ -3180,6 +3195,13 @@ class Section(StudentGrouping):
                 section_roster_changes.create_period_information(
                     current_students_list, start_date, end_date)
         all_students_list = all_students_dict.values()
+        # This list might have some 'None's in it so try to remove them
+        try:
+            count = all_students_list.count(None)
+            for i in range(count):
+                all_students_list.remove(None)
+        except:
+            pass
         if (sort_by_gender):
             compare_function = \
             Person.compare_by_name_and_gender
@@ -3809,14 +3831,6 @@ class GradingInstance(db.Model):
         """
         return SchoolDB.utility_functions.simple_remove(self, 
                                 perform_remove)
-#----------------------------------------------------------------------  
-class AchievementTestNew(db.Model):
-    """
-    A representation of an achievement test from either the school or higher level organizations so it is a MultiLevelDefined child class.  The test may
-    have separate parts for each subject that are graded individually and
-    are normally either for all class years or only single years. This
-    class contains information for only one class year. 
-    """
     
 #----------------------------------------------------------------------  
 
@@ -3834,21 +3848,19 @@ class AchievementTest(MultiLevelDefined):
     classname = "Achievement Test"
     date = db.DateProperty()
     percent_grade = db.FloatProperty()
-    class_years = db.ListProperty(str)
-    #the choices are a subset of the GradingInstanceType
+    test_completed = db.BooleanProperty()
     grading_type = db.StringProperty(choices = 
                                      SchoolDB.choices.AchievementTestType)
-    #The subject list should include only those at the national level
-    subjects = db.ListProperty(db.Key)
-    summary_blob = db.BlobProperty()
 
     @staticmethod
     def create(name, organization):
         """
-        Set organization and parent to users org upon creation
+        Set organization and parent to the multilevel defined org upon creation
         """
-        return AchievementTest(name=name, parent=organization, 
+        new_instance = AchievementTest(name=name, parent=organization,
                                        organization=organization)
+        new_instance.put()
+        return new_instance
 
     @staticmethod
     def findAchievementTest(organization, 
@@ -3893,65 +3905,133 @@ class AchievementTest(MultiLevelDefined):
             return test[0]
 
     @staticmethod
-    def findAchievementTestsForSection(section):
+    def findAchievementTestsForSchool(school, min_date=None, max_date=None):
+        """
+        Return a list of Achievement tests that are available for the
+        school for the school year to date and a bit in the future or a
+        specified date range sorted in reverse chronological order.
+        """
+        division = school.division
+        region = division.region
+        national = National.get_national_org()
+        if not min_date:
+            school_year = SchoolYear.school_year_for_date(date.today())
+            min_date = school_year.start_date
+        if not max_date:
+            max_date = date.today() + timedelta(10)
+        tests = []
+        for org in [school, division, region, national]:
+            query = AchievementTest.all()
+            query.filter("organization =", org)
+            query.filter("date >", min_date)
+            query.filter("date <", max_date)
+            query.order("-date")
+            org_tests = query.fetch(100)
+            if org_tests:
+                tests.extend(org_tests)
+        return tests
+
+    @staticmethod
+    def findAchievementTestsForSection(section, min_date=None, max_date=None):
         """
         Return a list of Achievement tests that are available for the section
         for the school year to date and a bit in the future sorted in reverse
         chronological order.
         """
+        school = section.organization
         class_year = section.class_year
-        school_year = SchoolYear.school_year_for_date(date.today())
-        min_date = school_year.start_date
-        max_date = date.today() + timedelta(10)
-        query = AchievementTest.all()
-        query.filter("organization = ", 
-                     getActiveDatabaseUser().get_active_organization())
-        query.filter("date >", min_date)
-        query.filter("date <", max_date)
-        query.filter("class_years =", class_year)
-        query.order("-date")
-        return query.fetch(50)
-
+        org_tests = AchievementTest.findAchievementTestsForSchool(school,
+                                        min_date, max_date)
+        tests = []
+        for test in org_tests:
+            if (test.class_year_took_test(class_year)):
+                tests.append(test)
+        return tests
+                
+    @staticmethod
+    def get_test_elements_for_view(instance_string = ""):
+        """
+        Create a list of subjects and class years to be used in the form.
+        If there is a keystring for an AchievementTest,
+        Use the set of grading instances for the test to generate a list of
+        tuples in the same form as is used to update the grading instances.
+        This contains all information necessary for edit and display
+        """
+        subject_names, name_to_key_dict, key_to_name_dict = \
+                     get_possible_subjects("used_in_achievement_tests =")
+        class_years = get_class_years_only()
+        view_info = [ ]
+        at_instance = get_instance_from_key_string(instance_string)
+        if (at_instance):
+            for year in class_years:
+                grading_instances = at_instance.get_grading_instances(
+                    class_year = year)
+                for grading_instance in grading_instances:
+                    try:
+                        subject = key_to_name_dict[grading_instance.subject.key()]
+                        number_questions = grading_instance.number_questions
+                        view_info.append([year, subject, number_questions])
+                    except:
+                        pass
+        return subject_names, class_years, view_info
     
+    def get_grading_instances(self, section = None, class_year = "", 
+                              count_only = False):
+        """
+        Get the achievement test grading instances. The grading
+        instances are different for each class year. If the section is
+        defined then the class year of the section is used to filter
+        the results. If the class year is defined then it is used if no
+        section defined. If both are undefined then all grading
+        instances for the test are returned.
+        """
+        query = GradingInstance.all()
+        if section:
+            class_year = section.class_year
+        if class_year:
+            query.filter("class_year =", class_year)
+        query.ancestor(self)
+        gi_list = query.fetch(100)
+        gi_list.sort(key = lambda gi: unicode(gi.subject))
+        return gi_list
+
+    def get_all_school_infos(self):
+        """
+        Get the AchievementTestSchoolInfo entities for all schools
+        taking the achievement test. If they do not yet exist, create
+        them. Note that this makes the assumption that new schools
+        won't take a test that has already been recorded for other
+        schools. Thus once the initial set of infos has been created the 
+        no others are created. 
+        """
+        query = AchievementTestSchoolInfo.all()
+        query.ancestor(self)
+        school_info_list = query.fetch(1000)
+        if (len(school_info_list) == 0):
+            #no entities have yet been created so create one for each school
+            schools = self.organization.get_schools()
+            for school in schools:
+                name = "%s-%s" %(unicode(self), unicode(school))
+                school_info_list.append(AchievementTestSchoolInfo.create(name,
+                                                                         self, school))
+        return school_info_list
+                
     def update(self, updated_information):
         """
-        Update or create the summary and grading instances for the
-        achievement test.
+        Update or create the info and summary blobs. This must have
+        been called at least once for the entity to be used. The entity
+        is put at the end of this function so that all information is
+        in the database.
         """
         self.update_grading_instances(updated_information)
-        self.update_summary_subjects(updated_information)
+        school_infos = self.get_all_school_infos()
+        for info in school_infos:
+            info.update(updated_information)
         
-    def update_summary_subjects(self, updated_information):
-        """
-        Add or remove summary contents for the achievement test. If no
-        summary instance has yet been created for a new achivement
-        test, fully create it. This performs a put of this AchievmentTest
-        instance when complete.
-        """
-        if self.summary_blob:
-            summary = self.get_summary()
-        else:
-            summary = SchoolDB.summaries.AchievementTestSummary()
-        subject_names, name_to_key_dict, key_to_name_dict = \
-                get_possible_subjects("used_in_achievement_tests =")
-        subjects = {}
-        for info_tuple in updated_information:
-            classyear_name, subject_name, number_questions = info_tuple
-            subject = name_to_key_dict.get(subject_name, None)
-            subjects[subject] = True
-            subject_keystr = str(subject)
-            summary.add_year_and_subject(classyear_name, subject_keystr)
-        self.subjects = subjects.keys()
-        self.save_summary(summary)
-    
-    def in_organization(self, organization, other):
-        #>>>>>FIX THIS HACK SOON!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!<<<<
-        return True
-    
     def update_grading_instances(self, updated_information):
         """
         Check for grading instances already created for the year and
-        subject. If they exist, update with changed information. If 
+        subject. If they exist, update with changed information. If
         not, create and fill. If there are instances that are no longer
         needed and there are no other references to them remove
         them, else mark them as invalid.
@@ -3984,7 +4064,7 @@ class AchievementTest(MultiLevelDefined):
                         percent_grade=float(self.percent_grade)
                     except:
                         percent_grade = 0.0
-                    grading_instance = GradingInstance(name=gi_name, 
+                    grading_instance = GradingInstance(name=gi_name,
                                     subject=subject_key,
                                     grading_type=self.grading_type,
                                     percent_grade=percent_grade,
@@ -3992,7 +4072,7 @@ class AchievementTest(MultiLevelDefined):
                                     multiple=False,
                                     events=gd_events_blob,
                                     number_questions = number_questions,
-                                    class_year=class_year, 
+                                    class_year=class_year,
                                     parent=self)
                 else:
                     grading_instance.number_questions = number_questions
@@ -4005,50 +4085,7 @@ class AchievementTest(MultiLevelDefined):
             used = gd_inst.get_valid_state()
             if (not used):
                 gd_inst.delete()
-
-    @staticmethod
-    def get_info_for_view(instance_string = ""):
-        """
-        Create a list of subjects and class years to be used in the form.
-        If there is a keystring for an AchievementTest, 
-        Use the set of grading instances for the test to generate a list of
-        tuples in the same form as is used to update the grading instances.
-        This contains all information necessary for edit and display
-        """
-        subject_names, name_to_key_dict, key_to_name_dict = \
-                     get_possible_subjects("used_in_achievement_tests =")
-        class_years = get_class_years_only()
-        view_info = [ ]
-        at_instance = get_instance_from_key_string(instance_string)
-        if (at_instance):
-            grading_instances = at_instance.get_grading_instances()
-            for grading_instance in grading_instances:
-                try:
-                    class_year = grading_instance.class_year
-                    subject = key_to_name_dict[grading_instance.subject.key()]
-                    number_questions = grading_instance.number_questions
-                    view_info.append([class_year, subject, number_questions])
-                except:
-                    pass
-        return subject_names, class_years, view_info
-
-    def get_grading_instances(self, section = None, class_year = ""):
-        """
-        Get the achievement test grading instances. The grading
-        instances are different for each class year. If the section is
-        defined then the class year of the section is used to filter
-        the results. If the class year is defined then it is used if no
-        section defined. If both are undefined then all grading
-        instances for the test are returned.
-        """        
-        query = GradingInstance.all()
-        if section:
-            class_year = section.class_year
-        if class_year:
-            query.filter("class_year =", class_year)
-        query.ancestor(self)
-        return(query.fetch(100))
-
+    
     def changeDate(self, old_date, new_date):
         """
         Change the date for self and all of the underlying grading events
@@ -4065,10 +4102,13 @@ class AchievementTest(MultiLevelDefined):
         grade. This should be done only if the subject has not had a unique
         percentage set.
         """
-        for instance in self.get_grading_instances():
-            if (instance.percent_grade == self.percent_grade):
-                instance.percent_grade = percent_grade
-        self.percent_grade = percent_grade
+        if (percent_grade != self.percent_grade):
+            for instance in self.get_grading_instances():
+                if (instance.percent_grade == self.percent_grade):
+                    instance.percent_grade = percent_grade
+                    instance.put()
+            self.percent_grade = percent_grade
+        
 
     def mark_test_completed(self):
         """
@@ -4076,15 +4116,90 @@ class AchievementTest(MultiLevelDefined):
         show valid so that the results can be used in computing the
         grades.
         """
+        self.test_completed = True
         for instance in self.get_grading_instances():
             instance.valid[0] = True
+    
+    def class_year_took_test(self, class_year):
+        """
+        Return True if there is at least one subject in the test for the class year.
+        """
+        return (len (self.get_grading_instances(class_year = class_year)) > 0)
+       
+    def __unicode__(self):
+        return self.name
 
+    def form_data_post_processing(self):
+        pass
+
+    def post_creation(self):
+        pass
+
+    @staticmethod
+    def sort_function(sort_list):
+        sort_list.sort(key = lambda x:(x.date))
+        return sort_list
+
+    @staticmethod
+    def custom_query(query_descriptor):
+        return MultiLevelDefined.custom_query(query_descriptor, AchievementTest,
+                                              AchievementTest.sort_function)
+    def remove(self, perform_remove):
+        """
+        Remove all associated grading instances and then self. Note:
+        Dangerous to do if it has already been used.
+        """
+        if perform_remove: 
+            action_text = ""
+        else:
+            action_text = "simulated "
+        logging.info("Beginning %sremoval of %s %s" \
+                     %(action_text, self.classname, unicode(self)))
+        try: 
+            fully_delete_entity(self, [AchievementTestSchoolInfo], perform_remove)
+            logging.info("%s Removal of %s complete." (action_text,
+                                                       unicode(self)))
+        except StandardError, e:
+            logging.error = "Failed to remove achievement test %s. Error: %s" \
+                   %(unicode(self), e)
+        return perform_remove
+
+#----------------------------------------------------------------------  
+
+class AchievementTestSchoolInfo(db.Model):
+    """
+    This class contains the school specific information for an
+    achievement test. One each of these entities will be created for
+    each school taking an achievement test. This contains all school
+    specific data for the achievement test such as the summary and
+    perhaps later, the grading instance. This is always created
+    programtically by the Achievement test and is never directly
+    edited.
+    """
+    organization = db.ReferenceProperty(School)
+    name = db.StringProperty()
+    summary_blob = db.BlobProperty()
+    classname = "Achievement Test School Info"
+    
+    @staticmethod
+    def create(name, achievement_test, school):
+        """
+        Create the entity with the achievement test as the parent and
+        the organization as the school that the entity for which the
+        entity will contain information.
+        """
+        return AchievementTestSchoolInfo(name=name, organization=school,
+                                         parent=achievement_test)
+    
     def get_summary(self):
+        """
+        Expand the summary blob and return the summary inside
+        """
         summary = SchoolDB.summaries.AchievementTestSummary.get_data(
             self.summary_blob)
         return summary
 
-    def save_summary(self, summary):
+    def save_summary(self, summary, put = True):
         """
         Convert the summary information back into the blob, save it in 
         self, and put self back into the database
@@ -4092,7 +4207,29 @@ class AchievementTest(MultiLevelDefined):
         summary_blob = \
             SchoolDB.summaries.AchievementTestSummary.put_data(summary)
         self.summary_blob = summary_blob
-        self.put()
+        if put:
+            self.put()
+
+    def update(self,updated_information):
+        """
+        Update or create the info and summary blobs. This must have
+        been called at least once for the entity to be used. The entity
+        is put at the end of this function so that all information is
+        in the database.
+        """
+        if self.summary_blob:
+            summary = self.get_summary()
+        else:
+            summary = SchoolDB.summaries.AchievementTestSummary()
+        subject_names, name_to_key_dict, key_to_name_dict = \
+                get_possible_subjects("used_in_achievement_tests =")
+        for info_tuple in updated_information:
+            classyear_name, subject_name, number_questions = info_tuple
+            subject = name_to_key_dict.get(subject_name, None)
+            subject_keystr = str(subject)
+            summary.add_year_and_subject(classyear_name, subject_keystr)
+        self.save_summary(summary, True)
+        #self.put()
 
     def update_summary_information(self, section_keystr, grade_lists):
         """
@@ -4141,32 +4278,6 @@ class AchievementTest(MultiLevelDefined):
     def __unicode__(self):
         return self.name
 
-    def form_data_post_processing(self):
-        pass
-
-    def post_creation(self):
-        pass
-
-    def remove(self, perform_remove):
-        """
-        Remove all associated grading instances and then self. Note:
-        Dangerous to do if it has already been used.
-        """
-        if perform_remove: 
-            action_text = ""
-        else:
-            action_text = "simulated "
-        logging.info("Beginning %sremoval of %s %s" \
-                     %(action_text, self.classname, unicode(self)))
-        try: 
-            fully_delete_entity(self, [GradingInstance], perform_remove)
-            logging.info("%s Removal of %s complete." (action_text,
-                                                       unicode(self)))
-        except StandardError, e:
-            logging.error = "Failed to remove student %s. Error: %s" \
-                   %(unicode(self), e)
-        return perform_remove
-        
 #----------------------------------------------------------------------
 class Family(db.Model):
     """
@@ -4833,67 +4944,6 @@ class StudentTransfer(db.Model):
         return SchoolDB.utility_functions.simple_remove(self, 
                                 perform_remove)
 #------------------------------------------------------------------
-class StudentAchievementTestResult(db.Model):
-    """
-    This is a simple class that contains the results for a single
-    achievement test for a single student. The subject list is simply a
-    copy of the list in the achievement test but is there to assure the
-    correct association of subjects and grades.
-    """
-    achievement_test = db.ReferenceProperty(AchievementTest, required=True)
-    grade_list = db.ListProperty(int)
-    subject_list = db.ListProperty(db.Key)
-    
-    @staticmethod
-    def create(student, achievement_test):
-        subject_list=list(achievement_test.subjects)
-        grade_list = [ 0 for i in subject_list ]
-        test_result = StudentAchievementTestResult(parent=student,
-                        achievement_test=achievement_test,
-                        subject_list=subject_list, grade_list=grade_list)
-        return test_result
-    
-    def _build_subjects_dict(self):
-        """
-        Use the subjects list to create a dictionary for the grades
-        keyed by the subject. This must be done because the database
-        does not support dictionaries
-        """
-        subject_grades_dict = []
-        for i in range(len(self.subject_list)):
-            subject_grades_dict[self.subject_list[i]] = self.subject_list[i]
-        return subject_grades_dict
-    
-    def set_grade(self, subject, grade):
-        """
-        Set a single grade.
-        """
-        try:
-            i = self.subject_list.index(subject)
-            self.grade_list[i] = grade
-        except:
-            pass
-        
-    def get_grade(self, subject):
-        """
-        Get a single grade.
-        """
-        try:
-            i = self.subject_list.index(subject)
-            return self.grade_list[i]
-        except:
-            return 0
-    
-    def get_grades(self, subject_list):
-        """
-        Return a list of grades in the same order as the subject list
-        """
-        grades_dict = self._build_subjects_dict()
-        grades = [grades_dict.get(subject, 0) for subject in subject_list]
-        return grades
-                                
-        
-#------------------------------------------------------------------
 class StudentsClass(db.Model):
     """
     This contains the basic information and connectors to other 
@@ -5267,6 +5317,7 @@ class Student(Person):
     transfer_date = db.DateProperty()
     active_class_session_cache = db.ListProperty(db.Key)
     active_class_record_cache = db.ListProperty(db.Key)
+    achievement_test_blob = db.BlobProperty()
     custom_query_function = True
     classname = "Student"
 
@@ -5567,6 +5618,39 @@ class Student(Person):
             return query.fetch(50)
         except:
             return []
+    
+    def get_achievement_test_grades(self, achievement_test_key, 
+                                    grading_instance_keys):
+        """
+        Get the students grades on an achievement_test. If this is the
+        first time that anything has been done with achievement tests
+        for the student create the blob.
+        """
+        if not self.achievement_test_blob:
+            vault = SchoolDB.assistant_classes.StudentAchievementTestVault()
+            self.achievement_test_blob = vault.put_data()                
+        return (
+            SchoolDB.assistant_classes.StudentAchievementTestVault.get_grades(
+            self.achievement_test_blob, achievement_test_key, grading_instance_keys))
+    
+    def set_achievement_test_grades(self, achievement_test_key, grades_dict, 
+                                    change_date, editor):
+        """
+        Create or update all grades for an achievement test. Create the
+        test entry if it does not exist. Save the results as the
+        achievement_test_blob and the perform a put on the student.
+        This is the only function that needs to be called for the
+        student. If this is the first time that anything has been done
+        with achievement tests for the student create the blob.
+        """
+        if not self.achievement_test_blob:
+            vault = SchoolDB.assistant_classes.StudentAchievementTestVault()
+            self.achievement_test_blob = vault.put_data()                
+        self.achievement_test_blob = \
+            SchoolDB.assistant_classes.StudentAchievementTestVault.set_grades(
+                self.achievement_test_blob, achievement_test_key, grades_dict,
+                change_date, editor)
+        self.put()
         
     def get_parents(self):
         if (self.family != None):

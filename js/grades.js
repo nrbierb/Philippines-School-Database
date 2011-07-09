@@ -110,11 +110,10 @@ $(function() {
 	});
 });
 
-function loadPage(studentGroup, gradingInstances, isAchievementTest) {
+function loadGrades(studentGroup, gradingInstances) {
 	encoded_data = JSON.stringify({
 					"gi_keys":gradingInstances,
-                    "requested_action":"full_package",
-					"achievement_test":isAchievementTest});
+                    "requested_action":"full_package"});
     $.ajax( {
 		url: "/ajax/get_grades/",
 		type:"POST",
@@ -143,7 +142,7 @@ function getGrades(studentGroup, gradingInstances, isAchievementTest){
 	$.loadanim.start({
 		message: "Loading Student Grades"
 	});
-	loadPage(studentGroup, gradingInstances, isAchievementTest);
+	loadGrades(studentGroup, gradingInstances, isAchievementTest);
 }
 
 function showGradesDiv() {
@@ -157,25 +156,34 @@ function setGradingPeriodChanges() {
 	$("#form_title").html(titleString);
 }
 
+function getAchievementTestGrades(){
+	gradesTable.setDom(document.getElementById('id_grades_table'));
+	$.loadanim.start({
+		message: "Loading Achievement Test Grades"
+	});
+	loadAchievementTestGrades();
+}
+
 function loadAchievementTestGrades() {
 	var section = $("#id_section").val();
 	var achievementTest = $("#id_achievement_test").val();
+	var encodedData = JSON.stringify({
+					"requested_action":"full_package",
+					"achievement_test":achievementTest});
 	if (achievementTest !== "") {
 		$.ajax({
-			url: "/ajax/get_achievement_test_grading_instances",
+			url: "/ajax/get_grades/",
 			type: "POST",
 			dataType: "json",
 			data: {
-				"class": "achievement_test",
-				"key": achievementTest,
-				"secondary_class": "section",
-				"secondary_key": section
+				"class": "section",
+				"key": section,
+				"encoded_data":encodedData
 			},
 			success: function(ajaxResponse){
-				var gradingInstKeyArray = ajaxResponse.gradingInstKeyArray;
-				//var studentRecordsArray = ajaxResponse.studentRecordsArray;
-				showGradesDiv();
-				getGrades(section, gradingInstKeyArray, true);
+				gradingInstKeyArray = json_parse(ajaxResponse.gradingInstKeyArray);
+				buildGradesTable(ajaxResponse);
+				cleanupFormActions();
 			},
 			error: function(ajaxResponse, textStatus){
 				reportServerError(ajaxResponse, textStatus);

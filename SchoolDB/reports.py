@@ -777,12 +777,15 @@ class Form14Report():
     def __init__(self, parameter_dict, section, achievement_test):
         self.table_header = None
         self.raw_table_data = None
+        self.percent_table_data = []
         self.summary_data = None
         self.parameter_dict = parameter_dict
         self.achievement_test = achievement_test
         self.section = section
+        self.report_type = self.parameter_dict.get("report_type", "Standard")
+        self.display_percent = (self.report_type == "Percentage")
         self.grading_instances = \
-            self.get_achievement_test_grading_instances()
+            achievement_test.get_grading_instances(section=section)
         self.data_columns_count = len(self.grading_instances) + 1
         self.gender = self.parameter_dict.get("gender","Male")
         json_data = self.generate_json_data()
@@ -791,18 +794,49 @@ class Form14Report():
                 section, json_data)
          
     def get_data(self):
-        (unused, unused1, unused2, unused3, self.raw_table_data) = \
-            self.grade_processor.create_raw_information()
+        unused = self.grade_processor.create_achievement_test_table_header()
+        (unused, unused1, self.raw_table_data) = \
+            self.grade_processor.create_achievement_test_table_data()
         self.student_count = len(self.raw_table_data)
         self.number_questions = \
-            [self.grading_instances[i].number_questions for i in 
-             range(self.data_columns_count - 1)]
+            [grading_instance.number_questions for grading_instance in 
+             self.grading_instances]
         total_questions = sum(self.number_questions)
         self.number_questions.append(total_questions)
         for row in self.raw_table_data:
             total_cnt = sum(row[1:len(row)])
             row.append(total_cnt)
-        
+        if (self.display_percent):
+            for row in self.raw_table_data:
+                percent_row = [row[0]]
+                percent_row.extend([(round(100.0 * float(row[i+1]) / 
+                                           float (self.number_questions[i]),1))
+                                    for i in range(self.data_columns_count - 1)])
+                average = round((sum(percent_row[1:len(percent_row)]))/
+                                (len(percent_row)-1),1)
+                percent_row.append(average)
+                self.percent_table_data.append(percent_row)
+
+    #def get_percent_data(self):
+        #unused = self.grade_processor.create_achievement_test_table_header()
+        #(unused, unused1, base_table_data) = \
+            #self.grade_processor.create_achievement_test_table_data()
+        #self.student_count = len(base_table_data)
+        #self.number_questions = \
+            #[grading_instance.number_questions for grading_instance in 
+             #self.grading_instances]
+        #total_questions = sum(self.number_questions)
+        #self.number_questions.append(total_questions)
+        #self.raw_table_data = []
+        #for row in base_table_data:
+            #percent_row = [row[0]]
+            #percent_row.extend([(100 * float(row[i+1]) / 
+                                              #float (self.number_questions[i]))
+                                #for i in range(self.data_columns_count - 1)])
+            #average = sum(percent_row[1:len(percent_row)])/(len(percent_row)-1)
+            #percent_row.append(average)
+            #self.raw_table_data.append(percent_row)
+
     def compute_summary_values(self):
         """
         perform calculations for all summary values at the bottom of the form
@@ -820,21 +854,21 @@ class Form14Report():
                 if (self.raw_table_data[i][j+1] != 0):
                     self.total_cases[j] += 1
         self.mean_raw_scores = []
-        for i in range(self.data_columns_count):
-            if (self.total_cases[i]):
-                score = round((total_raw_scores[i] / 
-                    self.total_cases[i]), 2)
-            else:
-                score = 0
-            self.mean_raw_scores.append(score)
-        self.mean_percentage_scores = [round((self.mean_raw_scores[i] / 
-            self.number_questions[i]), 2) for i in 
-                                  range(self.data_columns_count)]
+        self.mean_percentage_scores = []
         self.percent_passing_grade = []
         for i in range(self.data_columns_count):
             if (self.total_cases[i]):
-                score = round((float(self.passing_count[i]) / 
-                       float(self.total_cases[i])), 2) 
+                score = round(((float(total_raw_scores[i]) / 
+                    (float(self.total_cases[i])))), 1)
+            else:
+                score = 0
+            self.mean_raw_scores.append(score)
+            mean_percentage_score = \
+                        round(100.0 * score / self.number_questions[i], 1)
+            self.mean_percentage_scores.append(mean_percentage_score)
+            if (self.total_cases[i]):
+                score = round(100.0 * self.passing_count[i] / 
+                       self.total_cases[i], 1) 
             else:
                 score = 0.0
             self.percent_passing_grade.append(score)
@@ -843,16 +877,26 @@ class Form14Report():
         """
         Create a list of header parameters to be used by the google
         table widget. In addition, create a list of grading instances
-        that can be used to get furnter information from the grading
+        that can be used to get further information from the grading
         instances associated with the column.
         """
         table_description = [("name","string","Student Name")]
         index = 0
-        for instance in self.grading_instances:
+        for i in range(len(self.grading_instances)):
+            subject_name = unicode(self.grading_instances[i].subject)
+            if self.display_percent:
+                subject_name += " %"
+            else:
+                subject_name += "  %d" %self.number_questions[i]
             table_description.append((str(index), "number", 
-                     unicode(instance.subject)))
+                     subject_name))
             index += 1
-        table_description.append(("total","number","Total"))
+        if self.display_percent:
+            table_description.append(("average_percent","number", "Average %"))
+        else:
+            tot_hdr = "Total  %d" \
+                    %self.number_questions[len(self.number_questions) - 1]
+            table_description.append(("total","number", tot_hdr))
         return table_description
     
     def build_report_table(self):
@@ -867,9 +911,14 @@ class Form14Report():
         mps_line = ["Mean Percentage Score"] + self.mean_percentage_scores
         stucnt_line = ["Num Stu Getting 75%"] + self.passing_count
         stpcnt_line = ["% Stu Getting 75%"] + self.percent_passing_grade
-        summary_block = [line for line in (summary_line, tc_line,
+        if (self.display_percent):
+            summary_block = [line for line in (summary_line, tc_line,
+                                mps_line,stucnt_line,stpcnt_line)]
+            full_table_data = self.percent_table_data + summary_block
+        else:
+            summary_block = [line for line in (summary_line, tc_line,
                                 mrs_line, mps_line,stucnt_line,stpcnt_line)]
-        full_table_data = self.raw_table_data + summary_block
+            full_table_data = self.raw_table_data + summary_block
         table_description = self.create_table_description()
         return table_description, full_table_data
         
@@ -890,7 +939,8 @@ class Form14Report():
         json_instances = simplejson.dumps(instances)
         return_data = {"gi_keys":json_instances, 
                        "requested_action":"None",
-                       "achievement_test":True}
+                       "gender":self.gender,
+                       "achievement_test":str(self.achievement_test.key())}
         return (simplejson.dumps(return_data))
     
     def build_table(self):

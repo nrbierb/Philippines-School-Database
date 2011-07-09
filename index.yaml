@@ -377,6 +377,27 @@ indexes:
 - kind: MultiLevelDefined
   properties:
   - name: class
+  - name: grading_type
+  - name: organization
+  - name: name
+
+- kind: MultiLevelDefined
+  properties:
+  - name: class
+  - name: organization
+  - name: date
+    direction: desc
+
+- kind: MultiLevelDefined
+  properties:
+  - name: class
+  - name: organization
+  - name: section
+  - name: name
+
+- kind: MultiLevelDefined
+  properties:
+  - name: class
   - name: organization
   - name: taught_by_section
   - name: name
