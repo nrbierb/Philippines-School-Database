@@ -85,8 +85,8 @@ function returnResults(studentGroupType, studentGroup, gradingInstOwnerType, gra
 			},
 		error: function(initialRequest, status, error) {
 			//>>>>>>!!!!!fix me<<<<<<<
-			//warnSaveFailure(initialRequest, status, error);
-			successfulAjaxOnlySave(ajaxResponse);
+			warnSaveFailure(initialRequest, status, error);
+			//successfulAjaxOnlySave(ajaxResponse);
 		}
 	});
 }

@@ -303,8 +303,8 @@ class StatisicalResults():
             if ((self.count) % 2 == 1):
                 self.median = values[(self.count + 1)/2 - 1]
             else:
-                self.median = (values[self.count/2] + \
-                               values[ self.count/2 +1]) / 2.0
+                self.median = (values[self.count/2 - 1] + \
+                               values[ self.count/2 ]) / 2.0
             hist_limits = (65,74,79,89,1000)
             hist_index = 0
             for i in xrange(self.count):
@@ -1375,7 +1375,9 @@ class AjaxSetGradeHandler:
         for row_index in xrange(self.rows_count):
             grades_row = self.grades_table[row_index]
             student = SchoolDB.utility_functions.get_instance_from_key_string(
-                self.student_record_keystrings[row_index], SchoolDB.models.Student)
+                self.student_record_keystrings[row_index], 
+                SchoolDB.models.Student)
+            logging.info("Set Achievement Test Grades for " + unicode(student))
             grades_dict = {}
             for i in range(len(grades_row)):
                 grades_dict[grading_instances_list[i]] = grades_row[i]
@@ -1386,7 +1388,7 @@ class AjaxSetGradeHandler:
         """
         Save the table data for each row into the student record
         associated with the row. This saves the date into each student's
-        set of class recors associated with the grading instance.
+        set of class records associated with the grading instance.
         """
         self._check_table_consistency()
         self._load_student_class_records()
@@ -1464,26 +1466,26 @@ class AjaxSetGradeHandler:
                 females.append(i)
             else:
                 males.append(i)
-        subjects = [gi.subject for gi in self.grading_instances]
-        subject_keystrs = [str(subject.key()) for subject in subjects]
         grades_by_subject = {}
-        for col_index, keystr in enumerate(subject_keystrs):
+        #The grades table contains the number of questions correct. This must be
+        #converted to percentage correct
+        for i, gi in enumerate(self.grading_instances):
+            if gi.number_questions:
+                number_questions = float(gi.number_questions)
+            else:
+                number_questions = 1.0
             male_grades = []
             for x in males:
-                num = convert_to_float(self.grades_table[x][col_index])
+                num = convert_to_float(self.grades_table[x][i])
                 if (num):
-                    male_grades.append(num)
+                    male_grades.append(num/number_questions)
             female_grades = []
             for x in females:
-                num = convert_to_float(self.grades_table[x][col_index])
+                num = convert_to_float(self.grades_table[x][i])
                 if (num):
-                    female_grades.append(num)
-            combined_grades = []
-            for x in xrange(len(students)):
-                num = convert_to_float(self.grades_table[x][col_index])
-                if (num):
-                    combined_grades.append(num)
-            grades_by_subject[keystr] = (combined_grades, male_grades,
+                    female_grades.append(num/number_questions)
+            combined_grades = [num for num in male_grades + female_grades]
+            grades_by_subject[str(gi.subject.key())] = (combined_grades, male_grades,
                                          female_grades)
         return grades_by_subject
 
@@ -1494,9 +1496,9 @@ class AjaxSetGradeHandler:
         gender into the test summary data.
         """
         test = self.grading_instance_owner
-        if (test.kind() == "AchievementTest"):
+        if (test.class_name() == "AchievementTest"):
             grade_lists = self._create_grade_lists_by_gender()
-            test.update_summary_information(str(self.student_grouping.key()),
+            test.update_summary_information(self.student_grouping,
                                             grade_lists)
 #----------------------------------------------------------------------
 
@@ -1805,6 +1807,8 @@ class QueryMaker:
         """
         Process the query description to build the database query and
         perform it. Return the list of objects from the query.
+        This requires a handler for the NeedIndexError for times when
+        an index does not exist (probably too many filter params)
         """
         if self.descriptor.get("keys_only"):
             query = self.model_class.all(keys_only=True)

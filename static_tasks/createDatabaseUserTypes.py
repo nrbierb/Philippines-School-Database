@@ -158,6 +158,7 @@ def build_teacher_permissions():
         "student_status":standard_broad_view,
         "subject":standard_broad_view,
         "teacher":standard_edit,
+        "achievement_test_school_info":standard_edit,
         "achievement_test_grades":standard_edit,
         "achievement_test":standard_view,
         "versioned_text_manager":standard_prohibited,

@@ -409,7 +409,8 @@ class AjaxServer():
                         student_class_records_table,
                         gi_changes = gi_changes)
                 successful, self.return_string = \
-                          grade_handler.service_request()            
+                          grade_handler.service_request()  
+                logging.info("Save grades successful %s." %successful)
         else:
             self.error_string = \
                 "No grades data. No grade information saved"

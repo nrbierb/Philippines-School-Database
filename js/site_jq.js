@@ -816,13 +816,14 @@ function successfulSave(returnData){
 //No form save, go back to requesting page
 function successfulAjaxOnlySave(returnData){
     $.loadanim.stop();
-    var next_page = $.cookie("nP");
-    if (next_page !== null) {
-        location = next_page;
-    }
-    else {
-        location = "/index";
-    }
+    //var next_page = $.cookie("nP");
+	standardFinish();
+    //if (next_page !== null) {
+      //  location = next_page;
+    //}
+    //else {
+      //  location = "/index";
+    //}
 }
 
 function reportError(errorText, title){

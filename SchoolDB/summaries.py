@@ -142,7 +142,7 @@ class AchievementTestSummary(
     def _has_section(self, section_keystr):
         return self.by_section.has_key(section_keystr)
 
-    def _create_classyear(self, classyear_name):
+    def _create_classyear(self, classyear_name, section = None):
         """
         Create all structures and data needed to work with a classyear.
         This may be called repeatedly -- it does nothing if the year
@@ -164,6 +164,13 @@ class AchievementTestSummary(
                 self.section_names[section_keystr] = unicode(section)
                 self.class_year_by_section[section_keystr] = classyear_name
                 self.by_section[section_keystr] = set()
+        elif (section and not self.section_names.has_key(
+            str(section.key()))):
+            section_keystr = str(section.key())
+            self.sections_by_year[classyear_name].add(section_keystr)
+            self.section_names[section_keystr] = unicode(section)
+            self.class_year_by_section[section_keystr] = classyear_name
+            self.by_section[section_keystr] = set()
 
     def _create_subject(self, subject_keystr):
         """
@@ -183,31 +190,26 @@ class AchievementTestSummary(
         """
         Get an ati_statistics_set for a subject and a class year. This
         should return a set of all ati_statistics instances for
-        sections in the class year for the subject. It might return an
-        empty set if the subject is not in the class_year.
+        sections in the class year for the subject. If the class year or subject do
+        not exist create them.
         """
-        if (self._has_classyear(class_year) and 
-            self._has_subject(subject_keystr)):
-            return self.by_class_year[class_year].intersection(
-                self.by_subject[subject_keystr])
-        else:
-            return None
+        #always call these functions. Nothing will be done if they already exist
+        self._create_classyear(class_year)
+        self._create_subject(subject_keystr)
+        return self.by_class_year[class_year].intersection(
+            self.by_subject[subject_keystr])
 
     def aggregate_ati_statistics_set_for_class_year_and_subject(self,
                                                 class_year, subject_keystr):
-        if (self._has_classyear(class_year) and 
-            self._has_subject(subject_keystr)):
-            ati_statistics_list = \
-                list(self.get_ati_statistics_set_for_class_year_and_subject(
-                                    class_year, subject_keystr))
-            aggregated_statistics = AchievementTestInstanceStatistics(
-                subject_keystr, "", class_year)
-            total_count, valid_count = \
-                aggregated_statistics.aggregate_information_from_multiple_results(
-                           ati_statistics_list)
-            return aggregated_statistics, total_count, valid_count
-        else:
-            return None, 0, 0
+        ati_statistics_list = \
+            list(self.get_ati_statistics_set_for_class_year_and_subject(
+                                class_year, subject_keystr))
+        aggregated_statistics = AchievementTestInstanceStatistics(
+            subject_keystr, "", class_year)
+        total_count, valid_count = \
+            aggregated_statistics.aggregate_information_from_multiple_results(
+                       ati_statistics_list)
+        return aggregated_statistics, total_count, valid_count
 
     def get_ati_statistics_for_section_and_subject(self, section_keystr, 
                                                    subject_keystr):
@@ -215,8 +217,20 @@ class AchievementTestSummary(
         Get the ati_statistics for a single section and subject.
         """
         ati_statistics = None
-        if (self._has_section(section_keystr) and self._has_subject(
-            subject_keystr)):
+        try:
+            #there should always be an entry for the section, but if not,
+            #try the build of the class year and section
+            if (not self.class_year_by_section.has_key(section_keystr)):
+                section = \
+                SchoolDB.utility_functions.get_instance_from_key_string(
+                    section_keystr)
+                if section:
+                    class_year = section.class_year
+                    self._create_classyear(class_year, section)
+                    self._create_subject(subject_keystr)
+                logging.info(
+                    "Achievement test summary needed to rebuild class year data for class year %s, section %s" 
+                    %(class_year, unicode(section)))
             class_year = self.class_year_by_section[section_keystr]
             if set_contains(self.subjects_by_year[class_year], 
                             subject_keystr):
@@ -225,6 +239,9 @@ class AchievementTestSummary(
                             self.by_subject[subject_keystr])
                 if (len(ati_statistics_set)):
                     ati_statistics = ati_statistics_set.pop()
+        except StandardError, e:
+            logging.warning(
+                "get_ati_statistics_for_section_and_subject failed: %s" %e)
         return ati_statistics
 
     def set_ati_statistics_for_class_and_subject(self, section_keystr,
@@ -238,8 +255,10 @@ class AchievementTestSummary(
         ati_statistics= self.get_ati_statistics_for_section_and_subject(
             section_keystr, subject_keystr)
         if ati_statistics:
+            logging.info("setting ati stat %s" %ati_statistics)
             ati_statistics.set_results(combined_results, male_results, 
                                        female_results)
+        logging.info("set complete")
 
 #------------------------------------------------------------------
 def set_contains(check_set, value):

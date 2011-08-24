@@ -527,7 +527,15 @@ class SectionRosterProcessor:
                     self.all_students_dict[student_key] = \
                         db.get(student_key)
                 event_index -= 1
-                
+    
+    def get_single_day_information(self, single_date):
+        """
+        Get the student information for only a single day.
+        """
+        self.end_date_ordinal = single_date.toordinal()
+        self.correct_list_to_end_date()
+        return self.all_students_dict
+    
     def add_event_text(self, day_index, event):
         """
         Add the text description of the event to todays entry
@@ -638,7 +646,15 @@ class SectionRosterChanges(SchoolDB.assistant_classes.InformationContainer):
         processor = SectionRosterProcessor(current_student_list,
                         start_date, end_date, self.change_events)
         return processor.create_daily_information_for_period()
-            
+    
+    def get_single_day_information(self, current_student_list, single_date):
+        """
+        Get the student information for only a single day.
+        """
+        processor = SectionRosterProcessor(current_student_list,
+                    single_date, single_date, self.change_events)
+        return processor.get_single_day_information(single_date)
+    
 #----------------------------------------------------------------------
 class AttendanceReports:
     """
@@ -954,9 +970,12 @@ class Form2Report:
                         #numbers. Just prevent a divide by 0 error.
                         summary_line[i] = 0.0
                 for i in range(1,3):
-                    summary_line[i] = \
-                            round((float(summary_line[i])/ 
-                                   num_school_days),1)  
+                    if (num_school_days):
+                        summary_line[i] = \
+                                round((float(summary_line[i])/ 
+                                       num_school_days),1)  
+                    else:
+                        summary_line[i] = 0.0
                 summary_line[7] = "               "
         self.table_data.append(summary_line)
         final_row = self.table_data[self.total_days - 1]
@@ -1033,15 +1052,33 @@ class Form2Report:
                         
     def get_initial_student_count(self):
         """
-        Get the number of students in the section at the beginning of the
-        school year.
+        Get the number of students in the section at the end of the
+        last month (or, if there is a different period specified, at
+        the day prior to the start of the report). This uses the same
+        method to determine the information as the general daily report
+        but only for the specific date. 
         """
+        initial_date = self.start_date - timedelta(1)
+        # date cannot be earlier than the school year start
+        school_year_start_date = \
+                SchoolDB.models.SchoolYear.school_year_start_for_date()
+        if (initial_date < school_year_start_date):
+            initial_date = school_year_start_date
+        section_roster_changes = self.section.get_section_roster_changes()
+        student_dict = \
+            section_roster_changes.get_single_day_information(
+                self.students, initial_date)
+        male_count = 0
+        female_count = 0
+        for student in student_dict.values():
+            if (student.gender == "Male"):
+                male_count += 1
+            else:
+                female_count +=1
         #do not return 0 because it will generate a divide by zero in
         #the calling function
-        male_count = self.section.number_male_students
         if not male_count:
             male_count = 1
-        female_count = self.section.number_female_students
         if not female_count:
             female_count = 1
         return male_count, female_count

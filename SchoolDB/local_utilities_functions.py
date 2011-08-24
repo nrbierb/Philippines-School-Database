@@ -18,10 +18,12 @@ Utilities that are normally used as scheduled jobs or called from the
 "Run Utility" web page. 
 """
 
-import cPickle, zlib, datetime, random, logging, csv, StringIO, codecs
+import cPickle, zlib, datetime, random, logging, csv
+import StringIO, codecs, base64
 from django.utils import simplejson
 from google.appengine.api import mail
 from google.appengine.api import memcache
+from google.appengine.ext import db
 
 import SchoolDB.models
 
@@ -151,7 +153,18 @@ def bulk_update_by_task(model_class, filter_parameters, change_parameters,
         logging.error(result_string)
         return result_string
 
-#----------------------------------------------------------------------
+def duplicate_log_entries(logger, text, warning_level = False):
+    """
+    Add the text as a line on the logger and as an entry in the
+    database log.
+    """
+    logger.add_line(text)
+    if warning_level:
+        logging.warning(text)
+    else:
+        logging.info(text)
+    
+#---------------------------------------------------------------------
 
 def update_student_summary(force = False):
     """
@@ -229,7 +242,473 @@ def update_section_initial_student_counts(logger=None):
     except EOFError, e:
         logging.error("Failed Update Student Summary %s" %e)
         return False
-                    
+
+def run_task_for_all_schools_in_organization(logger, task_name_string,
+                            task_function_string, organization_name=""):
+    """
+    Run count_student_class_records across all schools in the region
+    using tasks
+    """
+    schools = SchoolDB.utility_functions.get_schools_in_named_organization(
+        organization_name)
+    for school in schools:
+        org_keystring = str(school.key())
+        task_name = task_name_string + ": " + unicode(school)
+        logger.add_line(task_name) 
+        task_generator = SchoolDB.assistant_classes.TaskGenerator(
+            task_name = task_name, function = task_function_string,
+            organization=org_keystring, rerun_if_failed=False)
+        task_generator.queue_tasks()
+    report = "Scheduled '%s' for %d schools." %(task_name_string, len(schools))
+    return report
+
+def build_all_student_class_records(logger, organization_name=""):
+    """
+    Run count_student_class_records across all schools in the named organization
+    using tasks
+    """
+    result = run_task_for_all_schools_in_organization(logger, 
+        "Build Student Class Records",
+        "SchoolDB.local_utilities_functions.build_all_student_class_records_for_school_task",
+        organization_name)
+    logger.add_line(result)
+    return result
+
+def build_all_student_class_records_for_school_task():
+    """
+    Create student class records for all students for all classes
+    taught by section. This uses tasks to complete a very heavyweight
+    action. This would normally only be run once a yera and, in fact,
+    should never need to be run. It is only useful when there has failed
+    to be an automatic creation at the time of class creation or
+    student assignment to a section.
+    """
+    try:
+        school = \
+            SchoolDB.models.getActiveOrganization()
+        if (school.classname == "School"):
+            logging.info("Starting class record creation for school: " + \
+                        unicode(school))
+            #Create a list of classes taught by section for the current year.
+            query = SchoolDB.models.ClassSession.all()
+            query.filter("organization =", school.key())
+            current_school_year = SchoolDB.models.SchoolYear.school_year_for_date()
+            query.filter("school_year = ", current_school_year.key())
+            query.filter("students_assigned_by_section = ", True)
+            class_sessions = query.fetch(700)
+            #perform assign for all classes. Each class_session uses an individual
+            #task
+            logging.info("%d class sessions found for school year %s" \
+                         %(len(class_sessions), unicode(current_school_year)))
+            task_function_string = \
+                "SchoolDB.models.ClassSession.static_assign_to_all_section_students"
+            org_keystring = str(school.key())
+            for class_session in class_sessions:
+                task_name =  "Create student records for: " + class_session.name
+                function_args = 'class_session_keystring = "%s"' \
+                              %str(class_session.key())
+                task_generator = SchoolDB.assistant_classes.TaskGenerator(
+                    task_name = task_name, function = task_function_string,
+                    function_args=function_args, organization=org_keystring,
+                    rerun_if_failed=False)
+                task_generator.queue_tasks()
+            return "Completed successfully"
+        else:
+            report_text = "%s -- wrong organization type: %s" \
+                        %(unicode(school), school.classname)
+            logging.info(report_text)
+            return report_text
+    except StandardError, e:
+        error_text = "Build All Student Class Records for %s: %s" \
+                      %(unicode(school), e)
+        logging.error(error_text)
+        return error_text
+
+def build_all_student_class_records_for_one_class_session(logger, section_name, 
+                subject_name, organization_name = ""):
+    class_session = \
+                SchoolDB.utility_functions.get_class_session_from_section_and_subject(
+                    section_name, subject_name, organization_name)
+    if class_session:
+        return class_session.assign_to_all_section_students()
+    else:
+        return False
+
+def count_student_class_records(logger, organization_name=""):
+    """
+    Run count_student_class_records across all schools in the named organization
+    using tasks
+    """
+    result = run_task_for_all_schools_in_organization(logger, 
+        "Count Student Class Records",
+        "SchoolDB.local_utilities_functions.count_student_class_records_task",
+        organization_name)
+    logger.add_line(result)
+    return result
+    
+
+def count_student_class_records_task():
+    """
+    Count the number of student records per class session and compare with 
+    the number of students in the section.
+    """
+    try:
+        school = \
+            SchoolDB.models.getActiveOrganization()
+        if (school.classname == "School"):
+            section_count = {}
+            section_names = {}
+            sections_class_sessions = {}
+            query = SchoolDB.models.Section.all()
+            query.filter("organization =", school)
+            #sections = query.fetch(500)
+            for section in query:
+                q = SchoolDB.models.Student.all()
+                SchoolDB.models.active_student_filter(q)
+                q.filter("section =", section)
+                count = q.count()
+                section_count[section.key()] = count
+                section_names[section.key()] = unicode(section)
+                sections_class_sessions[section.key()] = []
+            logging.info("Number of sections: %d" %len(section_count))
+            #now get the class sessions
+            query = SchoolDB.models.ClassSession.all()
+            query.filter("organization =", school)
+            current_school_year = SchoolDB.models.SchoolYear.school_year_for_date()
+            query.filter("school_year = ", current_school_year.key())
+            query.filter("students_assigned_by_section = ", True)
+            #class_sessions = query.fetch(700)
+            #logging.info("Number of class sessions: %d" %len(class_sessions))
+            #perform assign for all classes. Each class_session uses an individual
+            #task
+            session_count = {}
+            session_names = {}
+            i = 0
+            for class_session in query:
+                session_key = class_session.key()
+                session_name = class_session.name
+                q = SchoolDB.models.StudentsClass.all()
+                q.filter("class_session =", session_key)
+                count = q.count()
+                session_count[session_key] = count
+                session_names[session_key] = session_name
+                try:
+                    section = class_session.section.key()
+                    sections_class_sessions[section].append(session_key)
+                except db.ReferencePropertyResolveError, e:
+                    logging.info("%s reference resolve error: %s" 
+                                 %(session_name, e))
+            total_student_section_count = 0
+            total_student_class_records_count = 0
+            logging.info("Student class records check:")
+            report_text = ""
+            for section in section_count.keys():
+                total_student_section_count += section_count[section]
+                for session in sections_class_sessions[section]:
+                    total_student_class_records_count += session_count[session]
+                    report_line = """
+        '%s'   '%s'   %d   %d    %d""" %(section_names[section],
+                            session_names[session], section_count[section],
+                            session_count[session], 
+                            section_count[section] - session_count[session])
+                    report_text += report_line  
+                    if (len(report_text) > 500):
+                        logging.info(report_text)
+                        report_text = ""
+            logging.info(report_text)
+            report_text = """
+      Correct class count: %d\t\tActual class count: %d\t\t Delta: %d""" \
+                        %(len(section_count)*7, len(session_count), 
+                          len(section_count)*7 - len(session_count))
+            report_text +=  """        
+      Correct student record count: %d\t\tActual student record count: %d\t\tDelta: %d"""\
+                     %(total_student_section_count * 7, 
+                       total_student_class_records_count, 
+                       total_student_section_count * 7 - 
+                       total_student_class_records_count)
+            logging.info(report_text)
+            return "Completed successfully"
+        else:
+            report_text = "%s -- wrong organization type: %s" \
+                        %(unicode(school), school.classname)
+            logging.info(report_text)
+            return report_text
+    except StandardError, e:
+        logging.info("Failed Count Student Class Records %s" %e)
+        return False
+
+def count_student_class_records_task_multitask():
+    """
+    Count the number of student records per class session and compare with 
+    the number of students in the section. This is split into two parts by a task to prevent memory usage problems. This first part gets information about the sections and spawns a task to complete the function.
+    """
+    school = \
+        SchoolDB.models.getActiveOrganization()
+    if (school.classname == "School"):
+        section_count = {}
+        section_names = {}
+        query = SchoolDB.models.Section.all()
+        query.filter("organization =", school)
+        #sections = query.fetch(500)
+        for section in query:
+            q = SchoolDB.models.Student.all()
+            SchoolDB.models.active_student_filter(q)
+            q.filter("section =", section)
+            count = q.count()
+            section_count[section.key()] = count
+            section_names[section.key()] = unicode(section)
+            #section_data = cPickle.dumps({"section_count":section_count,
+                                          #"section_names":section_names})
+            #packed_section_data = zlib.compress(section_data)
+            #encoded_section_data = base64.b64encode(packed_section_data)
+            #school_keystring = str(school.key())
+            #task_name = "Count Student Class Records Part B: " + unicode(school)
+            #function_args = 'section_information_blob= "%s"' %encoded_section_data 
+            #task_generator = SchoolDB.assistant_classes.TaskGenerator(
+                #task_name = task_name, function=
+                #"SchoolDB.local_utilities_functions.count_student_class_records_task_part_b",
+                #function_args=function_args, organization=school_keystring, 
+                #rerun_if_failed=False)
+            #task_generator.queue_tasks()
+            #logging.info("Scheduled Part B. Number of sections: %d" %len(section_count))
+            #return True
+        #else:
+            #report_text = "%s -- wrong organization type: %s" \
+                        #%(unicode(school), school.classname)
+            #logging.info(report_text)
+            #return report_text
+    
+    #def count_student_class_records_task_part_b(section_information_blob):
+        #"""
+        #Count the number of student records per class session and compare
+        #with the number of students in the section. This is split into two
+        #parts by a task to prevent memory usage problems. This second part
+        #gets the information about the class sessions and then generates
+        #the report.
+        #"""
+        #school = \
+            #SchoolDB.models.getActiveOrganization()
+        #unencoded = base64.b64decode(section_information_blob)
+        #uncompressed = zlib.decompress(unencoded)
+        #section_information = cPickle.loads(uncompressed)
+        #section_names = section_information["section_names"]
+        #section_count = section_information["section_count"]
+        sections_class_sessions = {}
+        for section in section_count.keys():
+            sections_class_sessions[section] = []
+        query = SchoolDB.models.ClassSession.all()
+        query.filter("organization =", school)
+        current_school_year = SchoolDB.models.SchoolYear.school_year_for_date()
+        query.filter("school_year = ", current_school_year.key())
+        query.filter("students_assigned_by_section = ", True)
+        class_sessions = query.fetch(700)
+        logging.info("Number of class sessions: %d" %len(class_sessions))
+        #perform assign for all classes. Each class_session uses an individual
+        #task
+        session_count = {}
+        session_names = {}
+        i = 0
+        for class_session in class_sessions:
+            i += 1
+            session_key = class_session.key()
+            session_name = class_session.name
+            q = SchoolDB.models.StudentsClass.all()
+            q.filter("class_session =", session_key)
+            count = q.count()
+            session_count[session_key] = count
+            session_names[session_key] = session_name
+            try:
+                section = class_session.section.key()
+                sections_class_sessions[section].append(session_key)
+            except db.ReferencePropertyResolveError, e:
+                logging.info("%s reference resolve error: %s" 
+                             %(session_name, e))
+        total_student_section_count = 0
+        total_student_class_records_count = 0
+        logging.info("Student class records check for %s:" %unicode(school))
+        report_text = ""
+        for section in section_count.keys():
+            total_student_section_count += section_count[section]
+            for session in sections_class_sessions[section]:
+                total_student_class_records_count += session_count[session]
+                report_line = """
+        '%s'   '%s'   %d   %d    %d""" %(section_names[section],
+                        session_names[session], section_count[section],
+                        session_count[session], 
+                        section_count[section] - session_count[session])
+                report_text += report_line  
+                if (len(report_text) > 500):
+                    logging.info(report_text)
+                    report_text = ""
+        logging.info(report_text)
+        report_text = """
+        Correct class count: %d\t\tActual class count: %d\t\t Delta: %d""" \
+                    %(len(section_count)*7, len(session_count), 
+                      len(section_count)*7 - len(session_count))
+        report_text +=  """        
+        Correct student record count: %d\t\tActual student record count: %d\t\tDelta: %d"""\
+                 %(total_student_section_count * 7, 
+                   total_student_class_records_count, 
+                   total_student_section_count * 7 - 
+                   total_student_class_records_count)
+        logging.info(report_text)
+        return "Completed successfully"
+    else:
+        report_text = "%s -- wrong organization type: %s" \
+                    %(unicode(school), school.classname)
+        logging.info(report_text)
+        return report_text
+
+def fix_student_class_record_count(logger, organization_name = "",
+                                   change_database = False):
+    """
+    Remove incorrect student records for a school using the task
+    fix_student_class_record_count_task for each class_session.
+    """
+    if (not organization_name):
+        school = \
+            SchoolDB.models.getActiveDatabaseUser().get_active_organization()
+    else:
+        school = SchoolDB.utility_functions.get_entities_by_name(
+            SchoolDB.models.School, organization_name)    
+    if not school:
+        duplicate_log_entries(logger,"No school named '%s' found." 
+                              %organization_name)
+        return False
+    query = SchoolDB.models.ClassSession.all()
+    query.filter("organization =", school)
+    current_school_year = SchoolDB.models.SchoolYear.school_year_for_date()
+    query.filter("school_year = ", current_school_year.key())
+    query.filter("students_assigned_by_section = ", True)
+    class_sessions = query.fetch(700)
+    duplicate_log_entries(logger,
+            "Number of class sessions: %d" %len(class_sessions))
+    school_keystring = str(school.key())
+    function = \
+        "SchoolDB.local_utilities_functions.fix_student_class_record_count_task"
+    task_count = 0
+    for class_session in class_sessions:
+        try:
+            task_name = "Fix student class record counts. Section: '%s--%s'" \
+                      %(unicode(class_session.section),class_session.name)
+            function_args='class_session_keystring="%s", change_database = %s' \
+                         %(str(class_session.key()), change_database)
+            task_generator = SchoolDB.assistant_classes.TaskGenerator(
+                    task_name = task_name, function = function,
+                    function_args = function_args, organization= school_keystring,
+                    rerun_if_failed = False)
+            task_generator.queue_tasks()
+        except db.ReferencePropertyResolveError, e:
+            duplicate_log_entries(logger,
+                "Class session '%s', key '%s' had resolve error '%s'."
+                %(unicode(class_session), class_session.key(), e))
+        task_count += 1
+    duplicate_log_entries(logger, "Scheduled %d tasks" %task_count)
+    return True
+
+    
+def fix_student_class_record_count_for_one_class_session(logger, section_name, 
+                subject_name, organization_name = "", change_database = False):
+    class_session = \
+                SchoolDB.utility_functions.get_class_session_from_section_and_subject(
+                    section_name, subject_name, organization_name)
+    if class_session:
+        return fix_student_class_record_count_task(str(class_session.key()), 
+                                               change_database)
+    else:
+        return False
+
+def fix_student_class_record_count_task(class_session_keystring, 
+                                        change_database = False):
+    """
+    Perform the task action of testing the class_session for incorrect
+    student class records. Bad records are deleted from the database if
+    change_database is True. If False, the deletions that would have
+    been performed are merely reported.
+    """
+    class_session = SchoolDB.utility_functions.get_instance_from_key_string(
+        class_session_keystring, SchoolDB.models.ClassSession)
+    if not class_session:
+        logging.warning("No class session provided")
+        return False
+    section = None
+    if class_session.students_assigned_by_section:
+        section = class_session.section
+    if not section:
+        logging.warning("No section for the class session")
+        return False
+    errors_found = False
+    logging.info("Section: %s Class Session: %s" \
+                          %(unicode(section),class_session.name))
+    query = SchoolDB.models.StudentsClass.all()
+    query.filter("class_session =", class_session)
+    student_class_records = query.fetch(500)
+    students = section.get_students()
+    logging.info(
+        "Found %d student class records. %d students in section." \
+        %(len(student_class_records), len(students)))
+    students_dict = {}
+    sections_dict = {}
+    section_students_dict = {}
+    wrong_section_students_dict = {}
+    wrong_section_records = []
+    bad_status_students_dict= {}
+    bad_status_records = []
+    duplicate_records_count = 0
+    active_status_key = SchoolDB.models.get_active_student_status_key()
+    for class_record in student_class_records:
+        try:
+            student = class_record.get_student()
+            if students_dict.has_key(student):
+                students_dict[student].append(class_record)
+                duplicate_records_count += 1
+                errors_found = True
+            else:
+                students_dict[student] = [class_record]            
+            if (student.section.key() != section.key()):
+                wrong_section_records.append(class_record)
+                wrong_section_students_dict[student] = True
+                logging.info("Wrong section. Section: %s   Student: %s"\
+                        %(unicode(student.section), unicode(student)))
+                errors_found = True
+            elif (student.student_status.key() != active_status_key):
+                bad_status_records.append(class_record)
+                bad_status_students_dict[student] = True
+                logging.info("Bad Status:  Student: %s  Status: %s"\
+                        %(unicode(student), unicode(student.student_status)))
+                errors_found = True
+            else:
+                section_students_dict[student] = True
+        except StandardError, e:
+            logging.info("Error: %s '%s'" %(unicode(student), e))
+            class_record.remove_record_if_not_yet_used(change_database)
+    if (len(wrong_section_students_dict) != 0):
+        logging.info("Found %d wrong section students." \
+                        %len(wrong_section_students_dict)) 
+    section_error_count = len(students) - len(section_students_dict)
+    if (section_error_count != 0):
+        logging.info(
+            "%d more students in section than with records" %section_error_count)
+        errors_found = True
+    if (duplicate_records_count):
+        logging.info("Found %d duplicate records   %d wrong section" \
+                    %duplicate_records_count)
+    if (len(wrong_section_records)):
+        logging.info(
+            "Found %d wrong section records, %d wrong section students" \
+            %(len(wrong_section_records), len(wrong_section_students_dict)))
+        for wrong_section_record in wrong_section_records:
+            wrong_section_record.remove_record_if_not_yet_used(change_database)
+    if (len(bad_status_records)):
+        logging.info(
+            "Found %d bad status records, %d bad status students" \
+            %(len(bad_status_records), len(bad_status_students_dict)))
+        for bad_record in bad_status_records:
+            bad_record.remove_record_if_not_yet_used(change_database)
+    if not errors_found:
+        logging.info("No errors found")
+    return True
+                                   
 #----------------------------------------------------------------------
 # Specific limited purpose utilities
 
@@ -246,7 +725,7 @@ def bulk_student_status_change_utility(logger, class_year,
     used.The date to determine the school year is adjusted to allow
     this to be used three weeks before or after the actual year.
     """
-    logger.add_line("Starting change of student status.")
+    duplicate_log_entries(logger,"Starting change of student status.")
     if (not change_date):
         date_adjust = datetime.timedelta(21)
         if year_end:
@@ -301,7 +780,7 @@ def check_encoding_count(logger):
     This uses logging level warning just to allow it to be easily 
     filtered. It is really just an info message -- not a warning
     """
-    logging.warning("Begining encoding count check.")
+    duplicate_log_entries(logger,"Beginning encoding count check.", True)
     school_query = SchoolDB.models.School.all()
     enrolled_key = SchoolDB.models.get_entities_by_name(
         SchoolDB.models.StudentStatus, "Enrolled", True)    
@@ -320,8 +799,7 @@ def check_encoding_count(logger):
             #for student in student_query:
                 #if not student.attendance:
                     #logging.info("   ++missing attendance: %s" %unicode(student))
-    logging.warning("Encoding count check complete.")
-    logger.add_line("finished scanning")
+    duplicate_log_entries(logger,"Encoding count check complete.", True)
 
 def find_duplicate_students(logger):
     """
@@ -463,8 +941,9 @@ def remove_by_key(logger, keylist=[], perform_remove=False):
     logger.add_line(text)
     for key in keylist:
         try:
-            entity = SchoolDB.utility_functions.get_instance_from_key_string(
-                key)
+            entity = \
+                   SchoolDB.utility_functions.get_instance_from_key_string(
+                       key)
             if entity:
                 do_nothing = True #empty value statement for fill
                 #dont actually remove!!!

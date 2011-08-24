@@ -42,7 +42,7 @@ def produce_table(table_description, table_data, key_list):
     json_key_list = simplejson.dumps(key_list)
     json_combined = simplejson.dumps({"keysArray":json_key_list, 
                                       "tableDescriptor":json_table})
-    self.return_string = json_combined
+    return json_combined
 
 def filter_by_date(query, before_or_after = "after", parameter = 
                    "student_status_change_date", delta_days = 0, 
@@ -57,7 +57,7 @@ def filter_by_date(query, before_or_after = "after", parameter =
     if (specified_date):
         compare_date = specified_date
     elif (delta_days == 0):
-        current_year = SchoolYear.school_year_for_date()
+        current_year = SchoolDB.models.SchoolYear.school_year_for_date()
         if current_year:
             compare_date = current_year.start_date - timedelta(28)
         else:
@@ -266,6 +266,62 @@ def get_entities_by_name(class_name, search_name, key_only = False,
     else:
         return query.fetch(max_fetched)
 
+def get_class_session_from_section_and_subject(section_name, 
+                subject_name, organization_name = ""):
+    """
+    Return the class session for a section chosen by name with the
+    subject chosen by name. If given, the named school will be used,
+    if not, the users organization will be used.
+    """
+    if (not organization_name):
+        school = \
+            SchoolDB.models.getActiveDatabaseUser().get_active_organization()
+    else:
+        school = SchoolDB.utility_functions.get_entities_by_name(
+            SchoolDB.models.School, organization_name)
+    if not school:
+        logging.info("No school named '%s' found." %organization_name)
+        return None
+    section_key = SchoolDB.utility_functions.get_entities_by_name(
+        class_name=SchoolDB.models.Section, key_only= True,
+        search_name = section_name, organization = school)
+    if not section_key:
+        logging.info("No section named '%s'" %section_name)
+        return None
+    subject_key = SchoolDB.utility_functions.get_entities_by_name(
+        class_name=SchoolDB.models.Subject, search_name = subject_name,
+        key_only = True)
+    if not subject_key:
+        logging.info("No subject named '%s'" %subject_name)
+        return None
+    query = SchoolDB.models.ClassSession.all()
+    query.filter("section = ", section_key)
+    query.filter("subject = ", subject_key)
+    class_session = query.get()
+    if not class_session:
+        logging.info("No class session found for section %s subject %s" \
+                    %(section_name, subject_name))
+    return class_session
+
+def get_schools_in_named_organization(organization_name = "", 
+                                      use_default_org = True):
+    """
+    Get a list of all schools in the organization with the name
+    organization name. If no organization name is given or it can't be
+    found use the user's organization if use_default_org is true.
+    """
+    organization = None
+    schools_list = []
+    if (organization_name):
+        organization = get_entities_by_name(SchoolDB.models.Organization,
+                                            organization_name)
+    if (not organization and use_default_org):
+        organization = \
+            SchoolDB.models.getActiveDatabaseUser().get_active_organization()
+    if organization:
+        schools_list = organization.get_schools()
+    return schools_list
+        
 def get_blocks_from_iterative_query(query, blocksize):
     """
     Return a list of blocks (a list of max-size blocksize) of
@@ -374,7 +430,7 @@ def name_is_in_model(instance, name):
     properties_dict = instance.properties()
     return properties_dict.has_key(name)
 
-def name_cache(cache, entity):
+def name_cache(cache, key, entity):
     """
     A trivial class that will cache the unicode value of the entity
     with the key "key". This is useful for processes that get only the
@@ -390,15 +446,14 @@ def name_cache(cache, entity):
 
 def get_keys_for_class(classname):
     """
-    Return a list of keys for all entities of class classname. This
-    uses an iterative query to fetch all keys.
+    Return a list of keys for all entities of class classname.
     """
     model_class = SchoolDB.models.get_model_class_from_name(classname)
     query = model_class.all(keys_only=True)
     key_list = query.fetch(50000)
     return key_list 
 
-def simple_remove(entity,perform_remove):
+def simple_remove(entity, perform_remove):
     """
     Delete the entity if perform_remove is True. Report deletion
     or, if perform remove is False delete emulation, via logging.

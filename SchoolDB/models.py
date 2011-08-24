@@ -24,7 +24,7 @@ from google.appengine.api import users
 from google.appengine.api import datastore_errors
 from datetime import date, timedelta, datetime, time
 import re 
-import array, pickle, bz2, logging
+import array, pickle, bz2, logging, zlib
 import types, operator
 import exceptions
 import django.template
@@ -569,7 +569,7 @@ class History(polymodel.PolyModel):
         self.load_list_if_needed()
         for entry in self.entries_list:
             if entry.is_active_at_date(test_date):
-                value = self.get_entry_value()
+                value = self.get_entry_value(entry)
                 start_date = entry.start_date
                 if not self.multi_active:
                     return_value = value
@@ -2893,7 +2893,7 @@ class Teacher(Person):
         End association with student group.
         """
         the_history = self.get_student_group_history(classname)
-        the_history.end_multiactive_entry(date, student_group)
+        the_history.end_multiactive_entry(date, student_group, None)
     
     def start_student_group(self,  date, student_group, classname):
         """
@@ -3131,22 +3131,23 @@ class Section(StudentGrouping):
         student_key = query.get()
         return (student_key != None)
 
-    def get_students(self, gender = None):
+    def get_students(self, gender = None, keys_only = False):
         """
         Create a list of references to student instances that are
         in a single section at a school. Sort by gender and last
         name. This only yields the students currently in section,
         """
-        query = Student.all()
-        active_student_filter(query)
+        query = Student.all(keys_only=keys_only)
         query.filter("section =", self)
+        active_student_filter(query) 
         if (gender):
             query.filter("gender =", gender)
         query.order("last_name")
         query.order("first_name")
         results = query.fetch(500)
         return results
-
+    
+    
     def user_is_section_head(self):
         if (self.teacher):
             return (self.teacher.key() == 
@@ -3216,7 +3217,9 @@ class Section(StudentGrouping):
         Return the section_roster_changes_object from the 
         section_roster_changes blob.
         """
+        blob_checksum = 0
         if (self.section_roster_changes_blob):
+            blob_checksum = zlib.crc32(self.section_roster_changes_blob)
             section_roster_changes_object = \
                 SchoolDB.student_attendance.SectionRosterChanges.get_data(
                     self.section_roster_changes_blob)
@@ -3227,7 +3230,9 @@ class Section(StudentGrouping):
                     SchoolDB.student_attendance.SectionRosterChanges()
             self.section_roster_changes_blob = \
                     section_roster_changes_object.put_data()
-            self.put()
+            if (zlib.crc32(self.section_roster_changes_blob) != 
+                blob_checksum):
+                self.put()
         return section_roster_changes_object
 
     def add_section_roster_change(self, student, date, cause_name, direction):
@@ -3287,7 +3292,17 @@ class Section(StudentGrouping):
         subjects_dict["TLE"] = SchoolDB.utility_functions.get_entities_by_name(
             Subject, "TLE")
         return subjects_dict
-        
+    
+    def get_active_class_sessions(self):
+        """
+        Return a list of all classes that are taught by section for this section
+        and that are active.
+        """
+        query = ClassSession.all()
+        query.filter("end_date >", date.today())
+        query.filter("section =", self.key())
+        return (query.fetch(20))
+                
     @staticmethod
     def get_field_names():
         field_names = [("class_year", "Year Level"),
@@ -3592,8 +3607,9 @@ class ClassSession(StudentGrouping):
         """
         Add a list of students to the class. The list may be just a
         section list for section based classes or a list of students
-        generated from a selection GUI. This function uses tasks to
-        add students.
+        generated from a selection GUI. The list is student record
+        keys, not student records. This function uses tasks to add
+        students.
         """
         if (not start_date):
             start_date = self.start_date
@@ -3603,7 +3619,7 @@ class ClassSession(StudentGrouping):
         if start_date:
             function_args = "%s, start_date='%d'" %(function_args, 
                                                  start_date.toordinal())
-        instance_keylist = [ str(student.key()) for student in student_list]
+        instance_keylist = [ str(student_key) for student_key in student_list]
         task = SchoolDB.assistant_classes.TaskGenerator(task_name=task_name,
                     function=function, function_args=function_args,
                     instance_keylist=instance_keylist, 
@@ -3619,11 +3635,28 @@ class ClassSession(StudentGrouping):
         created before any students are added to the section. If so, do
         nothing.
         """
-        students_list = self.section.get_students()
+        students_list = self.section.get_students(gender = None, 
+                                                  keys_only = True)
         if students_list:
+            logging.info("%s: Assigning %d students to class." \
+                         %(unicode(self), len(students_list)))
             return self.add_students_to_class(students_list)
         else:
+            logging.info("%s: No students to assign to class." %unicode(self))
             return (True, "No students")
+
+    @staticmethod
+    def static_assign_to_all_section_students(class_session_keystring):
+        """
+        A static function wrapper for assign_to_all_section_students
+        for use with tasks
+        """
+        class_session = \
+            SchoolDB.utility_functions.get_instance_from_key_string(
+                class_session_keystring, StudentGrouping)
+        if class_session:
+            class_session.assign_to_all_section_students()
+        return True
 
     def get_grading_instances(self, keys_only=False):
         """
@@ -4107,18 +4140,29 @@ class AchievementTest(MultiLevelDefined):
                 if (instance.percent_grade == self.percent_grade):
                     instance.percent_grade = percent_grade
                     instance.put()
-            self.percent_grade = percent_grade
-        
+            self.percent_grade = percent_grade        
 
-    def mark_test_completed(self):
+    def update_summary_information(self, section, grade_lists):
         """
-        When the test has been completed the grading instances should
-        show valid so that the results can be used in computing the
-        grades.
+        Get the school achievement test summary information for the section's
+        school. Perform the summary update for grades in that school summary object.
         """
-        self.test_completed = True
-        for instance in self.get_grading_instances():
-            instance.valid[0] = True
+        query = AchievementTestSchoolInfo.all()
+        query.filter("organization =", section.parent())
+        query.ancestor(self)
+        school_summary_info = query.get()
+        if (school_summary_info):
+            school_summary_info.update_summary_information(section, grade_lists)
+        
+    #def mark_test_completed(self):
+        #"""
+        #When the test has been completed the grading instances should
+        #show valid so that the results can be used in computing the
+        #grades.
+        #"""
+        #self.test_completed = True
+        #for instance in self.get_grading_instances():
+            #instance.valid[0] = True
     
     def class_year_took_test(self, class_year):
         """
@@ -4153,11 +4197,11 @@ class AchievementTest(MultiLevelDefined):
             action_text = ""
         else:
             action_text = "simulated "
-        logging.info("Beginning %sremoval of %s %s" \
+        logging.info("Beginning %s removal of %s %s" \
                      %(action_text, self.classname, unicode(self)))
         try: 
             fully_delete_entity(self, [AchievementTestSchoolInfo], perform_remove)
-            logging.info("%s Removal of %s complete." (action_text,
+            logging.info("%s Removal of %s complete." %(action_text,
                                                        unicode(self)))
         except StandardError, e:
             logging.error = "Failed to remove achievement test %s. Error: %s" \
@@ -4231,20 +4275,25 @@ class AchievementTestSchoolInfo(db.Model):
         self.save_summary(summary, True)
         #self.put()
 
-    def update_summary_information(self, section_keystr, grade_lists):
+    def update_summary_information(self, section, grade_lists):
         """
         Record the grades for a section in the summary information.
         This is normally done when the grades are entered from the
         web form.
         """
         summary = self.get_summary()
+        section_keystr = str(section.key())
+        logging.info("Updating summary.")
         if summary:
             for subject_keystr in grade_lists.keys():
                 combined_grades, male_grades, female_grades = \
                                grade_lists[subject_keystr]
+                logging.info("preparing to set stat")
                 summary.set_ati_statistics_for_class_and_subject(section_keystr,
                     subject_keystr, combined_grades, male_grades, female_grades)
+            logging.info("ready to save")
             self.save_summary(summary)
+        logging.info("Saving complete")
 
     def get_summary_information_for_section(self, section_keystr):
         """
@@ -5001,7 +5050,11 @@ class StudentsClass(db.Model):
 
     def get_class_session(self):
         return self.class_session
-
+    
+    def __unicode__(self):
+        return( unicode(self.get_student()) + '--' + 
+                self.get_class_session().name)
+    
     def update_student_cache(self):
         """
         The student record contains a cache of active classes for use
@@ -5009,7 +5062,14 @@ class StudentsClass(db.Model):
         """
 
         student = self.parent()
-        student.update_active_classes_cache()
+        if (not student):
+            #This record is unusable because it is not associated with
+            #any student. Remove it.
+            logging.warning(
+                "Removed student class record for class session '%s'. Has no associated student" %unicode(self.get_class_session()))
+            self.remove(True)
+        else:
+            student.update_active_classes_cache()
 
     def set_status(self, status, change_date):
         self.current_status = status
@@ -5201,7 +5261,7 @@ class StudentsClass(db.Model):
             grades[gp_result.grading_period] = gp_result.assigned_grade
         return grades
 
-    def remove_record_if_not_yet_used(self):
+    def remove_record_if_not_yet_used(self, perform_remove = False):
         """
         Delete this class session if there is no data in it and there
         are no grading period results associated with it. Once grades
@@ -5213,12 +5273,21 @@ class StudentsClass(db.Model):
         #check for grading period results
         query = GradingPeriodResult.all()
         query.ancestor(self)
-        if (query.count(1) == 0):
+        if (query.count() == 0):
             grade_info = self.get_grade_info()
             if (not grade_info.contains_grades()):
-                self.set_status("Invalid", date.today())
-                self.remove()
+                student = self.parent()
+                self.remove(perform_remove)
+                student.update_active_classes_cache()
                 return True
+            else:
+                logging.info(
+                    "Student Class Record '%s' contained grades so not removed"
+                    %unicode(self))
+        else:
+            logging.info(
+                "Student Class Record '%s' had grading period results so not removed"
+                %unicode(self))            
         return False
 
     def remove(self, perform_remove):
@@ -5645,7 +5714,7 @@ class Student(Person):
         """
         if not self.achievement_test_blob:
             vault = SchoolDB.assistant_classes.StudentAchievementTestVault()
-            self.achievement_test_blob = vault.put_data()                
+            self.achievement_test_blob = vault.put_data()  
         self.achievement_test_blob = \
             SchoolDB.assistant_classes.StudentAchievementTestVault.set_grades(
                 self.achievement_test_blob, achievement_test_key, grades_dict,
@@ -6772,12 +6841,12 @@ class VersionedTextManager(History):
         else:
             return help_dialog_text, balloon_help_dict      
 
-    def remove(self, remove_references=True):
-        """
-        Remove the entity via function simple_remove and
-        report success via logging.
-        """
-        return History.remove(True)
+    #def remove(self, perform_remove):
+        #"""
+        #Remove the entity via function simple_remove and
+        #report success via logging.
+        #"""
+        #return History.remove(perform_remove)
 
 #----------------------------------------------------------------------
 
@@ -7107,10 +7176,15 @@ def compare_person_by_gender_name(p1, p2):
     """
     #multiplier for gender is negative to invert order 
     #(male before female)
-    compare = cmp(p1.gender,p2.gender) * (-20) + \
-            cmp(p1.last_name,p2.last_name) * 10 + \
-            cmp(p1.first_name,p2.first_name) * 5
-    return (cmp(compare,0))
+    if (p1 and p2):
+        compare = cmp(p1.gender,p2.gender) * (-20) + \
+                cmp(p1.last_name,p2.last_name) * 10 + \
+                cmp(p1.first_name,p2.first_name) * 5
+        return (cmp(compare,0))
+    elif p1:
+        return 1
+    else:
+        return -1
 
 def sort_table_contents_and_key(table_contents, key_list, compare_fields_list):
     """
@@ -7264,8 +7338,11 @@ def get_possible_subjects(filter_string):
 
 def get_key_from_string(key_string):
     key = None
-    if key_string :
-        key = db.Key(key_string)
+    try:
+        if key_string :
+            key = db.Key(key_string)
+    except:
+        pass
     return key
 
 def get_key_from_instance(instance):
@@ -7352,7 +7429,8 @@ def get_model_class_from_name(name_string):
     """
     if (name_string):
         class_name_map = {"administrator":Administrator, 
-                "achievement_test":AchievementTest, 
+                "achievement_test":AchievementTest,
+                "achievement_test_school_info":AchievementTestSchoolInfo,
                 "community":Community,
                 "class_session":ClassSession, 
                 "class_period":ClassPeriod,

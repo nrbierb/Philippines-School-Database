@@ -16,6 +16,9 @@
 
 import os
 
+#Use DEBUG true for local and dev app versions
+#IMPORTANT ! Change to False for real version
+#DEBUG = False
 DEBUG = True
 #TEMPLATE_DEBUG = DEBUG
 TEMPLATE_DEBUG = False
@@ -25,7 +28,8 @@ ADMINS = [
 ]
 
 MANAGERS = ADMINS
-SERVER_EMAIL = "errors@pi-schooldb.appspotmail.com"
+#SERVER_EMAIL = "errors@pi-schooldb.appspotmail.com"
+SERVER_EMAIL = "nrbierb@gmail.com" # Now requires email for administrator
 
 DATABASE_ENGINE = 'appengine'  
 DATABASE_NAME = ''             # Or path to database file if using sqlite3.

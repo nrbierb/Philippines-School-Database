@@ -331,6 +331,11 @@ indexes:
   - name: organization
   - name: name
 
+- kind: DatabaseUser
+  properties:
+  - name: last_name
+  - name: first_name
+
 - kind: Family
   properties:
   - name: __key__

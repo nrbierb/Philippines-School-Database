@@ -63,7 +63,7 @@ result_string = ""
 __http_request__ = None
 __processed_request__ = None
 __revision_id__ = \
-"Version: 1--0-14" 
+"Version: 1--0-15" 
 # upload time does not work for now.  Rethink.
 #+ datetime.datetime.now().strftime("%m/%d/%y %I:%M%p")
 
@@ -528,7 +528,7 @@ def showGrades(request):
                               "grades")
 
 def showAchievementTestGrades(request):
-    return standardShowAction(request, "achievement_test",
+    return standardShowAction(request, "achievement_test_school_info",
                     AchievementTestGradesForm, "Achievement Test Grades",
                     "achievement_test_grades")
 
@@ -2922,6 +2922,7 @@ class ClassSessionForm(StudentGroupingForm):
             data["start_date"] = year.start_date
         if (not data.get("end_date", None)  and year):
             data["end_date"] = year.end_date   
+        return data
     
     @staticmethod
     def process_request(data):
@@ -2990,6 +2991,7 @@ class ClassSessionForm(StudentGroupingForm):
     @staticmethod
     def generate_select_javascript_code(javascript_generator,
                                         select_field):
+        year_data = ClassSessionForm.initialize_dates({})
         javascript_generator.add_javascript_params (
             {"titleName":"Class",
              "titleNamePlural":"Classes", "fieldName":"Class Name",
@@ -3003,23 +3005,22 @@ class ClassSessionForm(StudentGroupingForm):
                   "fieldType":"hidden"},
                  {"name":"class_year","label":"Year Level",
                   "fieldType":"view"},
-                 {"name":"section_name","label":"Section",
-                  "fieldType":"view"},
-                 {"name":"section","label":"Hidden","fieldType":"hidden"},
                  {"name":"class_period_name","label":"Period",
                   "fieldType":"view"},
                  {"name":"class_period","label":"Hidden",
                   "fieldType":"hidden"},
-                 {"name":"classroom_name","label":"Classroom",
-                  "fieldType":"view"},
-                 {"name":"classroom","label":"Hidden","fieldType":"hidden"},
                   {"name":"teacher_name","label":"Teacher",
                   "fieldType":"view"},
                  {"name":"teacher","label":"Hidden","fieldType":"hidden"},
-                 {"name":"school_year_name","label":"School Year",
-                  "fieldType":"view"},
+                 #This is not visible as a selection param on the form
+                 #It is set upon form creation and is used in the selection
+                 #filtering
+                 {"name":"school_year_name","label":"Hidden",
+                  "fieldType":"hidden", "value":year_data[
+                      "school_year_name"]},
                  {"name":"school_year","label":"Hidden",
-                  "fieldType":"hidden"}]
+                  "fieldType":"hidden", "value":year_data[
+                      "school_year"]}]
              })
         select_field.add_extra_params({
             "extra_fields":"section|student_major|class_year|class_period|classroom|teacher"})
@@ -3224,10 +3225,10 @@ class AssignStudentsForm(BaseStudentDBForm):
         if (assigned_students_text):
             assigned_students_text_list = assigned_students_text.split(",")
             for text_key in assigned_students_text_list:
-                student = SchoolDB.models.get_instance_from_key_string(text_key,
-                                                        SchoolDB.models.Student)
-                if student:
-                    assigned_students_list.append(student)
+                student_key = SchoolDB.utility_functions.get_key_from_string(
+                    text_key)
+                if student_key:
+                    assigned_students_list.append(student_key)
         if (class_session_instance and (len(assigned_students_list) > 0)):
             class_session_instance.add_students_to_class(
                 assigned_students_list, self.cleaned_data["assignment_date"])
@@ -3304,10 +3305,10 @@ class AssignSectionStudentsForm(BaseStudentDBForm):
             section_students_text_list = \
                         simplejson.loads(section_students_text)
             for text_key in section_students_text_list:
-                student = SchoolDB.models.get_instance_from_key_string(text_key,
-                                                        SchoolDB.models.Student)
-                if student:
-                    section_students_list.append(student)
+                student_key = SchoolDB.utility_functions.get_key_from_string(
+                    text_key)
+                if student_key:
+                    section_students_list.append(student_key)
         if (class_session_instance and (len(section_students_list) > 0)):
             class_session_instance.add_students_to_class(
                 section_students_list, class_session_instance.start_date)
@@ -4004,16 +4005,20 @@ class MasterDatabaseUserForm(BaseStudentDBForm):
             "titleName":"Database User",
             "titleNamePlural":"Database Users", 
             "fieldName":"Database User Family Name",
-            "auxFields":[{"name":"Organization_name",
-                         "label":"DepEd Organization:",
-                         "field_type":"view"}]})
+            "auxFields":[
+                {"name":"organization_name", "label":"DepEd Organization:",
+                         "field_type":"view"},
+                {"name":"user_type_name", "label":"User Type:", "field_type":"view"}]})
         #>>>>>>needs rethinking!!<<<<<<<<
         org, per, user_type = \
            MasterDatabaseUserForm.generate_class_javascript_code(
             javascript_generator)
         select_field.add_dependency(org, True)
+        select_field.add_dependency(user_type, True)
         select_field.add_extra_params({
-            "extra_fields":"first_name|middle_name",
+            "filter_school":"false",
+            "ignore_organization":"!true!",
+            "extra_fields":"first_name|middle_name|organization|email|user_type",
             "format": "last_name_only",
             "leading_value_field":"last_name"})
 
@@ -4059,13 +4064,6 @@ class StandardDatabaseUserForm(BaseStudentDBForm):
             #candidates = SchoolDB.models.DatabaseUser.get_candidate_persons()
         #if len(candidates):
         pers.set_local_choices_list(self.data.get("candidates",[]))
-        #else:
-            #self.data["person"] = ""
-            #self.data["person_name"] = "No Users Unregistered"
-            #self.data["requested_action"] = "None"
-            #pers.set_local_choices_list([{"value":"No Users Unregistered", 
-                        #"label":"No Users Unregistered", "key":"Invalid"}])
-        pers.add_extra_params({"use_key":"!true!"})
     
     @staticmethod
     def process_request(data):
@@ -5507,6 +5505,9 @@ def get_form_from_class_name(class_name_string):
             "versioned_text_manager":(VersionedTextManagerForm),
             "versioned_text":(VersionedTextForm)
         }
+        #Special actions for the master user
+        if (users.is_current_user_admin()):
+            class_form_class_map["database_user"] = MasterDatabaseUserForm
         form_class = class_form_class_map.get(class_name_string, None)
     return form_class
 
