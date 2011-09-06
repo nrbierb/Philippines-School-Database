@@ -15,8 +15,10 @@
 #along with SchoolsDatabase.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-This file contains miscellaneous non database classes that is used to support code in one or more other files.
+This file contains miscellaneous non database classes that are used to
+support code in one or more other files.
 """
+
 import cPickle, zlib, datetime, base64, logging
 import SchoolDB.models 
 import SchoolDB.views
@@ -1302,6 +1304,7 @@ class AjaxSetGradeHandler:
         self.gi_changes = gi_changes
         self.student_class_records_table=student_class_records_table
         self.student_class_record_dict = {}
+        self.student_gender_dict = {}
         self.changed_student_grade_records = []
         self.grade_recording_date = datetime.date.today()
         self.editor = SchoolDB.models.getActiveDatabaseUser().get_active_user()
@@ -1326,8 +1329,8 @@ class AjaxSetGradeHandler:
             self.save_grades()
         self._update_summary_data_if_necessary()
         return_string = \
-                      simplejson.dumps("Successfully saved %d students grades" \
-                                       %self.rows_count)
+            simplejson.dumps("Successfully saved %d students grades" \
+                             %self.rows_count)
         return True, return_string
 
     def _check_grading_instance_consistency(self):
@@ -1357,7 +1360,7 @@ class AjaxSetGradeHandler:
         column_count = len(self.grading_instances_keys)
         for i in xrange(row_count):
             columns_good = ((len(self.grades_table[i]) == column_count) and
-                            (len(self.student_class_records_table[i]) == column_count))
+                (len(self.student_class_records_table[i]) == column_count))
             if not columns_good:
                 break
         if (not (rows_good and columns_good)):
@@ -1374,10 +1377,12 @@ class AjaxSetGradeHandler:
         achievement_test = self.grading_instance_owner.key()
         for row_index in xrange(self.rows_count):
             grades_row = self.grades_table[row_index]
+            student_keystring = self.student_record_keystrings[row_index]
             student = SchoolDB.utility_functions.get_instance_from_key_string(
-                self.student_record_keystrings[row_index], 
-                SchoolDB.models.Student)
-            logging.info("Set Achievement Test Grades for " + unicode(student))
+                student_keystring, SchoolDB.models.Student)
+            #logging.info("Set Achievement Test Grades for " + unicode(student))
+            #cache student gender in a dict for summary use.
+            self.student_gender_dict[student_keystring] = student.gender
             grades_dict = {}
             for i in range(len(grades_row)):
                 grades_dict[grading_instances_list[i]] = grades_row[i]
@@ -1457,18 +1462,16 @@ class AjaxSetGradeHandler:
         Create two lists of table row indexes by gender and use that
         to create the gender grades lists.
         """
-        students = [SchoolDB.models.get_instance_from_key_string(keystr) \
-                    for keystr in self.student_record_keystrings]
         males = []
-        females = []
-        for i, student in enumerate(students):
-            if (student.gender == "Female"):
+        females= []
+        for i, student in enumerate(self.student_record_keystrings):
+            if (self.student_gender_dict[student] == "Female"):
                 females.append(i)
             else:
                 males.append(i)
         grades_by_subject = {}
-        #The grades table contains the number of questions correct. This must be
-        #converted to percentage correct
+        #The grades table contains the number of questions correct.
+        #This must be converted to percentage correct
         for i, gi in enumerate(self.grading_instances):
             if gi.number_questions:
                 number_questions = float(gi.number_questions)
@@ -1485,8 +1488,8 @@ class AjaxSetGradeHandler:
                 if (num):
                     female_grades.append(num/number_questions)
             combined_grades = [num for num in male_grades + female_grades]
-            grades_by_subject[str(gi.subject.key())] = (combined_grades, male_grades,
-                                         female_grades)
+            grades_by_subject[str(gi.subject.key())] = (combined_grades, 
+                                    male_grades, female_grades)
         return grades_by_subject
 
     def _update_summary_data_if_necessary(self):
@@ -1870,7 +1873,7 @@ class QueryMaker:
             logging.info("count: %d returned %d max_count %d" 
                          %(total_found, total_returned, maximum_count))
             object_list = \
-                        query.fetch(maximum_count)
+                        query.fetch(total_returned)
             return object_list, extra_data
 
     def _build_lower_match_string(self, initial, should_capitalize):

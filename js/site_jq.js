@@ -475,7 +475,7 @@ $(function(){
         displayHelpDialog(pageHelpText);
     });
     
-    getHelpInfo($('#help_pagename_div').text());
+    //getHelpInfo($('#help_pagename_div').text());
     
     var notReadyDialog = $('#local_error_div').html('Not yet ready. Coming soon...').dialog({
         autoOpen: false,

@@ -330,12 +330,14 @@ class StudentSchoolSectionDict(
     @staticmethod
     def mark_status(section_dict_data, section_key, is_current=True):
         sect_dict = StudentSchoolSectionDict.get_data(section_dict_data)
+        was_current = True
         if sect_dict.the_dict.has_key(section_key):
-            (section_summary_key, unused) = \
+            (section_summary_key, was_current) = \
              sect_dict.the_dict[section_key]
             sect_dict.the_dict[section_key] = \
                      (section_summary_key, is_current)
-        return sect_dict.put_data()
+        if (was_current != is_current):
+            return sect_dict.put_data()
     
     @staticmethod
     def get_is_current(section_dict_data):

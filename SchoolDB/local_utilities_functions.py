@@ -128,6 +128,7 @@ def bulk_update_by_task(model_class, filter_parameters, change_parameters,
     number of instances.
     """
     try:
+        result_string = "Nothing queued"
         if (change_parameters.has_key("changed_parameter") and
                  change_parameters.has_key("new_value") and model_class):
             #if these aren't defined do nothing...
@@ -218,30 +219,30 @@ def update_student_summary_utility(logger, encompassing_organization_name="",
     update_student_summary_by_task(encompassing_organization, (force != ""))
     logger.add_line("Queued all")
  
-def update_section_initial_student_counts(logger=None):
-    try:
-        organization = \
-            SchoolDB.models.getActiveOrganization()
-        if (organization.classname == "School"):
-            query = SchoolDB.models.Section.all()
-            query.filter("organization =", organization)
-            query.filter("termination_date =", None)
-            sections = query.fetch(200)
-            for section in sections:
-                section.save_student_count()
-                logging.info("Updated section '%s' students list"
-                             %unicode(section))
-            logging.info("Completed section_prior_list_update for all sections in school '%s'" %unicode(organization))
-            return True
-        else:
-            logging.error("The organization '%s' is not a school so there are no sections to update." %unicode(organization))
-            #It was not successful but should not be run again because it 
-            #will continue to fail.
-            return True
-        #change error type after debugging
-    except EOFError, e:
-        logging.error("Failed Update Student Summary %s" %e)
-        return False
+#def update_section_initial_student_counts(logger=None):
+    #try:
+        #organization = \
+            #SchoolDB.models.getActiveOrganization()
+        #if (organization.classname == "School"):
+            #query = SchoolDB.models.Section.all()
+            #query.filter("organization =", organization)
+            #query.filter("termination_date =", None)
+            #sections = query.fetch(200)
+            #for section in sections:
+                #section.save_student_count()
+                #logging.info("Updated section '%s' students list"
+                             #%unicode(section))
+            #logging.info("Completed section_prior_list_update for all sections in school '%s'" %unicode(organization))
+            #return True
+        #else:
+            #logging.error("The organization '%s' is not a school so there are no sections to update." %unicode(organization))
+            ##It was not successful but should not be run again because it 
+            ##will continue to fail.
+            #return True
+        ##change error type after debugging
+    #except EOFError, e:
+        #logging.error("Failed Update Student Summary %s" %e)
+        #return False
 
 def run_task_for_all_schools_in_organization(logger, task_name_string,
                             task_function_string, organization_name=""):
@@ -725,7 +726,8 @@ def bulk_student_status_change_utility(logger, class_year,
     used.The date to determine the school year is adjusted to allow
     this to be used three weeks before or after the actual year.
     """
-    duplicate_log_entries(logger,"Starting change of student status.")
+    duplicate_log_entries(logger,"Starting change of %s student status."
+                          %class_year)
     if (not change_date):
         date_adjust = datetime.timedelta(21)
         if year_end:
@@ -762,8 +764,8 @@ def end_of_year_update_school(logger):
     logging.info("Starting stat change")
     for class_year in ["First Year", "Second Year", "Third Year"]:
         bulk_student_status_change_utility(logger, class_year, 
-                            prior_status_name = "Not Currently Enrolled", 
-                            new_status_name="Enrolled",
+                            prior_status_name = "Enrolled", 
+                            new_status_name="Not Currently Enrolled",
                             change_date = datetime.date(2011,3,31))
         logging.info("Called bulk for " + class_year)
     bulk_student_status_change_utility(logger, "Fourth Year", 
@@ -772,7 +774,23 @@ def end_of_year_update_school(logger):
                             change_date = datetime.date(2011,3,30))
     logging.info("Called bulk for Fourth Year")
     logging.info("All bulk called")
-                            
+
+def start_of_year_update_school(logger):
+    """
+    Set the enrollment date for all students. This should NOT be done on
+    the real database
+    """
+    if (SchoolDB.views.getprocessed().is_real_database):
+        looging.info("start_of_year_update_school not allowed for real database")
+    logging.info("Starting stat change")
+    for class_year in ["First Year", "Second Year", "Third Year"]:
+        bulk_student_status_change_utility(logger, class_year, 
+                            prior_status_name = "Enrolled", 
+                            new_status_name="Enrolled",
+                            change_date = datetime.date(2011,6,7))
+        logging.info("Called bulk for " + class_year)
+    logging.info("All bulk called")
+
 def check_encoding_count(logger):
     """
     Scan all schools to count of students encoded by section. This

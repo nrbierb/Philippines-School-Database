@@ -336,6 +336,19 @@ indexes:
   - name: last_name
   - name: first_name
 
+- kind: DatabaseUser
+  properties:
+  - name: organization
+  - name: user_type
+  - name: last_name
+  - name: first_name
+
+- kind: DatabaseUser
+  properties:
+  - name: user_type
+  - name: last_name
+  - name: first_name
+
 - kind: Family
   properties:
   - name: __key__

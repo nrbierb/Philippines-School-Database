@@ -4007,14 +4007,18 @@ class MasterDatabaseUserForm(BaseStudentDBForm):
             "fieldName":"Database User Family Name",
             "auxFields":[
                 {"name":"organization_name", "label":"DepEd Organization:",
-                         "field_type":"view"},
-                {"name":"user_type_name", "label":"User Type:", "field_type":"view"}]})
+                         "fieldType":"view"},
+                {"name":"organization", "label":"Hidden", "fieldType":"hidden"},
+                {"name":"user_type_name", "label":"User Type:", 
+                 "fieldType":"view"},
+                {"name":"user_type", "label":"Hidden", 
+                 "fieldType":"hidden"}]})
         #>>>>>>needs rethinking!!<<<<<<<<
-        org, per, user_type = \
+        org, per, usr_type = \
            MasterDatabaseUserForm.generate_class_javascript_code(
             javascript_generator)
         select_field.add_dependency(org, True)
-        select_field.add_dependency(user_type, True)
+        select_field.add_dependency(usr_type, True)
         select_field.add_extra_params({
             "filter_school":"false",
             "ignore_organization":"!true!",
@@ -5265,6 +5269,7 @@ def create_section_students_table(parameter_dict, primary_object,
     query.filter("section = ", primary_object)
     query.order("last_name")
     query.order("first_name")
+    students = query.fetch(200)
     selection_table = []
     selection_keys = []
     table_description = [('last_name', 'string', 'Family Name'),
@@ -5276,7 +5281,7 @@ def create_section_students_table(parameter_dict, primary_object,
     elif (special_field == "assignment_status"):
         table_description.append(
             ('record_complete', 'string', 'Assignment Status'))       
-    for student in query:
+    for student in students:
         table_entry = [student.last_name, student.first_name, 
                 student.middle_name]
         if (special_field == "records_check"):
@@ -5568,6 +5573,7 @@ class ProcessedRequest:
         self.prior_selection = None
         self.cookies = None
         self.return_page = ""
+        self.is_real_database = True
         self.values = {}
         if request:
             if request.method == "POST":
@@ -5613,6 +5619,9 @@ class ProcessedRequest:
                 self.requested_action = "Ignore"
             self.prior_selection = filter_keystring(
                 self.values.get("prior_selection", None))
+            request_url = request.environ["HTTP_REFERER"]
+            self.is_real_database = \
+                (request_url.find("pi-schooldb.appspot") > -1)
     def get_path_stack(self, cookie_name):
         text = self.cookies.get(cookie_name,"[]")[:200]
         cleaned = \

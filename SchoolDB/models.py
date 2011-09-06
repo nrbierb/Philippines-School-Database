@@ -2430,16 +2430,21 @@ class StudentSchoolSummary(db.Model):
         create it first. This assures that every section that has
         students has a section summary object.
         """
-        self.section_dict = \
-            SchoolDB.summaries.StudentSchoolSectionDict.mark_status(
-             self.section_dict, section_key, False)
-        section_summary_key = \
-            SchoolDB.summaries.StudentSchoolSectionDict.get_section_summary(
-                self.section_dict, section_key)
-        if section_summary_key:
-            db.get(section_summary_key).needs_update()
-        if (put_self):
-            self.put()
+        is_current = \
+                   SchoolDB.summaries.StudentSchoolSectionDict.get_section_is_current(self.section_dict, section_key)
+        if is_current:
+            # it needs marking
+            self.section_dict = \
+                SchoolDB.summaries.StudentSchoolSectionDict.mark_status(
+                 self.section_dict, section_key, False)
+            section_summary_key = \
+                SchoolDB.summaries.StudentSchoolSectionDict.get_section_summary(
+                    self.section_dict, section_key)
+            if section_summary_key:
+                section_summary = db.get(section_summary_key)
+                section_summary.needs_update()
+            if (put_self):
+                self.put()
     
     def mark_section_current(self, section_key):
         """
@@ -3004,6 +3009,7 @@ class StudentGrouping(polymodel.PolyModel):
     teacher_change_date = db.DateProperty()
     teacher_history = db.ReferenceProperty(History, collection_name=
                                            "student_grouping_teacher_histories")
+    students_have_been_assigned = db.BooleanProperty(default = False)
     custom_query_function = False
     classname = "Student Group"
 
@@ -3090,8 +3096,8 @@ class KeysList(db.Model):
     This is an absolutely trivial class that keeps two lists of entity
     keys. This will normally be used with a history. There are two
     lists so that entities such as male and female students can be kept
-    individiually for susch things as a cache of students in a student
-    grouping ata a particular time. Normally this will not be used in
+    individiually for such things as a cache of students in a student
+    grouping at a particular time. Normally this will not be used in
     lieu of database queries unless such queries might be extremely
     expensive such as repeatedly generating lists from a large group at
     an earlier time.
@@ -3112,8 +3118,8 @@ class Section(StudentGrouping):
     section_type = db.ReferenceProperty(SectionType)
     creation_date = db.DateProperty()
     termination_date = db.DateProperty()
-    number_male_students = db.IntegerProperty()
-    number_female_students = db.IntegerProperty()
+    #number_male_students = db.IntegerProperty()
+    #number_female_students = db.IntegerProperty()
     section_roster_changes_blob = db.BlobProperty()
     classname = "Section"
 
@@ -3257,23 +3263,22 @@ class Section(StudentGrouping):
         school_summary = school.student_summary
         school_summary.mark_section_needs_update(self.key())
         
-    def save_student_count(self):
-        """
-        Save a count of the number of students in the section. This is
-        done only once each schoolyear at the start of the year to be used in
-        Form 2 attendance reports.
-        """
-        query = Student.all(keys_only=True)
-        active_student_filter(query)
-        query.filter('section = ', self)
-        query.filter("gender =", "Male")
-        self.number_male_students = query.count()
-        query = Student.all(keys_only=True)
-        active_student_filter(query)
-        query.filter('section = ', self)
-        query.filter("gender =", "Female")
-        self.number_female_students = query.count()
-        self.put()        
+    #def save_student_count(self):
+        #"""
+        #Save a count of the number of students in the section. This is
+        #done a the start of .
+        #"""
+        #query = Student.all(keys_only=True)
+        #active_student_filter(query)
+        #query.filter('section = ', self)
+        #query.filter("gender =", "Male")
+        #self.number_male_students = query.count()
+        #query = Student.all(keys_only=True)
+        #active_student_filter(query)
+        #query.filter('section = ', self)
+        #query.filter("gender =", "Female")
+        #self.number_female_students = query.count()
+        #self.put()        
     
     def get_all_subjects(self):
         """
@@ -3342,7 +3347,7 @@ class ClassSession(StudentGrouping):
     school_year = db.ReferenceProperty(SchoolYear)
     credit_units = db.FloatProperty()
     grade_instance_ordered_list = db.ListProperty(db.Key)
-    students_list = db.ListProperty(db.Key)
+    #students_list = db.ListProperty(db.Key)
     classname = "Class Session"    
 
     def detailed_name(self):
@@ -3575,15 +3580,20 @@ class ClassSession(StudentGrouping):
         then no new record will be added.
         Also add the student to the entity list of students
         """
-        student_key = student.key()
-        try:
-            self.students_list.index(student_key)
-        except:
-            self.students_list.append(student_key)
+        #student_key = student.key()
+        #try:
+            #self.students_list.index(student_key)
+        #except:
+            #self.students_list.append(student_key)
+        
         if (not start_date):
             start_date = self.start_date
         students_class = student.assign_class_session(self, self.subject,
                                                       start_date)
+        if (students_class):
+            #This is set True at the first student assignment and never
+            #set False again
+            self.students_have_been_assigned = True
         return students_class
 
     def singlerun_add_students_to_class(self, student_list, start_date=None):
@@ -5458,7 +5468,7 @@ class Student(Person):
         Perform actions that modify data in the model other than the
         form fields. All of the data from the form has already been
         loaded into the model instance so this processing does not need
-        the form at all.
+        the form at all. Put self and return True if any changes
         """
         student_changes = {}
         student_changes["transfer"] = \
@@ -5477,7 +5487,11 @@ class Student(Person):
                     change["date"], status.active_student)
             except:
                 pass
-        self.put()
+        for change in student_changes.keys():
+            if change:
+                self.put()
+                return True
+        return False
 
     def age(self, reference_date, age_type_calc = "schoolyear"):
         """
@@ -5588,6 +5602,8 @@ class Student(Person):
         if (not students_class):
             students_class = StudentsClass.create(self, class_session,
                                                   subject, start_date)
+            if students_class:
+                self.update_active_classes_cache()
         return students_class
 
     def update_active_classes_cache(self):
@@ -5619,7 +5635,7 @@ class Student(Person):
         Use the active class records cache to quickly return the current
         active student class records
         """
-        if (self.get_active_class_records == None):
+        if (self.active_class_records == None):
             self.update_active_classes_cache()
         return self.active_class_record_cache
 
@@ -6327,7 +6343,8 @@ class DatabaseUser(db.Model):
         """
         Set the access time to now.
         """
-        self.put()
+        #stop this for now to reduce the number of writes
+        #self.put()
         return self.last_access_time
 
     def update_object_list(self, args_dict, model_class, change_instance_key):
