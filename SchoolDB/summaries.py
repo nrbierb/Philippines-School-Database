@@ -158,7 +158,8 @@ class AchievementTestSummary(
             query.filter("organization =", organization)
             query.filter("class_year =", classyear_name)
             query.filter("termination_date =", None)
-            for section in query:
+            sections = query.fetch(1000)
+            for section in sections:
                 section_keystr = str(section.key())
                 self.sections_by_year[classyear_name].add(section_keystr)
                 self.section_names[section_keystr] = unicode(section)
@@ -476,7 +477,8 @@ class StudentSectionSummaryData(
         query = SchoolDB.models.Student.all()
         SchoolDB.models.active_student_filter(query)
         query.filter("section = ", section)
-        for student in query:
+        students = query.fetch(1000)
+        for student in students:
             #Add individual student to the set of information.
             #Each record will only increment appropriate summary values.
             #No information is kept by student

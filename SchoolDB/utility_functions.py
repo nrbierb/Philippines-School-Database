@@ -18,8 +18,9 @@
 This file contains miscellaneous functions that are used in several files.
 """
 from datetime import date, timedelta, time
-import logging, re
+import logging, re, operator
 from google.appengine.ext import db
+from google.appengine.api import memcache
 from django.utils import simplejson
 import SchoolDB.gviz_api
 
@@ -87,21 +88,29 @@ def clean_up_letter_casing(target_string):
     return new_string
 
 def create_choice_array_from_query(query):
+    """
+    Use to create a list of tuples of key and instance name. This uses
+    the memcache key only and name memcache. Query should be key only.
+    """
     results = query.fetch(1000)
     choice_list = [(None, "--------")]
     for res in results:
-        name = unicode(res)
-        res_key = res.key()
-        choice = (str(res_key), name)
+        name = get_name(res)
+        choice = (str(res), name)
         choice_list.append(choice)
     return choice_list
 
 def create_choice_array_from_class(model_class, organization_key=None,
-                                   sort_field = 'name', extra_filter_tuples = None):
-    query = model_class.all()
+                        sort_field = 'name', extra_filter_tuples = None):
+    """
+    This creates the choice array from the model class with optional
+    filtering by organization and perhaps some further query filter
+    comparisons. It uses the the name memcache
+    """
+    query = model_class.all(keys_only=True)
     query.order(sort_field)
     if organization_key:
-        query.filter('organization', organization_key)
+        query.filter('organization =', organization_key)
     if extra_filter_tuples:
         for filter_tuple in extra_filter_tuples:
             query.filter(filter_tuple[0], filter_tuple[1])
@@ -122,10 +131,13 @@ def compare_person_by_gender_name(p1, p2):
     """
     #multiplier for gender is negative to invert order 
     #(male before female)
-    compare = cmp(p1.gender,p2.gender) * (-20) + \
-            cmp(p1.last_name,p2.last_name) * 10 + \
-            cmp(p1.first_name,p2.first_name) * 5
-    return (cmp(compare,0))
+    try:
+        compare = cmp(p1.gender,p2.gender) * (-20) + \
+                cmp(p1.last_name,p2.last_name) * 10 + \
+                cmp(p1.first_name,p2.first_name) * 5
+        return (cmp(compare,0))
+    except:
+        return 1
 
 def compare_class_session_by_time_and_name(c1, c2):
     """
@@ -330,6 +342,7 @@ def get_blocks_from_iterative_query(query, blocksize):
     """
     blocks_list = []
     block = []
+    #>>problem with cache software. Consider cursor instead for blocks
     for i in query:
         block.append(i)
         if (len(block) >= blocksize):
@@ -408,6 +421,24 @@ def is_reference(instance,field_name):
         is_a_reference = isinstance(attribute, db.ReferenceProperty)
     return is_a_reference
 
+def get_fields_value(instance,field_name):
+    """
+    Return the value of the named field in the instance. If the field
+    is a reference then return the unicode(instance). If not, just return
+    unicode(field).
+    """ 
+    try:
+        properties_dict = instance.properties()
+        attribute = properties_dict[field_name]
+        if isinstance(attribute, db.ReferenceProperty):
+            key = attribute.get_value_for_datastore(instance)
+            field_value = get_name(key)
+        else:
+            field_value = unicode(getattr(instance,field_name))
+        return field_value
+    except:
+        return " "
+    
 def convert_string_to_key(keystring):
     """
     Try to convert a string expected to be the stringified key
@@ -422,6 +453,27 @@ def convert_string_to_key(keystring):
             model_instance = None
     return model_instance
 
+def get_name(instance_key):
+    """
+    Get the text value from the named memcache "Names" associated with
+    an etity key. This will normally be the name for the instance that is
+    created with the etities "unicode" function
+    """
+    if instance_key:
+        name = memcache.get(str(instance_key), namespace="Names")
+        if name:
+            logging.info("Found '%s'" %name)
+            return name
+        else:
+            instance = db.get(instance_key)
+            if instance:
+                name = unicode(instance)
+                memcache.add(key=str(instance_key), value=name,
+                             namespace="Names")
+                logging.info("Added '%s'" %name)
+                return name
+    return ""
+        
 def name_is_in_model(instance, name):
     """
     Confirm that there is a model attribute of the instance by
@@ -430,19 +482,6 @@ def name_is_in_model(instance, name):
     properties_dict = instance.properties()
     return properties_dict.has_key(name)
 
-def name_cache(cache, key, entity):
-    """
-    A trivial class that will cache the unicode value of the entity
-    with the key "key". This is useful for processes that get only the
-    name of an entity but do so multiple times for the same key, ex.
-    municipality in student records. The class does not matter -- it
-    just uses the class unicode function.
-    """
-    if not key:
-        return ""
-    elif not (cache.has_key(entity)):
-        cache[key] = unicode(entity)
-    return cache[key]
 
 def get_keys_for_class(classname):
     """

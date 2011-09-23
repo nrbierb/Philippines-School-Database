@@ -40,8 +40,8 @@ from google.appengine.ext.webapp import util
 # Import the part of Django that we use here.
 import django.core.handlers.wsgi
 import SchoolDB.views
-#import SchoolDB.datastore_cache
-#SchoolDB.datastore_cache.DatastoreCachingShim.Install()
+import SchoolDB.datastore_cache
+SchoolDB.datastore_cache.DatastoreCachingShim.Install()
     
 def main():
     # Ensure the Django zipfile is in the path if required.

@@ -125,7 +125,7 @@ class AjaxServer():
             return http.HttpResponse(self.return_string, 
                         content_type="application/json; charset=utf-8")
         except AjaxError, e:
-            #error_string = repr(e)  
+            error_string = repr(e)  
             logging.error(self.error_string)
             return http.HttpResponseServerError(self.error_string)
         #except StandardError, e:
@@ -203,11 +203,15 @@ class AjaxServer():
         """
         query = SchoolDB.assistant_classes.QueryMaker(self.target_class,
                                             self._build_query_descriptor())
-        object_list, extra_data = query.get_objects()        
-        result_list, key_list, combined_list = \
-            query.get_keys_names_fields_from_object_list(object_list,
-                extra_fields = self.extra_fields, 
-                special_format = self.argsDict.get("format", None))
+        if (self.argsDict.has_key("names_only")):
+            result_list, key_list, combined_list = \
+                       query.get_keys_and_names()
+        else:
+            object_list, extra_data = query.get_objects()        
+            result_list, key_list, combined_list = \
+                query.get_keys_names_fields_from_object_list(object_list,
+                    extra_fields = self.extra_fields, 
+                    special_format = self.argsDict.get("format", None))
         self.return_string = simplejson.dumps(combined_list)
         return result_list
 
@@ -543,7 +547,6 @@ class AjaxServer():
                     days = attendance_data["dates"])
             data_processor.process_data()
             
-    #rewrite the next two with common code in decorator.  
     def _get_calendar(self):
         """
         Get information from the SchoolDay instances for the days
@@ -743,16 +746,17 @@ class AjaxServer():
         community
         birthday
         """
-        q = SchoolDB.models.Student.all()
+        query = SchoolDB.models.Student.all()
         organization = \
             SchoolDB.models.getActiveDatabaseUser().get_active_organization_key()
-        q.filter("organization =", organization)
-        q.filter("last_name =", self.argsDict["last_name"])
+        query.filter("organization =", organization)
+        query.filter("last_name =", self.argsDict["last_name"])
         matches = []
         match = None
         result = {}
         found_match = False
-        for student in q:
+        students = query.fetch(1000)
+        for student in students:
             score = 0
             if student.birthdate:
                 birthdate_string = student.birthdate.strftime("%m/%d/%Y")
@@ -952,7 +956,7 @@ class AjaxServer():
         """
         Create a dictionary of parameters to be used by a MakeQuery
         object to create an object list from a database query. Note
-        that an important parameter filter_by_organization need
+        that an important parameter filter_by_organization needs
         argument to disable it because it is used by default.
         """
         #create intial framework with defaults
@@ -979,7 +983,7 @@ class AjaxServer():
                 #way for a person
                 sort_order = ["last_name", "first_name"]
             elif (self.target_class.properties().has_key("name")):
-                #most classes have a "mname as the primary identifier 
+                #most classes have a "name" as the primary identifier 
                 #so sort on it
                 sort_order = ["name"]
         descriptor.set("sort_order", sort_order)

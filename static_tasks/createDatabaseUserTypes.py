@@ -102,6 +102,8 @@ standard_broad_edit = (edit, edit)
 local_edit_broad_view = (view, edit)
 standard_view_special = (nothing, view_special)
 standard_edit_special = (nothing, edit_special)
+# this for master only
+standard_broad_delete = (delete, delete)
 
 # define a fuction like this for the user class and comment out the others
 
@@ -335,7 +337,9 @@ def build_master_permissions():
     #It gives permission for all actions
     default_url = True
     urls ={}
-    default_target_permission = (delete,delete)
+    default_target_permission = \
+            SchoolDB.models.TargetTypePermission(standard_broad_delete)
+    default_target_permission.load_permissions(standard_broad_delete)
     class_permissions = {}
     function_permissions = {}
     permissions = {"default_url":default_url,

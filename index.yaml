@@ -668,6 +668,15 @@ indexes:
   properties:
   - name: class
   - name: organization
+  - name: school_year
+  - name: subject
+  - name: teacher
+  - name: name
+
+- kind: StudentGrouping
+  properties:
+  - name: class
+  - name: organization
   - name: section
   - name: subject
   - name: name

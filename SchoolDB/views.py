@@ -26,6 +26,7 @@ import logging
 import exceptions
 from google.appengine.api import users
 from google.appengine.api import mail
+from google.appengine.api import app_identity
 from google.appengine.ext import db
 from google.appengine.ext.db import djangoforms
 from django import http
@@ -63,7 +64,7 @@ result_string = ""
 __http_request__ = None
 __processed_request__ = None
 __revision_id__ = \
-"Version: 1--0-15" 
+"Version: 1--0-17" 
 # upload time does not work for now.  Rethink.
 #+ datetime.datetime.now().strftime("%m/%d/%y %I:%M%p")
 
@@ -92,7 +93,7 @@ def validate_user(request, auto_task=False):
     # necessary
         response = http.HttpResponseForbidden("Must be logged in to use")
         return response
-    query = db.Query(SchoolDB.models.DatabaseUser)
+    query = DatabaseUser.all()
     query.filter("user = ", user)
     current_user = query.get()
     if ((not current_user) and (not users.is_current_user_admin())):
@@ -182,6 +183,7 @@ def create_standard_params_dict(title_suffix, url_name,
                                 submit_action = None,
                                 breadcrumb_title = None,
                                 full_title = None,
+                                help_page = "DefaultHelp",
                                 page_path_action = "Pop"):
     global __revision_id__
     if (not submit_action):
@@ -204,9 +206,11 @@ def create_standard_params_dict(title_suffix, url_name,
                   "title_bridge":" a ",
                   'url_name':url_name, 
                   'submit_action':submit_action,
-                  "breadcrumbs":generate_breadcrumb_line(),
+                  "breadcrumbs":generate_breadcrumb_line(
+                      getprocessed().cookies, url_name),
                   "javascript_code":javascript_code,
-                  "page_path_action":page_path_action}
+                  "help_page":help_page,
+                  "page_path_action":page_path_action}    
     active_db_user = SchoolDB.models.getActiveDatabaseUser()
     if (active_db_user.get_active_user()):
         param_dict["username"] = active_db_user.get_active_user_name()
@@ -219,15 +223,17 @@ def create_standard_params_dict(title_suffix, url_name,
 def showStatic(request, page_name, title_suffix, 
                extra_params = None,
                page_path_action = "Push",
-               perform_mapping = True):
+               perform_mapping = True,
+               help_page="DefaultHelp"):
     try:
         validate_user(request)
         if perform_mapping:
-            page_name = map_page_to_usertype(page_name)
+            page_name, help_page = map_page_to_usertype(page_name)
         template_name = page_name + ".html"    
         params = create_standard_params_dict(title_suffix=title_suffix, 
             url_name=template_name, 
-            page_path_action= page_path_action)
+            page_path_action= page_path_action,
+            help_page=help_page)
         params["title_prefix"] = ""
         if extra_params:
             params.update(extra_params)
@@ -301,7 +307,7 @@ def showDynamic(request):
     try:
         validate_user(request)
         return_page = get_return_page_from_cookie()
-        return_page = map_page_to_usertype(return_page)
+        return_page, help_page = map_page_to_usertype(return_page)
         return http.HttpResponseRedirect(return_page)
     except ProhibitedError, e:
         return e.response
@@ -337,7 +343,8 @@ def showOtherWork(request):
 
 def showChooseReport(request):
     return showStatic(request, "choose_report", 
-                      "Choose a Report Type")
+                      "Choose a Report Type",
+                      help_page="ChooseReportHelp")
     
 def showChooseCustomReport(request):
     return showStatic(request, "choose_custom_report", 
@@ -357,11 +364,12 @@ def showGradebookEntriesCalendar(request):
 def standardShowAction(request, classname, form_class, title_suffix,
                        template = "generic", page_path_action = 
                        "Pop", extra_params = None, full_title = "",
+                        help_page = "DefaultHelp",
                         perform_mapping = False):
     try:
         validate_user(request)
         if perform_mapping:
-            classname = map_page_to_usertype(classname)
+            classname, help_page = map_page_to_usertype(classname)
             form_class = map_form_to_usertype(form_class)
             template = map_template_to_usertype(template)
         req_action = getprocessed().requested_action
@@ -380,6 +388,7 @@ def standardShowAction(request, classname, form_class, title_suffix,
             javascript_code= javascript_code, 
             page_path_action=page_path_action,
             full_title=full_title,
+            help_page=help_page
         )
         params['form'] = form
         if extra_params:
@@ -395,7 +404,8 @@ def specialShowAction(instance, requested_action, classname,
                       form_class, title_suffix,
                        template = "generic", 
                        page_path_action="Pop", 
-                       extra_params = None):
+                       extra_params = None,
+                       help_page = "DefaultHelp"):
     try:
         getprocessed().requested_instance = instance
         getprocessed().requested_action = requested_action
@@ -419,25 +429,27 @@ def specialShowAction(instance, requested_action, classname,
     
 def showPerson(request):
     return standardShowAction(request, "person", PersonForm, "Person",
-                    "person", "Pop", 
-                    {'show_title':True, 'show_gender':True,
-                     'show_community':True, 'show_municipality':True})
+                    "person", page_path_action = "Pop", 
+                    extra_params = {'show_title':True, 'show_gender':True,
+                     'show_community':True, 'show_municipality':True}
+                    )
 
 def showTeacher(request):
     return standardShowAction(request, "teacher", TeacherForm, "Teacher",
-                              "teacher", "Pop", 
-                {'show_title':True, 'show_gender':True,
-                 'show_community':True, 'show_municipality':True})
+                "teacher",  page_path_action = "Pop", 
+                extra_params = {'show_title':True, 'show_gender':True,
+                 'show_community':True, 'show_municipality':True},
+                help_page = "TeacherHelp")
 
 def showMyChoices(request):
     return standardShowAction(request, "teacher", MyChoicesForm, "My Choices",
-                              "my_choices", "Pop")
+                              "my_choices", page_path_action = "Pop")
 
 def showStudent(request):
     return standardShowAction(request, "student", StudentForm, "Student",
-                              "student", "Pop", 
-                {'show_title':False, 'show_gender':True,'show_community':True,
-                               'show_municipality':True})
+                "student",  help_page = "StudentHelp", page_path_action = "Pop",
+                extra_params = {'show_title':False, 'show_gender':True,
+                                'show_community':True,'show_municipality':True})
 
 def showParentOrGuardian(request):
     """
@@ -646,7 +658,8 @@ def showAssignStudents(request):
 def showMyWork(request):
     return standardShowAction(request, "my_work",  MyWorkForm,
                               "My Work", "my_work", "Push", 
-                              full_title = "My Work Page")
+                              full_title = "My Work Page",
+                              help_page = "MyWorkHelp")
 
 def showChoose(request):
     """
@@ -996,6 +1009,7 @@ def showSelectDialog(request):
             submit_action = return_url, 
             breadcrumb_title ="Select",
             full_title = full_title,
+            help_page = "SelectHelp",
             page_path_action="Push")
         params["template_requested_action"] = template_requested_action
     except ProhibitedError, e:
@@ -1296,7 +1310,7 @@ def showForm(template, form, page_path_action, params,
         if errors:
             return respond(template, params)
     return_page = get_return_page_from_cookie()
-    return_page = map_page_to_usertype(return_page)
+    return_page,help_page = map_page_to_usertype(return_page)
     return_page = set_fixed_return_url(return_page, params)
     if (return_page != "NoReturnPage"):
         return http.HttpResponseRedirect(return_page)
@@ -1829,7 +1843,7 @@ class StudentForm(PersonForm):
     other_activities_history = forms.CharField(required=False, 
                             widget=forms.HiddenInput,initial="NOTSET")
     special_designation_name = forms.CharField(required=False, 
-            label="Student<br/>Designation:", widget=forms.TextInput(attrs={
+            label="Student<br>Designation:", widget=forms.TextInput(attrs={
                         'class':'autofill history-entry entry-field'}))
     special_designation_change_date = forms.DateField(required=False, 
         widget=forms.DateInput(format="%m/%d/%Y", attrs={"size":12,
@@ -1891,7 +1905,7 @@ class StudentForm(PersonForm):
                            ("student_major","Student Major", ""),
                            ("ranking","Ranking", ""),
                            ("special_designation", 
-                            "Student<br/>Designation", "")):
+                            "Student<br>Designation", "")):
             add_history_field_params(param_dict, name_tuple)
     
     @staticmethod
@@ -2052,7 +2066,7 @@ class StudentGroupingForm(BaseStudentDBForm):
 
     def generate_choices(self):
         self.fields["teacher_name"].choices = \
-            SchoolDB.models.create_choice_array_from_class(
+            SchoolDB.utility_functions.create_choice_array_from_class(
                 SchoolDB.models.Teacher, 
                 SchoolDB.models.getActiveDatabaseUser().get_active_organization_key(),
                 "last_name")
@@ -5093,26 +5107,27 @@ def map_page_to_usertype(page, perform_mapping = True):
             page)):
             #this will end all further processing of the request
             raise ProhibitedURLError, page  
-
-    teacher = {"":"schoolhome",
-               "index":"schoolhome",
-               "maint":"school_maint" 
+    default_help = "DefaultHelp"
+    teacher = {"":("schoolhome","SchoolHomeHelp"),
+               "index":("schoolhome","SchoolHomeHelp"),
+               "maint":("school_maint",default_help)
                }
-    school_db_administrator = {"":"schoolhome",
-               "index":"schoolhome",
-               "maint":"schooladmin_maint",
-               "database_user":"standard_database_user"}
-    upper_level_user = {"":"upperlevel_home", 
-                   "index":"upperlevel_home", 
-                   "maint":"upperlevel_maint"}
-    upper_level_db_administrator = {"":"upperlevel_adminhome",
-                                    "index":"upperlevel_adminhome",
-                                    "maint":"upperleveladmin_maint",
-                                    "database_user":"standard_database_user"}
-    master = {"":"masterhome",
-              "index":"masterhome",
-              "maint":"othertypes",
-              "database_user":"master_database_user"
+    school_db_administrator = {"":("schoolhome","SchoolHomeHelp"),
+               "index":("schoolhome","SchoolHomeHelp"),
+               "maint":("schooladmin_maint",default_help),
+               "database_user":("standard_database_user",default_help)}
+    upper_level_user = {"":("upperlevel_home","UpperLevelHomeHelp"),
+                   "index":("upperlevel_home","UpperLevelHomeHelp"), 
+                   "maint":("upperlevel_maint",default_help)}
+    upper_level_db_administrator = {
+        "":("upperlevel_adminhome","UpperLevelHomeHelp"),
+        "index":("upperlevel_adminhome","UpperLevelHomeHelp"),
+        "maint":("upperleveladmin_maint",default_help),
+        "database_user":("standard_database_user",default_help)}
+    master = {"":("masterhome",default_help),
+              "index":("masterhome",default_help),
+              "maint":("othertypes",default_help),
+              "database_user":("master_database_user",default_help)
               } 
     dict_map = {"Master":master,"Teacher":teacher, 
               "SchoolDbAdministrator":school_db_administrator, 
@@ -5122,10 +5137,14 @@ def map_page_to_usertype(page, perform_mapping = True):
     # strip leading slash if present
     page = page.lstrip('/')
     if perform_mapping:
-        return_page = page_map.get(page, page)
+        if (page_map.has_key(page)):
+            return_page, help_page = page_map[page]
+        else:
+            return_page=page
+            help_page = default_help
     else:
         return_page = page
-    return return_page
+    return return_page, help_page
 #----------------------------------------------------------------------
 def map_form_to_usertype(form_class, perform_mapping = True):
     """
@@ -5619,9 +5638,12 @@ class ProcessedRequest:
                 self.requested_action = "Ignore"
             self.prior_selection = filter_keystring(
                 self.values.get("prior_selection", None))
-            request_url = request.environ["HTTP_REFERER"]
+            #request_url = request.environ["HTTP_HOST"]
+            #self.is_real_database = \
+                #(request_url.find("pi-schooldb.appspot") > -1)
             self.is_real_database = \
-                (request_url.find("pi-schooldb.appspot") > -1)
+                (app_identity.get_application_id() == "pi-schooldb.appspot")
+            
     def get_path_stack(self, cookie_name):
         text = self.cookies.get(cookie_name,"[]")[:200]
         cleaned = \
@@ -5678,6 +5700,7 @@ class BreadcrumbGenerator:
         "upperleveladmin_maint":"Maintenance",
         "school_maint":"Maintenance",
         "schooladmin_maint":"Maintenance",
+        "othertypes":"Maintenance",
         "my_work":"My Work",
         "student":"Student",
         "section":"Section",
@@ -5738,7 +5761,7 @@ class BreadcrumbGenerator:
         "utilresponse":"Utility Response"
     }
     
-    def get_breadcrumb_list(self, cookies):
+    def get_breadcrumb_list(self, cookies, page_url):
         """
         Create a list of breadcrumb names from the breadcrumb path
         cookie created by the web page. The path names are mapped via
@@ -5756,6 +5779,9 @@ class BreadcrumbGenerator:
                 pass
         path_list = [ path.lstrip("/") for path in page_stack]
         name_list = []
+        if page_url:
+            path_list.append(unicode(page_url.split('.')[0]))
+        #path_list.append(unicode(page_url.split('/').pop().split('.')[0]))
         for path in path_list:
             name = ""
             name_end = ""
@@ -5776,10 +5802,12 @@ class BreadcrumbGenerator:
                 path = "custom_report"
             map_name = self.name_map.get(path, "Current Page")
             name = name + map_name + name_end
-            name_list.append((full_path,name))
+            if (name_list.count(name) == 0):
+                name_list.append((full_path,name))
+                prior_name = name
         return name_list
     
-    def generate_breadcrumb(self, cookies, separator=" &raquo; "):
+    def generate_breadcrumb(self, cookies, page_url="", separator=" &raquo; "):
         """
         Generate the full html text for the bread crumb line for
         the page titled "title". All except the final entry are 
@@ -5790,7 +5818,7 @@ class BreadcrumbGenerator:
         separator value. The default value is the most commonly used.
         """
         breadcrumb_text = ''
-        breadcrumb_list = self.get_breadcrumb_list(cookies)
+        breadcrumb_list = self.get_breadcrumb_list(cookies, page_url)
         breadcrumb_text = '<div class="breadcrumb print-hidden">'
         for i in range(len(breadcrumb_list)):
             if (i == len(breadcrumb_list)-1):
@@ -5802,13 +5830,13 @@ class BreadcrumbGenerator:
             breadcrumb_text += page_text
         return breadcrumb_text
 
-def generate_breadcrumb_line(cookies = None):
+def generate_breadcrumb_line(cookies = None, page_url = ""):
     """
     Create a full html breadcrumb line for the current_page from
     the site_description and page_title.
     """
     generator = BreadcrumbGenerator()
-    return generator.generate_breadcrumb(cookies)
+    return generator.generate_breadcrumb(cookies, page_url)
 
 def return_error_page(error_string_suffix):
     error_string = "Sorry, you may not " + error_string_suffix

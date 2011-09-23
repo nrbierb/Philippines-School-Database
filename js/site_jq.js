@@ -35,7 +35,8 @@ function showQueryError(domElement){
 }
 
 var controlNowPressed = false;
-var pageHelpText = "";
+var pageHelpText = "Sorry. No help ready for this page...";
+var balloonHelp= {};
 
 function pagePathIsSamePage(pageStack){
     var parsedUri = parseUri(document.baseURI);
@@ -200,14 +201,11 @@ function setupEntryFields(){
 var server_error_text = "Unknown error.";
 
 function saveAnnounce(){
-    // perform special actions here
-    $("#id_requested_action").val("Save");
-    $("#save_button").val("Saving");
-    $("#save_button").attr("title", "Performing the save now. Please wait.");
-    $("#save_button").attr("disable", "disable");
-    $.loadanim.start({
-        message: "Saving"
-    });
+	// perform special actions here
+	$("#id_requested_action").val("Save");
+	$("#save_button").val("Saving");
+	$("#save_button").data("tooltip").getTip().html("Performing the save now. Please wait.");
+	$("#save_button").attr("disable", "disable");
 }
 
 function standardSave(){
@@ -266,7 +264,6 @@ function cleanupForCancel(){
  * called again later if the form buttons are changed.
  */
 function initializeBottomButtons(){
-
 
     $("#back_button").click(function(){
         history.back();
@@ -476,7 +473,9 @@ $(function(){
     });
     
     //getHelpInfo($('#help_pagename_div').text());
-    
+	loadHelpBalloonTexts(balloonHelp);
+	setupTooltips();
+
     var notReadyDialog = $('#local_error_div').html('Not yet ready. Coming soon...').dialog({
         autoOpen: false,
         title: 'Not Ready',

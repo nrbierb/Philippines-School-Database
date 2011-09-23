@@ -89,6 +89,13 @@ fieldset.button_block_left {
 	color:#111111;		
 }
 
+.help-title{
+	font-size:1.15em;
+	font-weight:bolder; 
+	margin-bottom:5px;
+	text-align: center;	
+}
+
 table.unbordered{
 	border: hidden  ;
 }
@@ -168,7 +175,7 @@ tr.tblOddRow {
 
 tr.tblSelectRow {
 	background: #d7c3a9;
-	border: 1px 8b6914;
+	border: 1px #8b6914;
 	color: black;
 }
 
@@ -234,6 +241,7 @@ a.initial_breadcrumb:hover {
 	font-size: 0.9em;
 	float:right;
 }
+
 .username {
 	color:#2b0075;
 	font-size:0.9em;
@@ -540,6 +548,12 @@ div.selected-event {
 	border-bottom: groove 3px #000000;
 }
 
+div.version-info {
+	color:#196128;	
+	font-size: 0.8em;
+	margin-top:8px;
+	}
+
 table.datatable {
 	border:solid;
 	border-width:1px;
@@ -591,7 +605,7 @@ td.object_key {
 .dialog_info {
 	margin:8px 10px;
 	text-align:center;
-	font:bolder;
+	font:bold;
 	font-size:1.1em;
 	color:#550000;
 }

@@ -1,10 +1,4 @@
 {% extends 'person.html' %}
-{% block script %}
-{{ block.super }}
-<script type='text/javascript' src='/js/tables.js'></script>
-{% endblock script %}
-{% block local_javascript_code %}
-{% endblock local_javascript_code %}
 {% block personal %}
 <tr><td><label title="The students date of birth. This is important for several key reports.">Date of Birth:</label></td><td><div class="fieldWrapper">
 			{{form.birthdate.errors}}{{form.birthdate}}</div></td></tr>
@@ -40,7 +34,7 @@
 <fieldset><legend>Brothers or Sisters</legend>
 <table>
 <tbody>
-<tr><td width="450px" >
+<tr><td class="width450" >
 <div id="id_siblings"  class="blockFrame" 
 	title="The list of brothers and sisters. If none are listed then the student is the only one in the family."></div>
 </td><td class="top_align">
@@ -61,7 +55,7 @@
 <fieldset><legend>Parents or Guardians</legend>
 <table>
 <tbody>
-<tr><td width="450px">
+<tr><td class="width450">
 <div id="id_parents" class="blockFrame" title="The list of the parents or guardians. At least one should be entered. If the student has brothers or sisters this list is the same for all. A change here will also change the list for all brothers and sisters."></div>
 </td><td class="top_align">
 <table id="parent_buttons" class="right_side_buttons">
@@ -142,11 +136,11 @@
 {{form.ranking_change_date.errors}}
 {{form.ranking_change_date|safe}}
 {{ranking_button|safe}}
-<tr><td><label title="Information about the student&#x27s birth and elementary schooling. This information is required.">Childhood History:</label></td>
+<tr><td><label title="Information about the student&#x27;s birth and elementary schooling. This information is required.">Childhood History:</label></td>
 			<td colspan="4"><input type="button" id="childhood_btn" 
 			value="Show Childhood History"
 			class="btn inside same-in-view print-hidden" 
-			title="Click to expand this page to edit or view the student&#x27s birth and elementary school information."/></td></tr>
+			title="Click to expand this page to edit or view the student&#x27;s birth and elementary school information."/></td></tr>
 <tr> <td colspan="5">
 <fieldset class="std-block hidden" id="childhood_history">
 <legend>Childhood History</legend>
@@ -164,7 +158,7 @@
 </table>
 </fieldset>
 </td></tr>
-<tr><td><label title="Information about a student&#x27s transfer into or out of the school. This will have no values set unless the student has transfered in from another high school or has transferred out.">School Transfer:</label></td>
+<tr><td><label title="Information about a student&#x27;s transfer into or out of the school. This will have no values set unless the student has transfered in from another high school or has transferred out.">School Transfer:</label></td>
 			<td colspan="4"><input type="button" id="transfer_btn" 
 			value="Show School Transfer" title="Click to expand this page to edit or view information about a student's transfer into or out of the school."
 			class="btn inside same-in-view print-hidden" /></td></tr>
@@ -204,6 +198,10 @@
 <span class="dialog_info"> </span> <hr/>This will remove her from all of the students in the family and permanently erase all information about her.</div>
 {% endblock extended %}
 {% block final %}
-<script type="text/javascript" src="/js/student_form.js"></script>
 <div id="help_pagename_div" class="hidden">StudentPageHelp</div>
 {% endblock final %}
+{% block script %}
+{{ block.super }}
+<script type='text/javascript' src='/js/tables.js'></script>
+<script type="text/javascript" src="/js/student_form.js"></script>
+{% endblock script %}

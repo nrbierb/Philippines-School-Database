@@ -1813,15 +1813,17 @@ class QueryMaker:
         This requires a handler for the NeedIndexError for times when
         an index does not exist (probably too many filter params)
         """
-        if self.descriptor.get("keys_only"):
-            query = self.model_class.all(keys_only=True)
-        else:
-            query = self.model_class.all()
+        query = self.model_class.all(keys_only=True)
+        #if self.descriptor.get("keys_only"):
+            #query = self.model_class.all(keys_only=True)
+        #else:
+            #query = self.model_class.all()
+        
         if (self.descriptor.get("filter_by_organization") and
             self.model_class.properties().has_key("organization")):
             organization = \
                 SchoolDB.models.getActiveDatabaseUser().get_active_organization_key()
-            query.filter("organization =", organization)
+            query.filter("organization", organization)
         for filter_def in self.descriptor.get("filters"):
             if (filter_def[1]):
                 query.filter(filter_def[0], filter_def[1])
@@ -1872,8 +1874,12 @@ class QueryMaker:
                 %(leader_string, total_found, total_returned)
             logging.info("count: %d returned %d max_count %d" 
                          %(total_found, total_returned, maximum_count))
-            object_list = \
+            keys_list = \
                         query.fetch(total_returned)
+            if not self.descriptor.get("keys_only"):
+                object_list = db.get(keys_list)
+            else:
+                object_list = keys_list                
             return object_list, extra_data
 
     def _build_lower_match_string(self, initial, should_capitalize):
@@ -1919,22 +1925,32 @@ class QueryMaker:
     def get_keys_and_names(self, special_format = False, 
                            extra_fields = [], no_key_in_list=False):
         """
-        Get a list of tuples (key, name) where name is the unichr
-        function return value
+        Create the same three return lists as the
+        get_keys_names_fields_from_object_list function but get only
+        the names. This is much more efficient for selection lists that
+        only need the names of the instances because it uses a single
+        keys only query and resolves the names with the name memcache
         """
-        object_list = self._perform_query()
-        return QueryMaker.get_keys_names_fields_from_object_list( 
-            object_list, special_format, extra_fields, no_key_in_list)
+        self.descriptor.set("keys_only", True)
+        keys_list, extra_data = self.get_objects()
+        names_list = [SchoolDB.utility_functions.get_name(key) for
+                      key in keys_list]
+        combined_list = []
+        for i in range(len(keys_list)):
+            combined_entry = {"value": names_list[i], "label": names_list[i],
+                              "key" : str(keys_list[i])}
+            combined_list.append(combined_entry)
+        return names_list, keys_list, combined_list
 
     @staticmethod
     def get_keys_names_fields_from_object_list(object_list,
-                                               special_format = None, extra_fields = [], 
-                                               no_key_in_list=False):
+                            special_format = None, extra_fields = [], 
+                            no_key_in_list=False):
         """
         Generate a list and string of the keys and the values
         of a list of objects. The special_format argument takes
         a function to format the primary field if other than
-        standard. extra_fields is a list of other field names 
+        standard. Extra_fields is a list of other field names 
         whose values will also be included in the result.
         The normal return form includes the object key in the 
         list element as the object values. If no_key_in_list the 
@@ -1960,9 +1976,13 @@ class QueryMaker:
             else:
                 object_values_list = [the_key, the_name]                
             value_string = the_name
+            #>>The most important change. This puts in all of the names
+            #>>in the select screens and many others
             for field in extra_fields:
                 try:
-                    field_value = unicode(getattr(object,field))
+                    field_value = \
+                        SchoolDB.utility_functions.get_fields_value(
+                            object,field)
                 except:
                     field_value = " "
                 object_values_list.append(field_value)
@@ -1985,7 +2005,8 @@ class AutoCompleteField():
     the javascript for a single autocomplete field.
     """
     def __init__(self, class_name, field_name, key_field_name,
-                 ajax_root_path, response_command, custom_handler, use_key):
+                 ajax_root_path, response_command, custom_handler, use_key,
+                 names_only):
         self.class_name = class_name
         self.field_name = field_name
         self.key_field_name = key_field_name
@@ -1997,6 +2018,7 @@ class AutoCompleteField():
         self.local_choices_list = None
         self.use_local_choices = False
         self.use_key = use_key
+        self.names_only = names_only
         self.ajax_root_path = ajax_root_path
         self.local_data_name = self.class_name + "_value"
         self.local_data_text = ""
@@ -2004,6 +2026,8 @@ class AutoCompleteField():
         self.response_command = response_command
         self.custom_handler = custom_handler
         self.javascript_text = ""
+        if self.names_only:
+            self.extra_params = {"names_only":"true"}
 
     def add_dependency(self, dependency_field, is_key = True):
         self.depends_upon.append({"field":dependency_field, 
@@ -2244,7 +2268,7 @@ $(function(){
                                ajax_root_path="/ajax/select",
                                response_command="response(ajaxResponse);",
                                custom_handler="",
-                               use_key=False):
+                               use_key=False, names_only=True):
         if (not field_name):
             field_name = "id_" + class_name + "_name"
         if (not key_field_name):
@@ -2254,7 +2278,7 @@ $(function(){
                         ajax_root_path=ajax_root_path,
                         response_command=response_command,
                         custom_handler=custom_handler,
-                        use_key=use_key)
+                        use_key=use_key, names_only=names_only)
         self.autocomplete_fields.append(autocomplete_field)
         return autocomplete_field
 

@@ -1100,7 +1100,8 @@ class Province(Organization):
     def get_subordinate_organizations(self, active_only = True, 
                                       next_level_only=False):
         """
-        Return a list of municipalities and barangays that are in this province.
+        Return a list of municipalities and barangays that are in this
+        province.
         """
         subordinate_class = Municipality
         filter_name = "province"
@@ -1111,7 +1112,7 @@ class Province(Organization):
 #----------------------------------------------------------------------
 class Division(Organization):
     """
-    The DepEd division. It contains a refernce to the region that it is
+    The DepEd division. It contains a reference to the region that it is
     in and the province. The region is a heirarchical relationship, the
     province merely an associative.
     """
@@ -2744,7 +2745,22 @@ class School(Organization):
     students_municipalities = db.ListProperty(db.Key)
     student_summary = db.ReferenceProperty(StudentSchoolSummaryHistory)
     classname = "School"
-
+    
+    def filter_for_school_province(self, query):
+        """
+        Create a query filter for the province the school is in. This
+        can be used in an instance where only the municipalities or
+        divisions in the province associated with the school are
+        needed.
+        """
+        municipality = self.municipality
+        if (municipality):
+            province_key = School.municipality.get_value_for_datastore(
+                self)
+            if province_key:
+                query.filter("province =", province_key)
+        return query
+        
     def save_municipalities_list(self, result_list):
         """
         Set the list of municipalities to the keys in the list that 
@@ -2758,10 +2774,8 @@ class School(Organization):
         """
         return a list of keys and names of the students municipalites
         """
-        st_muni_ent = map(lambda(s):db.get(s), 
-                          self.students_municipalities)
-        municipality_pairs = get_key_name_list(st_muni_ent)
-        return municipality_pairs
+        return SchoolDB.utility_functions.get_key_name_list(
+            st_muni_ent, self.students_municipalities)
 
     def post_creation(self):
         """
@@ -2827,7 +2841,8 @@ def update_all_schools_summaries(logger, force_update = False):
     updating will do anything unless force update is set True.
     """
     query = School.all()
-    for school in query:
+    schools = query.fetch(1000)
+    for school in schools:
         school.update_student_summary(force_update)
         
 #----------------------------------------------------------------------
@@ -3118,8 +3133,9 @@ class Section(StudentGrouping):
     section_type = db.ReferenceProperty(SectionType)
     creation_date = db.DateProperty()
     termination_date = db.DateProperty()
-    #number_male_students = db.IntegerProperty()
-    #number_female_students = db.IntegerProperty()
+    number_male_students = db.IntegerProperty()
+    number_female_students = db.IntegerProperty()
+    students_count_date = db.DateProperty()
     section_roster_changes_blob = db.BlobProperty()
     classname = "Section"
 
@@ -3262,23 +3278,31 @@ class Section(StudentGrouping):
         school = self.organization
         school_summary = school.student_summary
         school_summary.mark_section_needs_update(self.key())
-        
-    #def save_student_count(self):
-        #"""
-        #Save a count of the number of students in the section. This is
-        #done a the start of .
-        #"""
-        #query = Student.all(keys_only=True)
-        #active_student_filter(query)
-        #query.filter('section = ', self)
-        #query.filter("gender =", "Male")
-        #self.number_male_students = query.count()
-        #query = Student.all(keys_only=True)
-        #active_student_filter(query)
-        #query.filter('section = ', self)
-        #query.filter("gender =", "Female")
-        #self.number_female_students = query.count()
-        #self.put()        
+                
+    def save_student_count(self, target_date=date.today()):
+        """
+        Save a count of the number of students in the section. This is
+        done only once each schoolyear at the start of the year to be used in
+        Form 2 attendance reports.
+        """
+        males_count = 0
+        females_count = 0
+        if (target_date != self.students_count_date):       
+            student_list = self.get_inclusive_student_list_for_period(
+                        target_date, target_date, sort_by_gender = False)
+            for student in student_list:
+                if (student.gender == "Male"):
+                    males_count += 1
+                else:
+                    females_count += 1
+            self.number_male_students = males_count
+            self.number_female_students = females_count
+            self.students_count_date = target_date
+            self.put()
+        else:
+            males_count = self.number_male_students
+            females_count = self.number_female_students
+        return males_count, females_count
     
     def get_all_subjects(self):
         """
@@ -3289,8 +3313,9 @@ class Section(StudentGrouping):
         query = ClassSession.all()
         #query.filter("end_date =", None)
         query.filter("section =", self)
+        class_sessions = query.fetch(100)
         subjects_dict = {}
-        for session in query:
+        for session in class_sessions:
             subject = session.subject
             subjects_dict[unicode(subject)] = subject.key()
         # arbitrary but good for the moment
@@ -3482,7 +3507,7 @@ class ClassSession(StudentGrouping):
 
     @staticmethod    
     def sort_students_in_place(students):
-        students.sort(compare_person_by_gender_name)
+        students.sort(SchoolDB.utility_functions.compare_person_by_gender_name)
         return students
 
     def get_students_from_records(self, student_records):
@@ -3540,8 +3565,8 @@ class ClassSession(StudentGrouping):
         """
         students, student_records, student_record_dict\
                 = self.get_students_and_records(status_filter="Active")
-        students.sort(compare_person_by_gender_name)
-        return_list = get_key_name_list(students, 
+        students.sort(SchoolDB.utility_functions.compare_person_by_gender_name)
+        return_list = SchoolDB.utility_functions.get_key_name_list(students, 
                         Person.format_full_name_lastname_first)
         if (return_class_record_dictionary):
             return return_list, student_record_dict
@@ -5267,7 +5292,8 @@ class StudentsClass(db.Model):
         grades = {}
         query = GradingPeriodResult.all()
         query.filter("student_class_record", self)
-        for gp_result in query:
+        gp_results = query.fetch(100)
+        for gp_result in gp_results:
             grades[gp_result.grading_period] = gp_result.assigned_grade
         return grades
 
@@ -5759,10 +5785,12 @@ class Student(Person):
         looks for parent records associated with the students family.
         The checked fields are defined in this report code.
         """
+        #>>just get key values to check if not null
         missing_count = 0
         missing_fields = {}
-        fields = {"mun":(self.municipality),
-                  "bg":(self.community),
+        #just check for a value set - do not dereference!
+        fields = {"mun":(Student.municipality.get_value_for_datastore(self)),
+                  "bg":(Student.community.get_value_for_datastore(self)),
                   "bd":(self.birthdate),
                   "ed":(self.student_status_change_date),
                   "cy":(self.class_year_change_date),
@@ -5771,15 +5799,36 @@ class Student(Person):
                   "eg":(self.elementary_graduation_date),
                   "ega":(self.elementary_gpa),
                   "ye":(self.years_in_elementary)}  
-        fields["bp"] = (self.birth_province or 
+        fields["bp"] = (
+            Student.birth_province.get_value_for_datastore(self) or 
                         self.birth_other_country)
-        fields["bm"] = (self.birth_municipality or
+        fields["bm"] = (
+            Student.birth_municipality.get_value_for_datastore(self) or
                         self.birth_municipality_other)
-        fields["bb"] = (self.birth_community or 
+        fields["bb"] = (
+            Student.birth_community.get_value_for_datastore(self) or 
                         self.birth_community_other)
-        family, parents = (self.family, 
-                           (len(self.get_parents()) > 0))
-        fields["pg"] = parents
+        fields["pg"] = Student.family.get_value_for_datastore(self)
+        #original version
+        #fields = {"mun":(self.municipality),
+                  #"bg":(self.community),
+                  #"bd":(self.birthdate),
+                  #"ed":(self.student_status_change_date),
+                  #"cy":(self.class_year_change_date),
+                  #"sd":(self.section_change_date),
+                  #"es":(self.elementary_school),
+                  #"eg":(self.elementary_graduation_date),
+                  #"ega":(self.elementary_gpa),
+                  #"ye":(self.years_in_elementary)}  
+        #fields["bp"] = (self.birth_province or 
+                        #self.birth_other_country)
+        #fields["bm"] = (self.birth_municipality or
+                        #self.birth_municipality_other)
+        #fields["bb"] = (self.birth_community or 
+                        #self.birth_community_other)
+        #family, parents = (self.family, 
+                           #(len(self.get_parents()) > 0))
+        #fields["pg"] = parents
         for field in fields.iteritems():
             #change to boolean with true meaning that the field does
             #has data
@@ -5797,20 +5846,26 @@ class Student(Person):
         choices depending upon the entry. This will return the list to
         be used if it is supposed to be a choice and None otherwise.
         """
+        #>>This looks wrong because many of these are multilevel. FIX
         history_choice_list = None
         if (attribute_name == "student_status"):
-            history_choice_list = create_choice_array_from_class(
+            history_choice_list = \
+                SchoolDB.utility_functions.create_choice_array_from_class(
                 StudentStatus, getActiveDatabaseUser().get_active_organization())
         elif (attribute_name == "class_year"):
             history_choice_list = SchoolDB.choices.ClassYearNames
         elif (attribute_name == "section"):
-            history_choice_list = create_choice_array_from_class(
+            history_choice_list = \
+                SchoolDB.utility_functions.create_choice_array_from_class(
                 Section, getActiveDatabaseUser().get_active_organization())
         elif (attribute_name == "student_major"):
-            history_choice_list = create_choice_array_from_class(
-                StudentMajor, getActiveDatabaseUser().get_active_organization())
+            history_choice_list = \
+                SchoolDB.utility_functions.create_choice_array_from_class(
+                StudentMajor, 
+                getActiveDatabaseUser().get_active_organization())
         elif (attribute_name == "special_designation"):
-            history_choice_list = create_choice_array_from_class(
+            history_choice_list = \
+                SchoolDB.utility_functions.create_choice_array_from_class(
                 SpecialDesignation, 
                 getActiveDatabaseUser().get_active_organization())
         return history_choice_list
@@ -7157,27 +7212,6 @@ def is_school_day(date, section = None):
     return school_day[0], school_day[1], day_type
 
 
-def create_choice_array_from_query(query):
-    results = query.fetch(1000)
-    choice_list = [(None, "--------")]
-    for res in results:
-        name = unicode(res)
-        res_key = res.key()
-        choice = (str(res_key), name)
-        choice_list.append(choice)
-    return choice_list
-
-def create_choice_array_from_class(model_class, organization_key=None,
-                                   sort_field = 'name', extra_filter_tuples = None):
-    query = model_class.all()
-    query.order(sort_field)
-    if organization_key:
-        query.filter('organization', organization_key)
-    if extra_filter_tuples:
-        for filter_tuple in extra_filter_tuples:
-            query.filter(filter_tuple[0], filter_tuple[1])
-    return (create_choice_array_from_query(query))
-
 def get_num_days_in_period(start_date, end_date):
     """
     Return a long that is the number of days in a period defined
@@ -7185,53 +7219,6 @@ def get_num_days_in_period(start_date, end_date):
     """
     td_diff = end_date - start_date
     return (td_diff.days +1)
-
-def compare_person_by_gender_name(p1, p2):
-    """
-    A compare function to be used in a sort of persons. The primary 
-    is gender (male first), then last name, and finally first name.
-    """
-    #multiplier for gender is negative to invert order 
-    #(male before female)
-    if (p1 and p2):
-        compare = cmp(p1.gender,p2.gender) * (-20) + \
-                cmp(p1.last_name,p2.last_name) * 10 + \
-                cmp(p1.first_name,p2.first_name) * 5
-        return (cmp(compare,0))
-    elif p1:
-        return 1
-    else:
-        return -1
-
-def sort_table_contents_and_key(table_contents, key_list, compare_fields_list):
-    """
-    This is a generalized utility function for sorting a 2D table list
-    and an associated key list. The key_list may be None or an empty
-    list which will then be ignored. The compare fields list is a tuple
-    of tuples (table field index, sort reverse) and is sorted with the
-    last in the list as the most important. The return values are the
-    sorted table and a list of keys sorted to retain their relationship
-    with table rows.
-    """
-    key_list_len = 0
-    if (key_list):
-        key_list_len = len(key_list)
-    table_contents_len = len(table_contents)
-    keys_appended = (key_list_len == table_contents_len)
-    if keys_appended:
-        for i in xrange(0,table_contents_len):
-            table_contents[i].append(key_list[i])
-    sorted_table = table_contents
-    for compare_info in compare_fields_list:
-        sorted_table = sorted(sorted_table, 
-                              key = operator.itemgetter(compare_info[0]), 
-                              reverse = compare_info[1])
-    #now split back into table and key_list
-    sorted_key_list = []
-    if (keys_appended):
-        for table_row in sorted_table:
-            sorted_key_list.append(table_row.pop())
-    return(sorted_table, sorted_key_list)
 
 
 def get_student_status_key_for_name(name):
@@ -7398,28 +7385,6 @@ def get_key_list(key_string_list, object_class):
                 continue               
     return key_list
 
-def get_key_name_list(instance_list, special_format_function=None, 
-                      extras = None):
-    """
-    Generate a list of key_string, unicode(referenced_record) tuples 
-    from a list of entities. This can then
-    be used to generate the json text to use with the request answer.
-    """
-    pairs = []
-    try:
-        for instance in instance_list:
-            key_string  = str(instance.key())
-            if special_format_function :
-                name = special_format_function(instance)
-            else:
-                name = unicode(instance)
-            if (extras):
-                pairs.append([key_string, name, extras])
-            else:
-                pairs.append([key_string, name])
-    except:
-        pairs=[]
-    return pairs
 
 def get_instance_from_key_string(key_string, instance_type = db.Model):
     """
@@ -7518,6 +7483,7 @@ def get_blocks_from_iterative_query(query, blocksize):
     """
     blocks_list = []
     block = []
+    #>>problem with cache software
     for i in query:
         block.append(i)
         if (len(block) >= blocksize):

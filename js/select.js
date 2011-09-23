@@ -17,6 +17,13 @@ function createWidgetTable(ajaxResponse) {
 	}
 }
 
+function setSelectionHelp() {
+	pageHelpText = selectHelpText;
+	balloonHelp = selectBalloonHelp;
+	loadHelpBalloonTexts(balloonHelp);
+	setupTooltips();
+}
+
 function submitSelection(selectedKey, action) {
 	if (selectedKey) {
 		$("#id_state").val("Exists");
@@ -87,12 +94,14 @@ $(function() {
 		$("#title_div").text("Edit a " + localParams.titleName);
 		requestedAction = "Edit";
 		showSelection();
+		setSelectionHelp();
 	});
 
 	$("#select_view_button").click(function(){
 		$("#title_div").text("View a " + localParams.titleName);
 		requestedAction = "View";
 		showSelection();
+		setSelectionHelp();
 	});		
 	
 	$("#select_select_button").click(function() {

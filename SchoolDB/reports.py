@@ -78,7 +78,8 @@ class StudentAgeReport():
         else:
             self.error ="No class year or section requested for report"
             return
-        for student in query:
+        students = query.fetch(1000)
+        for student in students:
             self.summary[4][3] += 1
             student_age = student.age(self.reference_date, self.age_calc_type)
             bucket = None
@@ -239,18 +240,26 @@ class SchoolRegisterReport():
             birthdate = student.birthdate.strftime("%m/%d/%Y")
         else:
             birthdate = ""
-        if (student.community):
-            community = unicode(student.community)
-        else:
-            community = ""
-        if (student.municipality):
-            municipality = unicode(student.municipality)
-        else:
-            municipality = ""
-        if (student.province):
-            province = unicode(student.province)
-        else:
-            province = ""
+        #>> start of changes to use name cache
+        community = SchoolDB.utility_functions.get_fields_value(student,
+            "community")
+        municipality = SchoolDB.utility_functions.get_fields_value(student,
+            "municipality")
+        province = SchoolDB.utility_functions.get_fields_value(student,
+            "province")
+        
+        #if (student.community):
+            #community = unicode(student.community)
+        #else:
+            #community = ""
+        #if (student.municipality):
+            #municipality = unicode(student.municipality)
+        #else:
+            #municipality = ""
+        #if (student.province):
+            #province = unicode(student.province)
+        #else:
+            #province = ""
         age_june = student.age(date.today(), "schoolyear")
         age_mar = student.age(date.today(), "endyear")
         student_info = [student.last_name, student.first_name, 
@@ -305,13 +314,15 @@ class SectionListReport:
         Create a list of the students names for a single gender for
         the specified section
         """
-        query = SchoolDB.models.Student.all()
+        query = SchoolDB.models.Student.all(keys_only=True)
         SchoolDB.models.active_student_filter(query)
         query.filter('section = ', self.section)
         query.filter('gender = ', gender)
         query.order('last_name')
         query.order('first_name')
-        for student  in query:
+        student_keys = query.fetch(1000)
+        students = db.get(student_keys)
+        for student in students:
             record = [student.last_name, student.first_name, 
                       student.middle_name]
             self.students[gender].append(record)        
@@ -386,7 +397,7 @@ class StudentRecordCheck:
         self.keys = []
         self.parameter_table_table = parameter_table
         self.report_type = parameter_table.get("report_type", "Missing Fields")
-        query = SchoolDB.models.Student.all()
+        query = SchoolDB.models.Student.all(keys_only=True)
         query.filter("organization = " , 
                 SchoolDB.models.getActiveDatabaseUser().get_active_organization())
         if (self.report_type == "No Current Enrollment"):
@@ -403,6 +414,8 @@ class StudentRecordCheck:
         query.order('last_name')
         query.order('first_name')
         self.query = query
+        student_keys = query.fetch(500)
+        self.students = db.get(student_keys)
             
     def build_no_current_enrollment_table(self):
         """
@@ -417,7 +430,7 @@ class StudentRecordCheck:
                     ('last_date', 'string','Last Change Date')]
         table_contents = []
         keys = []
-        for student in self.query:
+        for student in self.students:
             keys.append(str(SchoolDB.utility_functions.get_key_from_instance(
                 student)))
             table_contents.append([student.last_name, 
@@ -427,7 +440,7 @@ class StudentRecordCheck:
                     "%m/%d/%Y")])
         if (len(table_contents)):
             (self.table_contents, self.keys) = \
-             SchoolDB.models.sort_table_contents_and_key(
+             SchoolDB.utility_functions.sort_table_contents_and_key(
                  table_contents, keys, [(1,False),(0,False)])
         return(self.table_description, self.table_contents, 
                self.keys, None, "")
@@ -436,7 +449,7 @@ class StudentRecordCheck:
         self.table_description = [('last_name','string','Last Name'),
                             ('first_name','string','First Name'),
                             ('class_year','string','Year Level')]
-        for student in self.query:
+        for student in self.students:
             self.keys.append(str(SchoolDB.models.get_key_from_instance(
                 student)))
             self.table_contents.append([student.last_name, 
@@ -461,7 +474,7 @@ class StudentRecordCheck:
                         ("ega", "boolean", "Elementary General Avg"),
                         ("ye", "boolean", "Years in Elementary"),
                         ("pg", "boolean", "Parent")]
-        for student in self.query:
+        for student in self.students:
             missing_fields, missing_count = \
                 student.get_missing_fields()
             if (missing_count):
@@ -518,7 +531,8 @@ class EncodingCheck:
         query = SchoolDB.models.Section.all()
         query.filter("termination_date = ", None)
         query.ancestor(self.school)
-        for section in query:
+        sections = query.fetch(500)
+        for section in sections:
             name = section.name
             class_year = section.class_year
             if (section.teacher):

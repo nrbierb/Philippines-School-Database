@@ -219,30 +219,55 @@ def update_student_summary_utility(logger, encompassing_organization_name="",
     update_student_summary_by_task(encompassing_organization, (force != ""))
     logger.add_line("Queued all")
  
-#def update_section_initial_student_counts(logger=None):
-    #try:
-        #organization = \
-            #SchoolDB.models.getActiveOrganization()
-        #if (organization.classname == "School"):
-            #query = SchoolDB.models.Section.all()
-            #query.filter("organization =", organization)
-            #query.filter("termination_date =", None)
-            #sections = query.fetch(200)
-            #for section in sections:
-                #section.save_student_count()
-                #logging.info("Updated section '%s' students list"
-                             #%unicode(section))
-            #logging.info("Completed section_prior_list_update for all sections in school '%s'" %unicode(organization))
-            #return True
-        #else:
-            #logging.error("The organization '%s' is not a school so there are no sections to update." %unicode(organization))
-            ##It was not successful but should not be run again because it 
-            ##will continue to fail.
-            #return True
-        ##change error type after debugging
-    #except EOFError, e:
-        #logging.error("Failed Update Student Summary %s" %e)
-        #return False
+def update_section_initial_student_counts(logger=None, \
+                    target_date_string="", section_name = ""):
+    """
+    Set the count of male and female students in either all of the
+    schools sections or a single named section. The target date string
+    is in the format mm/dd/yyyy. It is the date which is used to get
+    the student count information. If the string is empty use todays
+    date. This may be run repeatedly with the same date. No
+    recalculations will be performed by the section if the date is the
+    same as the prior.
+    """
+    #rewrite as task
+    try:
+        if target_date_string:
+            target_date = SchoolDB.utility_functions.convert_form_date(
+                target_date_string)
+        else:
+            target_date=datetime.date.today()
+        organization = \
+            SchoolDB.models.getActiveOrganization()
+        if (organization.classname == "School"):
+            query = SchoolDB.models.Section.all(keys_only=True)
+            query.filter("organization =", organization)
+            query.filter("termination_date =", None)
+            if section_name:
+                query.filter("name =", section_name)
+            section_keys = query.fetch(200)
+            sections = db.get(section_keys)
+            for section in sections:
+                males_count, females_count = \
+                           section.save_student_count(target_date)
+                logging.info(
+                    "Updated section '%s' students list: %d males %d females"
+                             %(unicode(section), males_count, females_count))
+            logging.info(
+                "Completed section_prior_list_update for all sections in school '%s'" 
+                %unicode(organization))
+            return True
+        else:
+            logging.error(
+                "The organization '%s' is not a school so there are no sections to update." 
+                          %unicode(organization))
+            #It was not successful but should not be run again because it 
+            #will continue to fail.
+            return True
+        #change error type after debugging
+    except EOFError, e:
+        logging.error("Failed Update Student Summary %s" %e)
+        return False
 
 def run_task_for_all_schools_in_organization(logger, task_name_string,
                             task_function_string, organization_name=""):
@@ -362,8 +387,8 @@ def count_student_class_records_task():
             sections_class_sessions = {}
             query = SchoolDB.models.Section.all()
             query.filter("organization =", school)
-            #sections = query.fetch(500)
-            for section in query:
+            sections = query.fetch(500)
+            for section in sections:
                 q = SchoolDB.models.Student.all()
                 SchoolDB.models.active_student_filter(q)
                 q.filter("section =", section)
@@ -378,14 +403,14 @@ def count_student_class_records_task():
             current_school_year = SchoolDB.models.SchoolYear.school_year_for_date()
             query.filter("school_year = ", current_school_year.key())
             query.filter("students_assigned_by_section = ", True)
-            #class_sessions = query.fetch(700)
+            class_sessions = query.fetch(700)
             #logging.info("Number of class sessions: %d" %len(class_sessions))
             #perform assign for all classes. Each class_session uses an individual
             #task
             session_count = {}
             session_names = {}
             i = 0
-            for class_session in query:
+            for class_session in class_sessions:
                 session_key = class_session.key()
                 session_name = class_session.name
                 q = SchoolDB.models.StudentsClass.all()
@@ -450,50 +475,14 @@ def count_student_class_records_task_multitask():
         section_names = {}
         query = SchoolDB.models.Section.all()
         query.filter("organization =", school)
-        #sections = query.fetch(500)
-        for section in query:
+        sections = query.fetch(500)
+        for section in sections:
             q = SchoolDB.models.Student.all()
             SchoolDB.models.active_student_filter(q)
             q.filter("section =", section)
             count = q.count()
             section_count[section.key()] = count
             section_names[section.key()] = unicode(section)
-            #section_data = cPickle.dumps({"section_count":section_count,
-                                          #"section_names":section_names})
-            #packed_section_data = zlib.compress(section_data)
-            #encoded_section_data = base64.b64encode(packed_section_data)
-            #school_keystring = str(school.key())
-            #task_name = "Count Student Class Records Part B: " + unicode(school)
-            #function_args = 'section_information_blob= "%s"' %encoded_section_data 
-            #task_generator = SchoolDB.assistant_classes.TaskGenerator(
-                #task_name = task_name, function=
-                #"SchoolDB.local_utilities_functions.count_student_class_records_task_part_b",
-                #function_args=function_args, organization=school_keystring, 
-                #rerun_if_failed=False)
-            #task_generator.queue_tasks()
-            #logging.info("Scheduled Part B. Number of sections: %d" %len(section_count))
-            #return True
-        #else:
-            #report_text = "%s -- wrong organization type: %s" \
-                        #%(unicode(school), school.classname)
-            #logging.info(report_text)
-            #return report_text
-    
-    #def count_student_class_records_task_part_b(section_information_blob):
-        #"""
-        #Count the number of student records per class session and compare
-        #with the number of students in the section. This is split into two
-        #parts by a task to prevent memory usage problems. This second part
-        #gets the information about the class sessions and then generates
-        #the report.
-        #"""
-        #school = \
-            #SchoolDB.models.getActiveOrganization()
-        #unencoded = base64.b64decode(section_information_blob)
-        #uncompressed = zlib.decompress(unencoded)
-        #section_information = cPickle.loads(uncompressed)
-        #section_names = section_information["section_names"]
-        #section_count = section_information["section_count"]
         sections_class_sessions = {}
         for section in section_count.keys():
             sections_class_sessions[section] = []
@@ -829,6 +818,8 @@ def find_duplicate_students(logger):
     query = SchoolDB.models.Student.all()
     query.filter("organization =", SchoolDB.models.getActiveOrganization())
     student_list = []
+    #>> This needs change. Will not work with cache software. Too big 
+    #>> to run if not task. 
     for student in query:
         if student.birthdate:
             birthday = student.birthdate.toordinal()
@@ -990,7 +981,8 @@ def section_name_letter_case_cleanup(logger, section_name):
     change_count = 0
     query = SchoolDB.models.Student.all()
     query.filter("section =", section.key())
-    for student in query:
+    students = query.fetch(400)
+    for student in students:
         original_name = unicode(student)
         student.first_name = \
             SchoolDB.utility_functions.clean_up_letter_casing(
@@ -1243,7 +1235,8 @@ def create_fake_at_grades(class_year, achievement_test_keystr):
         query = SchoolDB.models.Section.all()
         query.filter("class_year =", class_year)
         query.filter("organization =", SchoolDB.models.getActiveOrganization())
-        for section in query:
+        sections = query.fetch(100)
+        for section in sections:
             function_args='section_keystr="%s", achievement_test_keystr="%s"' \
                          %(str(section.key()), achievement_test_keystr)
             task_generator =SchoolDB.assistant_classes.TaskGenerator(
@@ -1270,7 +1263,8 @@ def create_fake_gp_grades(class_year, grading_period_name):
     query = SchoolDB.models.ClassSession.all()
     query.filter("organization =", SchoolDB.models.getActiveOrganization())
     query.filter("class_year =", class_year)
-    for class_session in query:
+    class_sessions = query.fetch(1000)
+    for class_session in class_sessions:
         class_session_keystr = str(class_session.key())
         function_args = 'class_session_keystr="%s", grading_period_keystr="%s"' \
                       %(class_session_keystr, grading_period_keystr)
@@ -1307,15 +1301,16 @@ def dump_student_info_to_email(logger, class_year, email_address):
     task_generator.queue_tasks()
     
     
-def dump_student_info_to_email_task_ascii(class_year, email_address, memcache_key,
-                                    last_count):
+def dump_student_info_to_email_task_ascii(class_year, email_address,
+                                          memcache_key, last_count):
     """ Write the basic student information for all students in a class
     year at a school to a csv file and mail as an attachment to the
     email address. This is meant to be used in local applications such
     as prefilled registration forms. The data has only the string
     values not the keys. This is performed as a task so that the 30
-    second time limit does not apply.
-    This is the task function that actually does the work. It chains itself to perform the scan across all students.
+    second time limit does not apply. This is the task function that
+    actually does the work. It chains itself to perform the scan across
+    all students.
     """
     try:
         csv_file = StringIO.StringIO()
@@ -1356,8 +1351,12 @@ def dump_student_info_to_email_task_ascii(class_year, email_address, memcache_ke
             val_dict["last_name"]=student.last_name
             val_dict["gender"]=student.gender
             val_dict["address"]=unicode(student.address)
-            val_dict["municipality"]=unicode(student.municipality)
-            val_dict["barangay"]=unicode(student.community)
+            val_dict["municipality"]= \
+                    SchoolDB.utility_functions.get_fields_value(student,
+                                                        municipality)
+            val_dict["barangay"]= \
+                    SchoolDB.utility_functions.get_fields_value(student,
+                                                        community)
             val_dict["birthdate"]=unicode(student.birthdate)
             sib_string = ""
             for sibling in student.get_siblings():
@@ -1368,14 +1367,18 @@ def dump_student_info_to_email_task_ascii(class_year, email_address, memcache_ke
             if p_list:
                 p = p_list[0]
                 val_dict["p1name"]=unicode(p)
-                val_dict["p1relationship"]=unicode(p.relationship)
+                val_dict["p1relationship"]=\
+                    SchoolDB.utility_functions.get_fields_value(p,
+                                                        relationship)
                 val_dict["p1occupation"]=unicode(p.occupation)
                 val_dict["p1cell_phone"]=unicode(p.cell_phone)
                 val_dict["p1email"]=unicode(p.email)
             if (len(p_list) > 1):
                 p = p_list[1]
                 val_dict["p2name"]=unicode(p)
-                val_dict["p2relationship"]=unicode(p.relationship)
+                val_dict["p2relationship"]=\
+                    SchoolDB.utility_functions.get_fields_value(p2,
+                                                        relationship)
                 val_dict["p2occupation"]=unicode(p.occupation)
                 val_dict["p2cell_phone"]=unicode(p.cell_phone)
                 val_dict["p2email"]=unicode(p.email)
@@ -1387,11 +1390,15 @@ def dump_student_info_to_email_task_ascii(class_year, email_address, memcache_ke
             val_dict["birth_province"]= unicode(student.birth_province)
             if student.birth_municipality:
                 val_dict["birth_municipality"]=\
-                        unicode(student.birth_municipality)
+                    SchoolDB.utility_functions.get_fields_value(student,
+                                                        birth_municipality)
             else:
-                val_dict["birth_municipality"]=unicode(student.birth_municipality_other)
+                val_dict["birth_municipality"]=\
+                        unicode(student.birth_municipality_other)
             if student.birth_community:
-                val_dict["birth_barangay"]=unicode(student.birth_community)
+                val_dict["birth_barangay"]=\
+                    SchoolDB.utility_functions.get_fields_value(student,
+                                                        birth_municipality)
             else:
                 val_dict["birth_barangay"]=unicode(student.birth_community_other)
             val_dict["elementary_school"]=unicode(student.elementary_school)
