@@ -194,6 +194,8 @@ def create_standard_params_dict(title_suffix, url_name,
         title_prefix = ""
     if (not breadcrumb_title):
         breadcrumb_title = title_suffix
+    breadcrumb_text, request_url, page_prior_url = \
+        generate_breadcrumb_and_cookie(url_name)
     if (full_title):
         # if a full title has already been built use that as the 
         # suffix and clear out the prefix and bridge
@@ -202,12 +204,13 @@ def create_standard_params_dict(title_suffix, url_name,
         title_bridge = ""
     param_dict = {"revision_id":__revision_id__, "school_name":
                   SchoolDB.models.getActiveDatabaseUser().get_active_organization_name(),
-                  "title_prefix":title_prefix, "title_suffix":title_suffix,
+                  "title_prefix":title_prefix, 
+                  "title_suffix":title_suffix,
                   "title_bridge":" a ",
                   'url_name':url_name, 
                   'submit_action':submit_action,
-                  "breadcrumbs":generate_breadcrumb_line(
-                      getprocessed().cookies, url_name),
+                  "breadcrumbs":breadcrumb_text,
+                  "page_prior_url":page_prior_url,
                   "javascript_code":javascript_code,
                   "help_page":help_page,
                   "page_path_action":page_path_action}    
@@ -218,7 +221,7 @@ def create_standard_params_dict(title_suffix, url_name,
             active_db_user.get_active_user_type())
         param_dict["personname"] = unicode(
             active_db_user.get_active_person())
-    return param_dict
+    return param_dict, url_name
 
 def showStatic(request, page_name, title_suffix, 
                extra_params = None,
@@ -229,15 +232,17 @@ def showStatic(request, page_name, title_suffix,
         validate_user(request)
         if perform_mapping:
             page_name, help_page = map_page_to_usertype(page_name)
-        template_name = page_name + ".html"    
-        params = create_standard_params_dict(title_suffix=title_suffix, 
-            url_name=template_name, 
+        params, page_name = create_standard_params_dict(
+            title_suffix=title_suffix, 
+            url_name=page_name, 
             page_path_action= page_path_action,
             help_page=help_page)
+        template_name = page_name + ".html"    
         params["title_prefix"] = ""
         if extra_params:
             params.update(extra_params)
-        return shortcuts.render_to_response(template_name, params)
+        response = shortcuts.render_to_response(template_name, params)
+        return set_cookies(response)
     except ProhibitedError, e:
         return e.response
 
@@ -308,7 +313,8 @@ def showDynamic(request):
         validate_user(request)
         return_page = get_return_page_from_cookie()
         return_page, help_page = map_page_to_usertype(return_page)
-        return http.HttpResponseRedirect(return_page)
+        response = http.HttpResponseRedirect(return_page)
+        return set_cookies(response)
     except ProhibitedError, e:
         return e.response
 
@@ -362,10 +368,10 @@ def showGradebookEntriesCalendar(request):
                       "Gradebook Entries Calendar")
 
 def standardShowAction(request, classname, form_class, title_suffix,
-                       template = "generic", page_path_action = 
-                       "Pop", extra_params = None, full_title = "",
-                        help_page = "DefaultHelp",
-                        perform_mapping = False):
+        template = "generic", page_path_action = "Pop", 
+        extra_params = None, full_title = "",
+        help_page = "DefaultHelp", use_template_name = False,
+        perform_mapping = False):
     try:
         validate_user(request)
         if perform_mapping:
@@ -383,8 +389,12 @@ def standardShowAction(request, classname, form_class, title_suffix,
         if ((not legal_action) and view_ok):
             getprocessed().requested_action = "View"
         form, javascript_code = buildForm(form_class) 
-        params = create_standard_params_dict(
-            title_suffix=title_suffix, url_name=classname,
+        if (use_template_name):
+            url_name = template
+        else:
+            url_name = classname
+        params, url_name = create_standard_params_dict(
+            title_suffix=title_suffix, url_name=url_name,
             javascript_code= javascript_code, 
             page_path_action=page_path_action,
             full_title=full_title,
@@ -394,9 +404,10 @@ def standardShowAction(request, classname, form_class, title_suffix,
         if extra_params:
             params.update(extra_params)
         form.modify_params(params)
-        return showForm(template=template, form=form,
+        response = showForm(template=template, form=form,
                     page_path_action=page_path_action, 
                     params=params)
+        return set_cookies(response)
     except ProhibitedError, e:
         return e.response
 
@@ -405,7 +416,8 @@ def specialShowAction(instance, requested_action, classname,
                        template = "generic", 
                        page_path_action="Pop", 
                        extra_params = None,
-                       help_page = "DefaultHelp"):
+                       help_page = "DefaultHelp",
+                       use_template_name = False):
     try:
         getprocessed().requested_instance = instance
         getprocessed().requested_action = requested_action
@@ -415,8 +427,13 @@ def specialShowAction(instance, requested_action, classname,
         else:
             getprocessed().selection_key = ""
         form, javascript_code = buildForm(form_class) 
-        params = create_standard_params_dict(title_suffix, classname,
-                                             javascript_code)
+        if use_template_name:
+            url_name = template
+        else:
+            url_name = classname
+        params, url_name = create_standard_params_dict(
+            title_suffix = title_suffix, url_name = url_name,
+            javascript_code = javascript_code, help_page = help_page)
         params['form'] = form
         if extra_params:
             params.update(extra_params)
@@ -542,12 +559,12 @@ def showGrades(request):
 def showAchievementTestGrades(request):
     return standardShowAction(request, "achievement_test_school_info",
                     AchievementTestGradesForm, "Achievement Test Grades",
-                    "achievement_test_grades")
+                    "achievement_test_grades", use_template_name=True)
 
 def showGradingPeriodResults(request):
     return standardShowAction(request, "grading_period_results",
                               GradingPeriodResultsForm, "Grading Period Grades",
-                              "grading_period_results")
+                              "grading_period_results", use_template_name=True)
 
 #revert for moment
 def showMasterDatabaseUser(request):
@@ -730,7 +747,7 @@ def showChoose(request):
         javascript_generator = SchoolDB.assistant_classes.JavascriptGenerator()
         form.generate_javascript_code(javascript_generator)
         javascript_code = javascript_generator.get_final_code()
-        params = create_standard_params_dict(title_suffix=form_title, 
+        params, url_name = create_standard_params_dict(title_suffix=form_title, 
             url_name=request.path, javascript_code=javascript_code,
             page_path_action = "Push", breadcrumb_title=breadcrumb_title,
             submit_action ='/' + chosen_object_class)
@@ -787,7 +804,7 @@ def showReports(request):
         raise http.Http404
     return standardShowAction(request, classname="school_report", 
                 form_class=form_class, title_suffix=report_title, 
-                template=report_template, page_path_action = "Push")           
+                template=report_template, use_template_name=True)           
     
 def processAjaxRequest(request):
     """
@@ -1003,8 +1020,8 @@ def showSelectDialog(request):
         javascript_generator.add_javascript_params ({
             "template_requested_action":template_requested_action})
         javascript_code = javascript_generator.get_final_code()
-        params = create_standard_params_dict(title, 
-            url_name = "/select/"+select_class_name+return_url, 
+        params, url_name = create_standard_params_dict(title, 
+            url_name = "/select/" + select_class_name, 
             javascript_code = javascript_code,
             submit_action = return_url, 
             breadcrumb_title ="Select",
@@ -1014,8 +1031,7 @@ def showSelectDialog(request):
         params["template_requested_action"] = template_requested_action
     except ProhibitedError, e:
         return e.response
-    return showForm(select_template, form,
-                    "index", params)
+    return showForm(select_template, form, "index", params)
 
 #----------------------------------------------------------------------
 def showDataBrowser(request):
@@ -1060,8 +1076,8 @@ def showDataBrowser(request):
                     SchoolDB.assistant_classes.JavascriptGenerator()
         form.generate_javascript_code(javascript_generator)
         javascript_code = javascript_generator.get_final_code()
-        params = create_standard_params_dict(title_suffix=title, 
-            url_name="/custom_report/" + select_class_name + return_url,
+        params, url_name = create_standard_params_dict(title_suffix=title, 
+            url_name="/custom_report/" + select_class_name,
             javascript_code=javascript_code, submit_action=return_url, 
             breadcrumb_title = "Custom Report", page_path_action="Push")
         params["template_requested_action"] = template_requested_action
@@ -1209,7 +1225,7 @@ def runUtil(request):
         if (getprocessed().values.has_key("util")):
             function = getprocessed().values["util"]
         else:
-            params_dict = create_standard_params_dict(
+            params_dict, url_name = create_standard_params_dict(
                 "Request Utility","utilrequest", 
                 page_path_action="Push")
             params_dict.update({"value_right_btn":"Run", 
@@ -1227,7 +1243,7 @@ def runUtil(request):
             result = eval(command)
         except StandardError, e:
             logger.add_line("Failed to run command: %s" %e)
-        params = create_standard_params_dict(
+        params, url_name = create_standard_params_dict(
             title_suffix="Utility Response", 
             url_name="utilresponse", page_path_action="Pop")
         params["command"] = command
@@ -1309,11 +1325,12 @@ def showForm(template, form, page_path_action, params,
                 errors['__all__'] = unicode(err)
         if errors:
             return respond(template, params)
-    return_page = get_return_page_from_cookie()
-    return_page,help_page = map_page_to_usertype(return_page)
+    return_page = params[url_name]
+    return_page, help_page = map_page_to_usertype(return_page)
     return_page = set_fixed_return_url(return_page, params)
     if (return_page != "NoReturnPage"):
-        return http.HttpResponseRedirect(return_page)
+        response = http.HttpResponseRedirect(return_page)
+        return set_cookies(response)
     else:
         return None
 
@@ -1335,7 +1352,8 @@ def respond(template, params=None):
         params = {}
     if not template.endswith('.html'):
         template += '.html'
-    return shortcuts.render_to_response(template, params)
+    response = shortcuts.render_to_response(template, params)
+    return set_cookies(response)
 
 #----------------------------------------------------------------------
 class ProhibitedURLForm(forms.Form):
@@ -4193,7 +4211,8 @@ class SelectForm(BaseStudentDBForm):
         self.return_url = "/" + select_class_name
         self.submit_action = submit_action
         self.page_path_action = "Push"
-        self.breadcrumbs = generate_breadcrumb_line()
+        #self.breadcrumbs, self.return_url, page_prior_url = \
+            #generate_breadcrumb_line(self.return_url)
         self.select_class.initialize_form_params(self)
 
     def set_submit_action(self, submit_action):
@@ -5081,6 +5100,15 @@ def get_return_page_from_cookie():
     return return_page
 
 #----------------------------------------------------------------------
+def set_cookies(http_response):
+    """
+    Set cookies for response.
+    """
+    for key, value in getprocessed().response_cookies.iteritems():
+        http_response.set_cookie(key=key, value=value)
+    return http_response
+
+#----------------------------------------------------------------------
 def set_fixed_return_url(return_page, params):
     """
     If there is a fixed return url go to it instead.
@@ -5581,6 +5609,7 @@ class ProcessedRequest:
     ---values_dict: a copy of the request MultiValueDict that is mutable
     """
     def __init__(self, request = None):
+        self.request = request
         self.selection_key = None
         self.requested_instance = None
         self.selection_key_valid = False
@@ -5593,6 +5622,7 @@ class ProcessedRequest:
         self.cookies = None
         self.return_page = ""
         self.is_real_database = True
+        self.save_request = False
         self.values = {}
         if request:
             if request.method == "POST":
@@ -5623,10 +5653,10 @@ class ProcessedRequest:
                     SchoolDB.utility_functions.cleanup_django_escaped_characters(
                         rptext)
                 self.bc_page_stack = self.get_path_stack("bcSt")
-                self.path_page_stack = self.get_path_stack("pgSt")
-                logging.info("-----------next:'%s'" %self.return_page)
+                #self.path_page_stack = self.get_path_stack("pgSt")
+                #logging.info("-----------next:'%s'" %self.return_page)
                 logging.info("-----------bc stack: '%s'" %self.bc_page_stack)
-                logging.info("-----------path stack: '%s'" %self.path_page_stack)
+                #logging.info("-----------path stack: '%s'" %self.path_page_stack)
             #filter for unkown or illegal values
             self.state = self.values.get("state","New")
             if (["New","Exists"].count(self.state) == 0):
@@ -5636,13 +5666,18 @@ class ProcessedRequest:
             if (["Create", "Edit", "View", "Save", "Select", 
                  "Further Selection"].count(self.requested_action) == 0):
                 self.requested_action = "Ignore"
+            self.save_request = (self.requested_action == "Save")
             self.prior_selection = filter_keystring(
                 self.values.get("prior_selection", None))
+            #Not really an input value. Used to save changed cookies
+            #for response
+            self.response_cookies = {}
             #request_url = request.environ["HTTP_HOST"]
             #self.is_real_database = \
                 #(request_url.find("pi-schooldb.appspot") > -1)
             self.is_real_database = \
-                (app_identity.get_application_id() == "pi-schooldb.appspot")
+                (app_identity.get_application_id() == 
+                 "pi-schooldb.appspot")
             
     def get_path_stack(self, cookie_name):
         text = self.cookies.get(cookie_name,"[]")[:200]
@@ -5653,7 +5688,7 @@ class ProcessedRequest:
         except:
             page_stack = []
         return page_stack
-
+    
 #----------------------------------------------------------------------
 
 def getprocessed():
@@ -5690,124 +5725,184 @@ class BreadcrumbGenerator:
     More usefully, a completely formatted webpage entry for a page
     can be generated with command generate_breadcrumb.
     """
-    name_map = {
-        "index":"Main Menu",
-        "upperlevel_adminhome":"Main Menu",
-        "upperlevel_home":"Main Menu",
-        "schoolhome":"Main Menu",
-        "maint":"Maintenance",
-        "upperlevel_maint":"Maintenance",
-        "upperleveladmin_maint":"Maintenance",
-        "school_maint":"Maintenance",
-        "schooladmin_maint":"Maintenance",
-        "othertypes":"Maintenance",
-        "my_work":"My Work",
-        "student":"Student",
-        "section":"Section",
-        "choose_report":"Choose a Report Type",
-        "attendance":"Enter Attendance",
-        "section_students":"Section Students",
-        "class_session_students":"Class Students",
-        "section_classes":"Section Class Schedule",
-        "student_emergency":"Student Emergency",
-        "othertypes":"Special Information",
-        "teacher":"Teacher",
-        "administrator":"Administrator",
-        "class_session":"Class",
-        "subject":"Subject",
-        "section_type":"Section Type",
-        "student_major":"Student Major",
-        "special_designation":"Special Designation",
-        "school":"School",
-        "region":"Region",
-        "division":"Division",
-        "province":"Province",
-        "municipality":"Municipality",
-        "community":"Barangay",
-        "otherwork":"Other Work",
-        "database_user":"Database User",
-        "master_database_user":"Database User",
-        "standard_database_user":"Database User",
-        "user_type":"User Type",
-        "school_year":"School Year",
-        "calendar":"School Calendar",
-        "schoolday":"School Day",
-        "school_day_type":"School Day Type",
-        "class_period":"Class Period",
-        "achievement_test":"Achievement Test",
-        "achievement_test_grades":"Achievement Test Grades",
-        "versioned_text_manager":"Text Manager",
-        "attendance_report":"Attendance Report",
-        "assign_students":"Assign Students",
-        "student_age":"Student Age Distribution",
-        "section_list":"Section List",
-        "school_register":"School Register",
-        "section_grading_period_grades":"Grading Period Grades",
-        "choose_custom_report":"Choose a Custom Report",
-        "custom_report":"Custom Report", 
-        "student_record_check":"Student Record Check",
-        "form1":"Form 1",
-        "form2":"Form 2",
-        "form14":"Form 14",
-        "custom_report":"Custom Report",
-        "grades":"Grades", 
-        "grading_instance":"Grading Instance",
-        "enter_grades":"Enter Grades",
-        "grading_period_results":"Grading Period Grades",
-        "gradebook_entry_calendar":"Gradebook Entry Calendar",
-        "summary_student":"School Summary",
-        "summary_at":"Achievement Test Summary",
-        "utilrequest":"Run Utility",
-        "utilresponse":"Utility Response"
-    }
+    def __init__(self, request_url):
+        self.request_url = request_url
+        self.final_url_list = ["/"]
+        self.breadcrumb_list = []
+        self.return_url = "/"
+        self.cookie_name = "bcSt"
+        self.cookie_url_list = getprocessed().get_path_stack(
+            self.cookie_name)
+        self.url_list_completed = False
+        self.includes_my_work = False
+        self.name_map = {
+            "/":"Main Menu",
+            "index":"Main Menu",
+            "upperlevel_adminhome":"Main Menu",
+            "upperlevel_home":"Main Menu",
+            "schoolhome":"Main Menu",
+            "masterhome":"Main Menu",
+            "maint":"Maintenance",
+            "upperlevel_maint":"Maintenance",
+            "upperleveladmin_maint":"Maintenance",
+            "school_maint":"Maintenance",
+            "schooladmin_maint":"Maintenance",
+            "othertypes":"Maintenance",
+            "my_work":"My Work",
+            "student":"Student",
+            "section":"Section",
+            "choose_report":"Choose a Report Type",
+            "attendance":"Enter Attendance",
+            "section_students":"Section Students",
+            "class_session_students":"Class Students",
+            "section_classes":"Section Class Schedule",
+            "student_emergency":"Student Emergency",
+            "othertypes":"Special Information",
+            "teacher":"Teacher",
+            "administrator":"Administrator",
+            "class_session":"Class",
+            "subject":"Subject",
+            "section_type":"Section Type",
+            "student_major":"Student Major",
+            "special_designation":"Special Designation",
+            "school":"School",
+            "region":"Region",
+            "division":"Division",
+            "province":"Province",
+            "municipality":"Municipality",
+            "community":"Barangay",
+            "otherwork":"Other Work",
+            "database_user":"Database User",
+            "master_database_user":"Database User",
+            "standard_database_user":"Database User",
+            "user_type":"User Type",
+            "school_year":"School Year",
+            "calendar":"School Calendar",
+            "schoolday":"School Day",
+            "school_day_type":"School Day Type",
+            "class_period":"Class Period",
+            "achievement_test":"Achievement Test",
+            "achievement_test_grades":"Achievement Test Grades",
+            "versioned_text_manager":"Text Manager",
+            "attendance_report":"Attendance Report",
+            "assign_students":"Assign Students",
+            "student_age_report":"Student Age Distribution",
+            "section_list_report":"Section List",
+            "school_register":"School Register",
+            "section_grading_period_grades_report":"Grading Period Grades",
+            "choose_custom_report":"Choose a Custom Report",
+            "custom_report":"Custom Report", 
+            "student_record_check_report":"Student Record Check",
+            "form1_report":"Form 1",
+            "form2_report":"Form 2",
+            "form14_report":"Form 14",
+            "custom_report":"Custom Report",
+            "grades":"Grades", 
+            "grading_instance":"Grading Instance",
+            "enter_grades":"Enter Grades",
+            "grading_period_results":"Grading Period Grades",
+            "gradebook_entry_calendar":"Gradebook Entry Calendar",
+            "summary_student":"School Summary",
+            "summary_at":"Achievement Test Summary",
+            "utilrequest":"Run Utility",
+            "utilresponse":"Utility Response"
+        }
     
-    def get_breadcrumb_list(self, cookies, page_url):
+    def _initialize_url_list(self):
         """
-        Create a list of breadcrumb names from the breadcrumb path
-        cookie created by the web page. The path names are mapped via
-        the name_map_dict to the breadcrumb name for each path name.
+        Create the first part of the final url list. 
         """
-        page_stack = ["index"]
-        if (cookies):
-            bctext = cookies.get("bcSt","[]")[:200]
-            bccleaned = \
-                SchoolDB.utility_functions.cleanup_django_escaped_characters(
-                            bctext)
-            try:
-                page_stack = simplejson.loads(bccleaned)
-            except:
-                pass
-        path_list = [ path.lstrip("/") for path in page_stack]
-        name_list = []
-        if page_url:
-            path_list.append(unicode(page_url.split('.')[0]))
-        #path_list.append(unicode(page_url.split('/').pop().split('.')[0]))
-        for path in path_list:
+        #The Main menu is always tje first element. If this is request 
+        #url then we are finished
+        try:
+            if (self.name_map.get(self.request_url, "") == "Main Menu"):
+                self.url_list_completed = True
+            elif (self.request_url == "my_work"):
+                #My work is the common return point for most actions by
+                #teachers. If this is the request url add it and mark 
+                #completed
+                self.final_url_list.append("my_work")
+                self.url_list_completed = True
+                self.includes_my_work = True
+            elif (getprocessed().save_request):
+                #If the last action was a save then always return to
+                #the prior url in the list
+                self._use_truncated_cookie_list(len(self.cookie_url_list) -1)
+                self.request_url = self.cookie_url_list[len(final_url_list)]
+                self.url_list_completed = True
+            elif ((len(self.cookie_url_list) > 1) and \
+                 (self.cookie_url_list[1] == "my_work")):
+                #If My Work is anywhere in the list make sure that it is
+                #the second entry in the list to assure it is on the
+                #breadcrumb return path
+                self.final_url_list.append("my_work")
+                self.includes_my_work = True
+        except:
+            #if there are errors just set the path to root
+            self.url_list_completed = True
+    
+    def _use_cookie_list(self, end_index):
+        """
+        Build the final list from the cookie list finishing at the
+        end_index.
+        """
+        for i in range(len(self.final_url_list), end_index + 1):
+            self.final_url_list.append(self.cookie_url_list[i])
+    
+    def _build_final_url_list(self):
+        """
+        """
+        self._initialize_url_list()
+        if not self.url_list_completed:
+            for i in range(len(self.cookie_url_list)-1, 0, -1):
+                if (self.cookie_url_list[i] == self.request_url):
+                    #check for the return url in the list 
+                    #This occurs when moving back up the path or
+                    #refreshing a page. Add everything between the 
+                    #initialized list and the request url to produce
+                    #the truncated list
+                    self._use_cookie_list(i)
+                    self.url_list_completed = True
+            if not self.url_list_completed:
+                #The return url is not in the list. This is either a 
+                #move outward in the tree or a move to a completely 
+                #different location. As a first cut just append. This
+                #works for any normal action.
+                self._use_cookie_list(len(self.cookie_url_list) - 1)
+                self.final_url_list.append(self.request_url)
+        
+    def _build_breadcrumb_list(self):
+        """
+        """
+        self._build_final_url_list()
+        for url in self.final_url_list:
             name = ""
-            name_end = ""
-            full_path = path
-            if (path.startswith("select/")):
-                path = path.replace("select/", "")
+            if (url.startswith("/select/")):
                 name = "Select "
-            if (path.startswith("initialselect/")):
-                path = path.replace("initialselect/", "")
+            if (url.startswith("/initialselect/")):
                 name = "Select "
-                path = path.split("/")[0]
-            if (path.startswith("choose/")):
-                path = path.replace("choose/", "")
+            if (url.startswith("/choose/")):
                 name = "Choose "
-            if (path.startswith("reports/")):
-                path = path.replace("reports/", "")
-            if (path.startswith("custom_report/")):
-                path = "custom_report"
-            map_name = self.name_map.get(path, "Current Page")
-            name = name + map_name + name_end
-            if (name_list.count(name) == 0):
-                name_list.append((full_path,name))
-                prior_name = name
-        return name_list
-    
-    def generate_breadcrumb(self, cookies, page_url="", separator=" &raquo; "):
+            if (url.startswith("/reports/")):
+                name = ""
+            if name:
+                name += self.name_map.get(url.split("/")[2], "")
+            else:
+                name = self.name_map.get(url, "Current Page")
+            self.breadcrumb_list.append((url, name))
+
+    def _set_cookie(self, cookie_name):
+        """
+        Set the cookie to be used with the next request.
+        """
+        cookie_text = simplejson.dumps(self.final_url_list)
+        #the cookie must be set in the response object which is not
+        #available until later. Store in current cookies and set after
+        #response object has been created.
+        
+        getprocessed().response_cookies[cookie_name] = cookie_text 
+        
+    def generate_breadcrumb(self, separator=" &raquo; "):
         """
         Generate the full html text for the bread crumb line for
         the page titled "title". All except the final entry are 
@@ -5817,26 +5912,38 @@ class BreadcrumbGenerator:
         The second argument, separator, can be used to define a different
         separator value. The default value is the most commonly used.
         """
+        self._build_breadcrumb_list()
         breadcrumb_text = ''
-        breadcrumb_list = self.get_breadcrumb_list(cookies, page_url)
         breadcrumb_text = '<div class="breadcrumb print-hidden">'
-        for i in range(len(breadcrumb_list)):
-            if (i == len(breadcrumb_list)-1):
+        for i in range(len(self.breadcrumb_list)):
+            if (i == len(self.breadcrumb_list)-1):
                 # the current page -- do not add separator and url
-                page_text = '%s</div>' %breadcrumb_list[i][1]
+                page_text = '%s</div>' %self.breadcrumb_list[i][1]
             else:
-                page_text = '<a class="initial_breadcrumb print-hidden" href="/%s">%s</a>%s' \
-                          %(breadcrumb_list[i][0], breadcrumb_list[i][1], separator)
+                if (self.breadcrumb_list[i][0] == "/"):
+                    self.breadcrumb_list[i] = ("","Main Menu")
+                page_text = \
+                    '<a class="initial_breadcrumb print-hidden" href="/%s">%s</a>%s' \
+                    %(self.breadcrumb_list[i][0], 
+                      self.breadcrumb_list[i][1], separator)
             breadcrumb_text += page_text
-        return breadcrumb_text
+        page_prior_url = "/"
+        if (len(self.final_url_list) > 1):
+            page_prior_url = \
+                "/" + self.final_url_list[len(self.final_url_list) - 2]
+        self._set_cookie(self.cookie_name)
+        return breadcrumb_text, self.request_url, page_prior_url
 
-def generate_breadcrumb_line(cookies = None, page_url = ""):
+def generate_breadcrumb_and_cookie(request_url):
     """
-    Create a full html breadcrumb line for the current_page from
-    the site_description and page_title.
+    Create a full html breadcrumb line for the current_page from the
+    site_description and page_title and set the path list cookie.
+    Return the breadcrumb line, the url that should be used to create
+    this resonse, and the page prior url to be added as the link in
+    for the cancel or finished button.
     """
-    generator = BreadcrumbGenerator()
-    return generator.generate_breadcrumb(cookies, page_url)
+    generator = BreadcrumbGenerator(request_url)
+    return generator.generate_breadcrumb()
 
 def return_error_page(error_string_suffix):
     error_string = "Sorry, you may not " + error_string_suffix
