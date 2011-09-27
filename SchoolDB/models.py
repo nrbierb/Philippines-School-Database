@@ -1487,6 +1487,8 @@ class MultiLevelDefined(polymodel.PolyModel):
         organization = getActiveDatabaseUser().get_active_organization()
         merge_list = []
         all_extra_data = None
+        return_only_keys = query_descriptor.get("keys_only")
+        query_descriptor.set("keys_only", False)
         query_descriptor.set("use_class_query", False)
         query_descriptor.set("filter_by_organization", False)
         keylist = MultiLevelDefined.build_hierarchy_keylist(organization)
@@ -1494,7 +1496,7 @@ class MultiLevelDefined(polymodel.PolyModel):
             query_descriptor.set("filters", [("organization", authority)])
             query = SchoolDB.assistant_classes.QueryMaker(target_class, 
                                                           query_descriptor)
-            object_list, extra_data =  query.get_objects()                        
+            object_list, extra_data =  query.get_objects()
             merge_list = MultiLevelDefined.merge_lists(merge_list,
                                                        object_list)
             if (extra_data):
@@ -1504,6 +1506,9 @@ class MultiLevelDefined(polymodel.PolyModel):
                     all_extra_data = extra_data
         if (sort_function):
             merge_list = sort_function(merge_list)
+        if return_only_keys:
+            key_list = [obj.key() for obj in merge_list]
+            merge_list = key_list
         return merge_list, all_extra_data
 
     @staticmethod    

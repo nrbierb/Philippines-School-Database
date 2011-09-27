@@ -203,10 +203,12 @@ var server_error_text = "Unknown error.";
 
 function saveAnnounce(){
 	// perform special actions here
-	$("#id_requested_action").val("Save");
-	$("#save_button").val("Saving");
-	$("#save_button").data("tooltip").getTip().html("Performing the save now. Please wait.");
-	$("#save_button").attr("disable", "disable");
+	try {
+		$("#id_requested_action").val("Save");
+		$("#save_button").val("Saving");
+		$("#save_button").data("tooltip").getTip().html("Performing the save now. Please wait.");
+		$("#save_button").attr("disable", "disable");
+	} catch (e) {}
 }
 
 function standardSave(){

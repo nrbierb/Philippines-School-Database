@@ -13,11 +13,6 @@ function saveSelectedInCookie() {
 	$.cookie("aS", null);
 	$.cookie("aCn", null);
 	$.cookie("aC", null);
-	//selected values are used in return to the my_work page
-	$.cookie("sSn",null);
-	$.cookie("sS", null);
-	$.cookie("sCn", null);
-	$.cookie("sC",null);
 	
 	//active values are used in all other pages
 	$.cookie("aSn", $("#id_users_section_name").val(), {page:'/'});
@@ -25,10 +20,17 @@ function saveSelectedInCookie() {
 	$.cookie("aCn", $("#id_users_class_session_name").val(), {page:'/'});
 	$.cookie("aC", $("#id_users_class_session").val(), {page:'/'});
 	//selected values are used in return to the my_work page
+	/*
 	$.cookie("sSn", $("#id_users_section_name").val(), {page:'/'});
 	$.cookie("sS", $("#id_users_section").val(), {page:'/'});
 	$.cookie("sCn", $("#id_users_class_session_name").val(), {page:'/'});
 	$.cookie("sC", $("#id_users_class_session").val(), {page:'/'});
+	//selected values are used in return to the my_work page
+	$.cookie("sSn",null);
+	$.cookie("sS", null);
+	$.cookie("sCn", null);
+	$.cookie("sC",null);
+	*/
 }
 
 function saveSelected() {

@@ -207,7 +207,7 @@ def create_standard_params_dict(title_suffix, url_name,
                   "title_prefix":title_prefix, 
                   "title_suffix":title_suffix,
                   "title_bridge":" a ",
-                  'url_name':url_name, 
+                  'url_name':request_url, 
                   'submit_action':submit_action,
                   "breadcrumbs":breadcrumb_text,
                   "page_prior_url":page_prior_url,
@@ -221,7 +221,7 @@ def create_standard_params_dict(title_suffix, url_name,
             active_db_user.get_active_user_type())
         param_dict["personname"] = unicode(
             active_db_user.get_active_person())
-    return param_dict, url_name
+    return param_dict, request_url
 
 def showStatic(request, page_name, title_suffix, 
                extra_params = None,
@@ -1325,7 +1325,7 @@ def showForm(template, form, page_path_action, params,
                 errors['__all__'] = unicode(err)
         if errors:
             return respond(template, params)
-    return_page = params[url_name]
+    return_page = params["url_name"]
     return_page, help_page = map_page_to_usertype(return_page)
     return_page = set_fixed_return_url(return_page, params)
     if (return_page != "NoReturnPage"):
@@ -3758,7 +3758,7 @@ class AchievementTestGradesForm(BaseStudentDBForm):
     @staticmethod
     def process_request(data):
         try:
-            if (getprocessed().path_page_stack[-1] == "/my_work"):
+            if (getprocessed().get_path_stack()[1] == "my_work"):
                 active_section_key = \
                     DatabaseUser.get_single_value(None, "active_section")
                 active_section = Section.get(active_section_key)
@@ -5116,6 +5116,8 @@ def set_fixed_return_url(return_page, params):
     if (params.get("fixed_return_url", False)):
         return params["fixed_return_url"]
     else:
+        if (return_page[0] != "/"):
+            return_page = "/" + return_page
         return return_page
     
 #----------------------------------------------------------------------
@@ -5679,7 +5681,7 @@ class ProcessedRequest:
                 (app_identity.get_application_id() == 
                  "pi-schooldb.appspot")
             
-    def get_path_stack(self, cookie_name):
+    def get_path_stack(self, cookie_name = "bcSt"):
         text = self.cookies.get(cookie_name,"[]")[:200]
         cleaned = \
             SchoolDB.utility_functions.cleanup_django_escaped_characters(text)
@@ -5827,8 +5829,9 @@ class BreadcrumbGenerator:
             elif (getprocessed().save_request):
                 #If the last action was a save then always return to
                 #the prior url in the list
-                self._use_truncated_cookie_list(len(self.cookie_url_list) -1)
-                self.request_url = self.cookie_url_list[len(final_url_list)]
+                self._use_cookie_list(len(self.cookie_url_list) -1)
+                self.request_url = self.final_url_list[
+                    len(self.final_url_list) - 1]
                 self.url_list_completed = True
             elif ((len(self.cookie_url_list) > 1) and \
                  (self.cookie_url_list[1] == "my_work")):
@@ -5846,7 +5849,7 @@ class BreadcrumbGenerator:
         Build the final list from the cookie list finishing at the
         end_index.
         """
-        for i in range(len(self.final_url_list), end_index + 1):
+        for i in range(len(self.final_url_list), end_index):
             self.final_url_list.append(self.cookie_url_list[i])
     
     def _build_final_url_list(self):
@@ -5854,21 +5857,21 @@ class BreadcrumbGenerator:
         """
         self._initialize_url_list()
         if not self.url_list_completed:
-            for i in range(len(self.cookie_url_list)-1, 0, -1):
+            for i in range(len(self.cookie_url_list)):
                 if (self.cookie_url_list[i] == self.request_url):
                     #check for the return url in the list 
                     #This occurs when moving back up the path or
                     #refreshing a page. Add everything between the 
                     #initialized list and the request url to produce
                     #the truncated list
-                    self._use_cookie_list(i)
+                    self._use_cookie_list(i + 1)
                     self.url_list_completed = True
             if not self.url_list_completed:
                 #The return url is not in the list. This is either a 
                 #move outward in the tree or a move to a completely 
                 #different location. As a first cut just append. This
                 #works for any normal action.
-                self._use_cookie_list(len(self.cookie_url_list) - 1)
+                self._use_cookie_list(len(self.cookie_url_list))
                 self.final_url_list.append(self.request_url)
         
     def _build_breadcrumb_list(self):
@@ -5929,8 +5932,9 @@ class BreadcrumbGenerator:
             breadcrumb_text += page_text
         page_prior_url = "/"
         if (len(self.final_url_list) > 1):
-            page_prior_url = \
-                "/" + self.final_url_list[len(self.final_url_list) - 2]
+            if (self.final_url_list[len(self.final_url_list) - 2][0] == "/"):
+                page_prior_url = ""
+            page_prior_url += self.final_url_list[len(self.final_url_list) - 2]
         self._set_cookie(self.cookie_name)
         return breadcrumb_text, self.request_url, page_prior_url
 
