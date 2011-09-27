@@ -38,6 +38,7 @@ var controlNowPressed = false;
 var pageHelpText = "Sorry. No help ready for this page...";
 var balloonHelp= {};
 
+/*
 function pagePathIsSamePage(pageStack){
     var parsedUri = parseUri(document.baseURI);
     var path = parsedUri.path;
@@ -154,7 +155,7 @@ function performPagePathActionSetup(action){
             pagePathPush("bcSt", false);
     }
 }
-
+*/
 function setupEntryFields(){
     var entryFields = $(".entry-field");
     
@@ -221,10 +222,10 @@ function standardFinish(){
     //A simple way to return to the nextmost upper page wihout
     //further action. While the url is set to "/index" the actual
     //page will be determined by the pagePathPop result
-    pagePathPop("pgSt", true);
-    pagePathPop("bcSt", true);
-    location.href = "/dynamic";
-    //window.location = "/my_work"
+    //pagePathPop("pgSt", true);
+    //pagePathPop("bcSt", true);
+    location.href = page_prior_url;
+    window.location = page_prior_url;
 }
 
 //empty function for local redefinition
@@ -233,9 +234,10 @@ function cleanupForCancel(){
 
 function standardCancel(){
     cleanupForCancel();
-    pagePathPop("pgSt", true);
-    pagePathPop("bcSt", true);
-    location.href = "/dynamic";
+    //pagePathPop("pgSt", true);
+    //pagePathPop("bcSt", true);
+    //location.href = "/dynamic";
+	location.href = page_prior_url;
 }
 
 /*
@@ -252,10 +254,6 @@ function countClicks(domElement, clickActivePeriod){
         clickCount = 0;
     }, clickActivePeriod);
     return clickCount;
-}
-
-//empty function for local redefinition
-function cleanupForCancel(){
 }
 
 /* 
@@ -456,7 +454,7 @@ $(function(){
             form.submit();
         }
     });
-    performPagePathActionSetup(pagePathAction);
+    //performPagePathActionSetup(pagePathAction);
     initializeBottomButtons();
     
     $(".history-entry").change(function(){

@@ -71,7 +71,8 @@ google.load("jqueryui","1.8");
 <script type="text/javascript" src="/static_pages/{{help_page}}.js"></script>
 {% endblock script %}
 <script type="text/javascript">
-var pagePathAction = "{{page_path_action}}";
+//var pagePathAction = "{{page_path_action}}";
+var page_prior_url = "{{page_prior_url}}";
 {% block generated_javascript_code %}
 {{ javascript_code|safe }}
 {% endblock generated_javascript_code %}
