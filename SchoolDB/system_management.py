@@ -105,7 +105,7 @@ class BulkClassSessionsCreator:
             index += 1
         for initial_row in self.initial_request_array:          
             section_list = classroom_sections[initial_row[0]]
-            subject = SchoolDB.models.get_instance_from_key_string(
+            subject = SchoolDB.utility_functions.get_instance_from_key_string(
                 initial_row[1])
             subject_name = unicode(subject)
             subject_keystr = str(subject.key())

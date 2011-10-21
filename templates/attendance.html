@@ -34,7 +34,7 @@ Choose a Start Date:
 {{form.section_name}}
 {{form.state}}
 {{form.requested_action}}
-{{form.redirect_page}}
+<input type="hidden" name="redirect_page" value="{{page_prior_url}}" id="id_redirect_page" />
 </div>
 {% include 'bottom_buttons.html' %}
 </form>

@@ -1,9 +1,14 @@
 <div class="hdr-group  print-hidden">
-<table width="100%"><tr><td class="minpad width-onethird">
+<table width="100%"><tr><td class="minpad width-250">
 <img src="/media/DepEdLogoMed.png" alt="Dep Ed Logo" class="padded"></img>
-</td><td class="hdr-text minpad width-onethird"> 
+</td><td class="hdr-text minpad "> 
 {{ school_name }}
-</td><td class="revision-text minpad width-onethird">{{ revision_id }}</td></tr>
+</td><td class="revision-text minpad width-150">
+	<table class="version_info">
+		<tr><td>Version: {{ revision_name }}</td></tr>
+		<tr><td>{{ revision_time }}</td></tr>
+	</table>
+	</td>
 </table>
 </div>
 

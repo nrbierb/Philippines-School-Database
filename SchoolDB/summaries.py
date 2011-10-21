@@ -18,7 +18,7 @@
 Model and supporting classes and functions to maintain data summaries
 and make reports for upper levels of users.
 """
-
+from google.appengine.ext import db
 import datetime, logging, pickle
 import SchoolDB.assistant_classes
 import SchoolDB.models 
@@ -154,14 +154,15 @@ class AchievementTestSummary(
             organization = \
                 SchoolDB.models.getActiveDatabaseUser().get_active_organization_key()
             self.sections_by_year[classyear_name] = set()
-            query = SchoolDB.models.Section.all()
+            query = SchoolDB.models.Section.all(keys_only=True)
             query.filter("organization =", organization)
             query.filter("class_year =", classyear_name)
             query.filter("termination_date =", None)
-            sections = query.fetch(1000)
-            for section in sections:
-                section_keystr = str(section.key())
+            keys = query.fetch(1000)
+            for section_key in keys:
+                section_keystr = str(section_key)
                 self.sections_by_year[classyear_name].add(section_keystr)
+                section = db.get(section_key)
                 self.section_names[section_keystr] = unicode(section)
                 self.class_year_by_section[section_keystr] = classyear_name
                 self.by_section[section_keystr] = set()
@@ -182,7 +183,7 @@ class AchievementTestSummary(
         if not self._has_subject(subject_keystr):
             self.by_subject[subject_keystr] = set()
             subject = \
-                    SchoolDB.models.get_instance_from_key_string(subject_keystr)
+                    SchoolDB.utility_functions.get_instance_from_key_string(subject_keystr)
             self.subject_names[subject_keystr] = unicode(subject)
 
 
@@ -403,7 +404,7 @@ class StudentSectionSummaryData(
         designation_key_dict = {}
         for name in student_designation_names:
             designation_key_dict[name] = \
-                SchoolDB.models.get_entities_by_name(
+                SchoolDB.utility_functions.get_entities_by_name(
                     SchoolDB.models.SpecialDesignation, name, key_only=True)
         start_date, end_date = \
             SchoolDB.models.SchoolYear.school_year_start_and_end_dates(
@@ -453,7 +454,7 @@ class StudentSectionSummaryData(
                          status_name))
         #show only those that have happened this school year
         #>>>>To Be Done: filter results of query for end of year
-        SchoolDB.models.filter_by_date(query, "after",
+        SchoolDB.utility_functions.filter_by_date(query, "after",
             "student_status_change_date", 0, testinfo["start_date"])
         all_students = query.count()
         query.filter("gender = ", "Male")
@@ -474,11 +475,11 @@ class StudentSectionSummaryData(
         col_all_students = 2
         age_sum = [0,0,0]
         age_list = [[],[],[]]
-        query = SchoolDB.models.Student.all()
+        query = SchoolDB.models.Student.all(keys_only=True)
         SchoolDB.models.active_student_filter(query)
         query.filter("section = ", section)
-        students = query.fetch(1000)
-        for student in students:
+        keys = query.fetch(1000)
+        for student in db.get(keys):
             #Add individual student to the set of information.
             #Each record will only increment appropriate summary values.
             #No information is kept by student

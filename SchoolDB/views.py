@@ -28,6 +28,7 @@ from google.appengine.api import users
 from google.appengine.api import mail
 from google.appengine.api import app_identity
 from google.appengine.ext import db
+from google.appengine.api import memcache
 from google.appengine.ext.db import djangoforms
 from django import http
 from django import shortcuts
@@ -63,11 +64,8 @@ import SchoolDB.utilities
 result_string = ""
 __http_request__ = None
 __processed_request__ = None
-__revision_id__ = \
-"Version: 1--0-17" 
-# upload time does not work for now.  Rethink.
-#+ datetime.datetime.now().strftime("%m/%d/%y %I:%M%p")
-
+__revision_id__ = "Version: 1--0-17  " 
+   
 def validate_user(request, auto_task=False):
     """
     The decorator used before all url actions to determine action based
@@ -93,10 +91,12 @@ def validate_user(request, auto_task=False):
     # necessary
         response = http.HttpResponseForbidden("Must be logged in to use")
         return response
-    query = DatabaseUser.all()
+    query = DatabaseUser.all(keys_only=True)
     query.filter("user = ", user)
-    current_user = query.get()
-    if ((not current_user) and (not users.is_current_user_admin())):
+    current_user_key = query.get()
+    if current_user_key:
+        current_user = db.get(current_user_key)
+    if ((not current_user_key) and (not users.is_current_user_admin())):
         raise ProhibitedUserError, user
     #tasks from cron jobs and task queues may only be run by admins
     if (auto_task and not users.is_current_user_admin()):
@@ -178,13 +178,29 @@ def check_login():
     #for now...
     return True
 
+def get_revision_id():
+    """
+    Get the revision id from the google env variable.
+    """
+    revision = os.environ["CURRENT_VERSION_ID"]
+    revison_name = revision.split(".")[0]
+    main_path = os.environ["PATH_TRANSLATED"]
+    base_dir = os.path.dirname(main_path)
+    timestamp_file = base_dir + "/timestamp.txt"
+    try:
+        f = open(timestamp_file)
+        revision_time = f.read()
+        f.close()
+    except:
+        revision_time = "-1"
+    return revison_name, revision_time
+
 def create_standard_params_dict(title_suffix, url_name,
                                 javascript_code = "",
                                 submit_action = None,
                                 breadcrumb_title = None,
                                 full_title = None,
-                                help_page = "DefaultHelp",
-                                page_path_action = "Pop"):
+                                help_page = "DefaultHelp"):
     global __revision_id__
     if (not submit_action):
         submit_action = url_name
@@ -202,8 +218,14 @@ def create_standard_params_dict(title_suffix, url_name,
         title_suffix = full_title
         title_prefix = ""
         title_bridge = ""
-    param_dict = {"revision_id":__revision_id__, "school_name":
+    revison_name, revision_time = get_revision_id()
+    guidance_counselor = (users.is_current_user_admin() or 
+            SchoolDB.models.getActiveDatabaseUser().get_active_user().guidance_counselor)
+    param_dict = {"revision_name":revison_name, 
+                  "revision_time":revision_time,
+                  "school_name":
                   SchoolDB.models.getActiveDatabaseUser().get_active_organization_name(),
+                  "guidance_counselor": guidance_counselor,
                   "title_prefix":title_prefix, 
                   "title_suffix":title_suffix,
                   "title_bridge":" a ",
@@ -212,8 +234,7 @@ def create_standard_params_dict(title_suffix, url_name,
                   "breadcrumbs":breadcrumb_text,
                   "page_prior_url":page_prior_url,
                   "javascript_code":javascript_code,
-                  "help_page":help_page,
-                  "page_path_action":page_path_action}    
+                  "help_page":help_page}    
     active_db_user = SchoolDB.models.getActiveDatabaseUser()
     if (active_db_user.get_active_user()):
         param_dict["username"] = active_db_user.get_active_user_name()
@@ -225,17 +246,15 @@ def create_standard_params_dict(title_suffix, url_name,
 
 def showStatic(request, page_name, title_suffix, 
                extra_params = None,
-               page_path_action = "Push",
                perform_mapping = True,
                help_page="DefaultHelp"):
     try:
         validate_user(request)
         if perform_mapping:
             page_name, help_page = map_page_to_usertype(page_name)
-        params, page_name = create_standard_params_dict(
+        params, url_name = create_standard_params_dict(
             title_suffix=title_suffix, 
             url_name=page_name, 
-            page_path_action= page_path_action,
             help_page=help_page)
         template_name = page_name + ".html"    
         params["title_prefix"] = ""
@@ -247,49 +266,21 @@ def showStatic(request, page_name, title_suffix,
         return e.response
 
 
-def showStaticTop(request, page_name, title_suffix, extra_params = {},
-                  page_path_action = "Index"):
+def showStaticTop(request, page_name, title_suffix, extra_params = {}):
     logout_url = users.create_logout_url("http://www.google.com")
     extra_params["logout_url"] = logout_url
     return showStatic(request = request, page_name = page_name, 
                       title_suffix = title_suffix, 
-                      extra_params = extra_params,
-                      page_path_action=page_path_action)
-#def showIndex(request):
-    #try:
-        #validate_user(request)
-        #title = "%s Home Page" \
-              #%getActiveDatabaseUser().get_active_organization()
-        #showStaticTop(request, "index", title)
-        ##home_page = SchoolDB.models.getActiveDatabaseUser().get_active_user_type().home_page
-        ##if not home_page:
-            ##home_page = "adminhome"
-        ##return showStaticTop(request, home_page, "Main Menu")
-    #except ProhibitedError, e:
-        #return e.response
-
-#def showSpecialInformation(request):
-    #try:
-        #validate_user(request)
-        #special_info_page = SchoolDB.models.getActiveDatabaseUser().get_active_user_type().special_info_page
-        #if not special_info_page:
-            #special_info_page = "othertypes"
-        #return showStaticTop(request, special_info_page, 
-                             #"Special Information")
-    #except ProhibitedError, e:
-        #return e.response
-
+                      extra_params = extra_params)
 def showIndex(request):
     try:
         validate_user(request)
-        return showStaticTop(request, "index", "Main Page", 
-                             page_path_action="Index")
+        return showStaticTop(request, "index", "Main Page")
     except ProhibitedError, e:
         return e.response
     
 def showMaint(request):
-    return showStatic(request, "maint", "Special Information", 
-                      page_path_action="Push")
+    return showStatic(request, "maint", "Special Information")
 
 def showAdmin(request):
     """
@@ -318,32 +309,6 @@ def showDynamic(request):
     except ProhibitedError, e:
         return e.response
 
-#def showAdminHome(request):
-    #return showStaticTop(request, "adminhome", "Admin Home")
-
-#def showSchoolHome(request):
-    #return showStaticTop(request, "schoolhome", "My School")
-
-#def showStudentHome(request):
-    #return showStaticTop(request, "studenthome", "My School")
-
-#def showUpperLevelHome(request):
-    ##Hack for name <<<<<<<<<<fix>>>>>>>>>
-    #return showStaticTop(request, "upperlevelhome", "Region VII")
-
-#def showUpperLevelAdminHome(request):
-    ##Hack for name <<<<<<<<<<fix>>>>>>>>>
-    #return showStaticTop(request, "upperlevel_adminhome", "Region VII")
-    
-#def showOtherTypes(request):
-    #return showStatic(request, "othertypes", "Special Information")
-
-#def showSchoolMaint(request):
-    #return showStatic(request, "school_maint", "Special Information")
-
-#def showSchoolAdminMaint(request):
-    #return showStatic(request, "schooladmin_maint", "Special Information")
-
 def showOtherWork(request):
     return showStatic(request, "otherwork", "Other Work")
 
@@ -368,7 +333,7 @@ def showGradebookEntriesCalendar(request):
                       "Gradebook Entries Calendar")
 
 def standardShowAction(request, classname, form_class, title_suffix,
-        template = "generic", page_path_action = "Pop", 
+        template = "generic", 
         extra_params = None, full_title = "",
         help_page = "DefaultHelp", use_template_name = False,
         perform_mapping = False):
@@ -396,7 +361,6 @@ def standardShowAction(request, classname, form_class, title_suffix,
         params, url_name = create_standard_params_dict(
             title_suffix=title_suffix, url_name=url_name,
             javascript_code= javascript_code, 
-            page_path_action=page_path_action,
             full_title=full_title,
             help_page=help_page
         )
@@ -405,7 +369,6 @@ def standardShowAction(request, classname, form_class, title_suffix,
             params.update(extra_params)
         form.modify_params(params)
         response = showForm(template=template, form=form,
-                    page_path_action=page_path_action, 
                     params=params)
         return set_cookies(response)
     except ProhibitedError, e:
@@ -414,7 +377,6 @@ def standardShowAction(request, classname, form_class, title_suffix,
 def specialShowAction(instance, requested_action, classname, 
                       form_class, title_suffix,
                        template = "generic", 
-                       page_path_action="Pop", 
                        extra_params = None,
                        help_page = "DefaultHelp",
                        use_template_name = False):
@@ -438,33 +400,32 @@ def specialShowAction(instance, requested_action, classname,
         if extra_params:
             params.update(extra_params)
         form.modify_params(params)
-        return showForm(template=template, form=form,
-                page_path_action="NoAction", params=params)
+        return showForm(template=template, form=form, params=params)
     except ProhibitedError, e:
         return e.response
 
     
 def showPerson(request):
     return standardShowAction(request, "person", PersonForm, "Person",
-                    "person", page_path_action = "Pop", 
+                    "person",
                     extra_params = {'show_title':True, 'show_gender':True,
                      'show_community':True, 'show_municipality':True}
                     )
 
 def showTeacher(request):
     return standardShowAction(request, "teacher", TeacherForm, "Teacher",
-                "teacher",  page_path_action = "Pop", 
+                "teacher",
                 extra_params = {'show_title':True, 'show_gender':True,
                  'show_community':True, 'show_municipality':True},
                 help_page = "TeacherHelp")
 
 def showMyChoices(request):
-    return standardShowAction(request, "teacher", MyChoicesForm, "My Choices",
-                              "my_choices", page_path_action = "Pop")
+    return standardShowAction(request, "my_choices", MyChoicesForm, "My Choices",
+                              "my_choices")
 
 def showStudent(request):
     return standardShowAction(request, "student", StudentForm, "Student",
-                "student",  help_page = "StudentHelp", page_path_action = "Pop",
+                "student",  help_page = "StudentHelp", 
                 extra_params = {'show_title':False, 'show_gender':True,
                                 'show_community':True,'show_municipality':True})
 
@@ -474,22 +435,22 @@ def showParentOrGuardian(request):
     """
     return standardShowAction(request, "parent_or_guardian",
                               ParentOrGuardianForm, 
-            "Parent or Guardian","parent_or_guardian", "NoAction", 
-            {'show_title':True, 'show_gender':True,
+            "Parent or Guardian","parent_or_guardian", 
+            extra_params = {'show_title':True, 'show_gender':True,
              'show_community':True,'show_municipality':True,
              "fixed_return_url":"/static_pages/close_window.html"})  
 
 def showAdministrator(request):
     return standardShowAction(request, "administrator", AdministratorForm, 
-                "Administrator","administrator", "Pop", 
-                {'show_title':True, 'show_gender':False,
+                "Administrator","administrator",
+                extra_params = {'show_title':True, 'show_gender':False,
                  'show_community':False})  
 
 def showGradingEvent(request):
     return standardShowAction(request, "grading_event",
                               GradingInstanceForm, 
-            "Gradebook Entry","grading_instance", "FixedUrl",
-            {"fixed_return_url":"/static_pages/close_window.html"})  
+            "Gradebook Entry","grading_instance",
+            extra_params = {"fixed_return_url":"/static_pages/close_window.html"})  
 
 def showAchievementTest(request):
     return standardShowAction(request, "achievement_test", 
@@ -525,8 +486,8 @@ def showDivision(request):
 
 def showContact(request):
     return standardShowAction(request, "contact", ContactForm,
-                    "Contact", "contact", "NoAction",
-            {"fixed_return_url":"/static_pages/close_window.html"})
+                    "Contact", "contact", 
+            extra_params = {"fixed_return_url":"/static_pages/close_window.html"})
 
 def showStudentEmergency(request):
     return showStatic(request, "underconstruction", 
@@ -560,6 +521,13 @@ def showAchievementTestGrades(request):
     return standardShowAction(request, "achievement_test_school_info",
                     AchievementTestGradesForm, "Achievement Test Grades",
                     "achievement_test_grades", use_template_name=True)
+
+def showSectionAchievementTestGrades(request):
+    return standardShowAction(request, "achievement_test_school_info",
+                    SectionAchievementTestGradesForm, 
+                    "Achievement Test Grades",
+                    "section_achievement_test_grades", 
+                    use_template_name=True)
 
 def showGradingPeriodResults(request):
     return standardShowAction(request, "grading_period_results",
@@ -664,17 +632,17 @@ def showAssignStudents(request):
     if (class_session and (not class_session.students_assigned_by_section)):
         return standardShowAction(request, "assign_students",
                                   AssignStudentsForm, "Assign Students",
-                                  "assign_students", "Push")
+                                  "assign_students")
     else:
         #if there is no class session this form will display an error
         #message so it is always safe to call
         return standardShowAction(request, "assign_students",
                               AssignSectionStudentsForm, "Assign Students",
-                              "assign_section_students","Push")
+                              "assign_section_students")
 
 def showMyWork(request):
     return standardShowAction(request, "my_work",  MyWorkForm,
-                              "My Work", "my_work", "Push", 
+                              "My Work", "my_work",  
                               full_title = "My Work Page",
                               help_page = "MyWorkHelp")
 
@@ -696,7 +664,7 @@ def showChoose(request):
                       get_active_pages_from_cookies()
         if (choose_type == "section_students"):
             #Only the section head can edit but all can view
-            section = SchoolDB.models.get_instance_from_key_string(
+            section = SchoolDB.utility_functions.get_instance_from_key_string(
                 getprocessed().values.get("users_section", None), 
                 SchoolDB.models.Section)
             if (not section):
@@ -713,7 +681,7 @@ def showChoose(request):
             chosen_object_class = "student"
             choose_object_class = "section"
         elif (choose_type == "class_session_students"):
-            class_session = SchoolDB.models.get_instance_from_key_string(
+            class_session = SchoolDB.utility_functions.get_instance_from_key_string(
                 getprocessed().selection_key, SchoolDB.models.ClassSession)
             if (not class_session):
                 class_session = cookie_class_session
@@ -726,7 +694,7 @@ def showChoose(request):
             chosen_object_class = "student"
             choose_object_class = "class_session"
         elif (choose_type == "section_classes"):
-            section = SchoolDB.models.get_instance_from_key_string(
+            section = SchoolDB.utility_functions.get_instance_from_key_string(
                 getprocessed().values.get("users_section", None), 
                 SchoolDB.models.Section)
             if (not section):
@@ -749,12 +717,12 @@ def showChoose(request):
         javascript_code = javascript_generator.get_final_code()
         params, url_name = create_standard_params_dict(title_suffix=form_title, 
             url_name=request.path, javascript_code=javascript_code,
-            page_path_action = "Push", breadcrumb_title=breadcrumb_title,
+            breadcrumb_title=breadcrumb_title,
             submit_action ='/' + chosen_object_class)
         form.modify_params(params)
     except ProhibitedError, e:
         return e.response
-    return showForm("choose.html", form, "my_work", params)
+    return showForm("choose.html", form, params)
 
 def showReports(request):
     """
@@ -858,11 +826,16 @@ def showAttendance(request):
                            "requested_action":"Save",
                            "redirect_page":"index"}
             attendance_form = AttendanceForm(data=data_values or None)
+            breadcrumb_text, request_url, page_prior_url = \
+                generate_breadcrumb_and_cookie("attendance")
             params = {'form':attendance_form, 'url_name':'attendance',
                 'title_name':'Attendance', 'school_name':
                 SchoolDB.models.getActiveDatabaseUser().get_active_organization_name(), 
                 'section':section_name,
-                "username":SchoolDB.models.getActiveDatabaseUser().get_active_user_name()}
+                "username":SchoolDB.models.getActiveDatabaseUser().get_active_user_name(),
+                "breadcrumbs":breadcrumb_text,
+                "page_prior_url":page_prior_url,
+                "help_page":"DefaultHelp"}
             return respond("attendance.html", params)
         else:
             return respond("")
@@ -899,7 +872,8 @@ def showHistory(request):
             title_suffix = getprocessed().values.get("display_name", 
                                                "Unknown Field") + \
                              " History: " + unicode(parent_object)
-        params = create_standard_params_dict(title_suffix, "")
+        params, url_name = create_standard_params_dict(title_suffix=title_suffix,
+                                url_name="history", help_page="HistoryHelp")
         params["title_prefix"] = ""
         params["title_bridge"] = ""
         params["requested_action"] = "View"
@@ -1026,12 +1000,11 @@ def showSelectDialog(request):
             submit_action = return_url, 
             breadcrumb_title ="Select",
             full_title = full_title,
-            help_page = "SelectHelp",
-            page_path_action="Push")
+            help_page = "SelectHelp")
         params["template_requested_action"] = template_requested_action
     except ProhibitedError, e:
         return e.response
-    return showForm(select_template, form, "index", params)
+    return showForm(select_template, form, params)
 
 #----------------------------------------------------------------------
 def showDataBrowser(request):
@@ -1079,12 +1052,11 @@ def showDataBrowser(request):
         params, url_name = create_standard_params_dict(title_suffix=title, 
             url_name="/custom_report/" + select_class_name,
             javascript_code=javascript_code, submit_action=return_url, 
-            breadcrumb_title = "Custom Report", page_path_action="Push")
+            breadcrumb_title = "Custom Report")
         params["template_requested_action"] = template_requested_action
     except ProhibitedError, e:
         return e.response
-    return showForm(select_template, form,
-                    "index", params)
+    return showForm(select_template, form, params)
 
 def createBrowserFieldsTables(browsed_class_name):
     """
@@ -1150,7 +1122,7 @@ def runTask(request):
             function = task_dict["function"]
             if task_dict.has_key("organization"):
                 org_keystring = task_dict["organization"]
-                org = SchoolDB.models.get_instance_from_key_string(
+                org = SchoolDB.utility_functions.get_instance_from_key_string(
                     org_keystring, SchoolDB.models.Organization)
                 SchoolDB.models.setActiveOrganization(org)
             instance_keys = task_dict.get("target_instances", None)
@@ -1161,10 +1133,11 @@ def runTask(request):
                          %(task_name, function))
             try:
                 if (instance_keys):
+                    logging.info(str(instance_keys))
                     completely_successful = True
                     for target_key in instance_keys:
                         target_instance = \
-                            get_instance_from_key_string(target_key)
+                            SchoolDB.utility_functions.get_instance_from_key_string(target_key)
                         if target_instance:
                             #confirm that the instance really exists before
                             #acting on it
@@ -1200,17 +1173,21 @@ def runTask(request):
         else:
             #no function defined -- nothing to do
             logging.error("Task '%s' had no function." %task_name)
+            successful = True
+        logging.info(">>Result: " + str(successful))
     except StandardError, e:
         logging.error("Failed to complete task '%s': %s" %(task_name,e))
     if ((not rerun_if_failed) and (not successful)):
         logging.error("Task '%s' failed but should not be rerun", task_name)
-    if (successful or not (rerun_if_failed)):
+    logging.info(">>>After rerun Successful: %s  Rerun: %s" %(successful, rerun_if_failed))
+    if (successful or (not rerun_if_failed)):
         #if should not be rerun if it failed then always return success
         result = 200
     else:
         result = 500
     response = http.HttpResponse()
     response.status_code = result
+    logging.info("> Response after: %d" %result)
     return response
     
 #----------------------------------------------------------------------
@@ -1226,8 +1203,7 @@ def runUtil(request):
             function = getprocessed().values["util"]
         else:
             params_dict, url_name = create_standard_params_dict(
-                "Request Utility","utilrequest", 
-                page_path_action="Push")
+                title_suffix="Request Utility", url_name = "utilrequest")
             params_dict.update({"value_right_btn":"Run", 
                         "title_right_btn":"Click to run the function"})
             return shortcuts.render_to_response("utilrequest.html", 
@@ -1245,7 +1221,7 @@ def runUtil(request):
             logger.add_line("Failed to run command: %s" %e)
         params, url_name = create_standard_params_dict(
             title_suffix="Utility Response", 
-            url_name="utilresponse", page_path_action="Pop")
+            url_name="utilresponse")
         params["command"] = command
         logger.add_line("-------------------------------------------------")
         logger.add_line(">>>Util response complete<<<")
@@ -1299,8 +1275,7 @@ def buildForm(class_form):
 
 #----------------------------------------------------------------------
 
-def showForm(template, form, page_path_action, params, 
-             reload_form_type = None):
+def showForm(template, form, params, reload_form_type = None):
     """
     Create or edit a model instance. 
     """
@@ -1523,12 +1498,14 @@ class PersonForm(BaseStudentDBForm):
         muni = javascript_generator.add_autocomplete_field(
             class_name = "municipality", 
             field_name = "id_municipality_name",
-            key_field_name = "id_municipality")
+            key_field_name = "id_municipality",
+            max_choices=30, delay=700)
         
         bgy = javascript_generator.add_autocomplete_field(
             class_name = "community", 
             field_name = "id_community_name",
-            key_field_name = "id_community")
+            key_field_name = "id_community",
+            max_choices=30, delay=800, gate_function="checkMunicipalitySet()")
         bgy.add_dependency(muni, True)
         return javascript_generator
     
@@ -1581,7 +1558,7 @@ class TeacherForm(PersonForm):
                     key_field_name="id_secondary_subject")
         sec_subject.add_extra_params({"use_class_query":"!true!"})
         pygd = javascript_generator.add_autocomplete_field(
-            class_name = "paygrade", field_name = "id_paygrade")
+            class_name = "paygrade", field_name = "id_paygrade", delay=10)
         pygd.set_local_choices_list(SchoolDB.choices.TeacherPaygrade)
         return javascript_generator
 
@@ -1606,67 +1583,38 @@ class TeacherForm(PersonForm):
 
 class MyChoicesForm(BaseStudentDBForm):
     """
-    An extension of the teacher form to add new fields for choice of 
-    classes and sections to show on My Work Page. Both sets of choices are
+    A form to add choices of classes and sections to show on My Work Page. 
+    Both sets of choices are
     kept in a single list in the DatabaseUser instance associated with
     the teacher
     """
     section_name = forms.CharField(required = False, label = "Section:",
             widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
     section = forms.CharField(required=False)
-    interested_sections = forms.CharField(required = False, 
+    section_choices_json_data = forms.CharField(required = False, 
                                               widget=forms.HiddenInput)  
     class_session_name = forms.CharField(required = False, 
             widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
     class_session = forms.CharField(required=False, 
                                widget=forms.HiddenInput)
-    interested_classes = forms.CharField(required = False, 
+    class_session_choices_json_data = forms.CharField(required = False, 
                                               widget=forms.HiddenInput)
+    element_names = []
     parent_form = BaseStudentDBForm
-    
-    def __init__(self, data):
-        try:
-            self.database_user = \
-                SchoolDB.models.get_instance_from_key_string(data["object_instance"])
-            self.sections_list = []
-            self.classes_list = []
-            if self.database_user:
-                self.get_my_lists()
-                self.teacher = self.database_user.person
-                if (not self.teacher):
-                    logging.warning("No teacher for " + \
-                                    unicode(self.database_user))
-            else:
-                logging.error("No database user for My Choices Form")
-        except Exception, e:
-            logging.error("Major exception: %s" %e)
-
-    def get_my_lists(self):
-        """
-        Get the lists of "my sections" and "my classes" from
-        teachers associated data record
-        """
-        self.sections_list = \
-            self.database_user.get_interesting_instances_class_list(
-                SchoolDB.models.Section)
-        self.classes_list = \
-            self.database_user.get_interesting_instances_class_list(
-                SchoolDB.models.ClassSession)
-        
+            
     def modify_params(self, params):
         params["title_prefix"] = ""
         params["title_bridge"] = ""
-        params["submit_action"] = "my_work"
-        
+    
     def generate_javascript_code(self, javascript_generator):
         active_user_key = \
-                str(SchoolDB.models.getActiveDatabaseUser().get_active_user().key())
+            str(SchoolDB.models.getActiveDatabaseUser().get_active_user().key())
         active_person_key = \
-                str(SchoolDB.models.getActiveDatabaseUser().get_active_person().key())
+            str(SchoolDB.models.getActiveDatabaseUser().get_active_person().key())
         sect = javascript_generator.add_autocomplete_field(
-            class_name = "section")
+            class_name = "section", delay=500)
         cls = javascript_generator.add_autocomplete_field(
-            class_name = "class_session")
+            class_name = "class_session", delay=1000)
         cls.add_extra_params({"extra_fields": "teacher|class_period"})
         javascript_generator.add_javascript_params ({
             "database_user":active_user_key, "teacher":active_person_key})
@@ -1712,13 +1660,14 @@ class AdministratorForm(PersonForm):
         return SchoolDB.models.Administrator(
             first_name = self.cleaned_data["first_name"],
             last_name = self.cleaned_data["last_name"],
-            organization = SchoolDB.models.get_key_from_string(
+            organization = SchoolDB.utility_functions.get_key_from_string(
             self.cleaned_data["organization"]))
 
     
     def generate_javascript_code(self, javascript_generator):
         org = javascript_generator.add_autocomplete_field(
-            class_name = "organization")
+            class_name = "organization", delay=700)
+        org.add_extra_params({"filter-deped_org":"true"})
     
     @staticmethod
     def generate_select_javascript_code(javascript_generator,
@@ -1979,19 +1928,20 @@ class StudentForm(PersonForm):
     @staticmethod
     def generate_class_javascript_code(javascript_generator):
         stat = javascript_generator.add_autocomplete_field(
-            class_name = "student_status")
+            class_name = "student_status", delay=300)
         stat.add_extra_params({"use_class_query":"!true!"})
         clsyr = javascript_generator.add_autocomplete_field(
-            class_name = "class_year", field_name = "id_class_year")
+            class_name = "class_year", field_name = "id_class_year", 
+            delay=10)
         clsyr.set_local_choices_list(SchoolDB.choices.ClassYearNames)
         sect = javascript_generator.add_autocomplete_field(
-            class_name = "section")
+            class_name = "section", delay=300)
         sect.add_dependency(clsyr, False)
         major = javascript_generator.add_autocomplete_field(
-            class_name = "student_major")
+            class_name = "student_major", delay=300)
         major.add_extra_params({"use_class_query":"!true!"})
         sd = javascript_generator.add_autocomplete_field(
-            class_name = "special_designation")
+            class_name = "special_designation",delay=300)
         sd.add_extra_params({"use_class_query":"!true!"})
         brthprov = javascript_generator.add_autocomplete_field(
             class_name = "province", 
@@ -2000,12 +1950,12 @@ class StudentForm(PersonForm):
         brthmuni = javascript_generator.add_autocomplete_field(
             class_name = "municipality", 
             field_name = "id_birth_municipality_name",
-            key_field_name = "id_birth_municipality")
+            key_field_name = "id_birth_municipality", delay=800)
         brthmuni.add_dependency(brthprov, True)
         brthcom = javascript_generator.add_autocomplete_field(
             class_name = "community", 
             field_name = "id_birth_community_name",
-            key_field_name = "id_birth_community")
+            key_field_name = "id_birth_community", delay=1000)
         brthcom.add_dependency(brthmuni, True)
         return (stat, clsyr, sect, major, sd, brthcom, brthmuni, brthprov)
 
@@ -2018,12 +1968,12 @@ class StudentForm(PersonForm):
     def generate_select_javascript_code(javascript_generator, 
                                         select_field):
         
-        query = SchoolDB.models.StudentStatus.all()
+        query = SchoolDB.models.StudentStatus.all(keys_only=True)
         query.filter("default_choice =", True)
-        default_status = query.get()
-        if (default_status):
-            student_status_value = str(default_status.key())
-            student_status_name_value = unicode(default_status)
+        default_status_key = query.get()
+        if (default_status_key):
+            student_status_value = str(default_status_key)
+            student_status_name_value = unicode(db.get(default_status_key))
         else:
             student_status_value = ""
             student_status_name_value = ""
@@ -2052,12 +2002,12 @@ class StudentForm(PersonForm):
     def initialize_form_params(select_form):
         status_field = select_form.select_class.base_fields["student_status"]
         status_name_field = select_form.select_class.base_fields["student_status_name"]
-        query = SchoolDB.models.StudentStatus.all()
+        query = SchoolDB.models.StudentStatus.all(keys_only=True)
         query.filter("name =", "Enrolled")
-        default_status = query.get()
-        if (default_status):
-            status_field.initial = str(default_status.key())
-            status_name_field.initial = unicode(default_status)
+        default_status_key = query.get()
+        if (default_status_key):
+            status_field.initial = str(default_status_key)
+            status_name_field.initial = unicode(db.get(default_status_key))
 #----------------------------------------------------------------------
 
 class StudentGroupingForm(BaseStudentDBForm):
@@ -2165,11 +2115,12 @@ class SectionForm(StudentGroupingForm):
     @staticmethod
     def generate_class_javascript_code(javascript_generator):       
         clsyr = javascript_generator.add_autocomplete_field(
-            class_name = "class_year", field_name = "id_class_year")
+            class_name = "class_year", field_name = "id_class_year",
+            delay=10)
         clsyr.set_local_choices_list(SchoolDB.choices.ClassYearNames)
         clsrm = javascript_generator.add_autocomplete_field("classroom")
         sect_type = javascript_generator.add_autocomplete_field(
-            class_name = "section_type")
+            class_name = "section_type", delay=100)
         sect_type.add_extra_params({"use_class_query":"!true!"})
         return (clsyr, clsrm, sect_type)
 
@@ -2243,7 +2194,7 @@ class OrganizationForm(BaseStudentDBForm):
         """
         if (instance):
             try:
-                contacts_list, contacts_string, key_list = \
+                contacts_list, contacts_string, key_list, message_text = \
                              SchoolDB.models.Organization.get_contacts_list(
                                  instance, ["person","telephone"])
                 if (len(contacts_list) > 0):
@@ -2385,7 +2336,7 @@ class MunicipalityForm(OrganizationForm):
         prov = javascript_generator.add_autocomplete_field(
             class_name = "province")
         div = javascript_generator.add_autocomplete_field(
-            class_name = "division")
+            class_name = "division", delay=300)
         div.add_dependency(prov, True)
 
     @staticmethod
@@ -2471,7 +2422,7 @@ class CommunityForm(OrganizationForm):
         muni = data.get("municipality",None)
         if (muni):
             try:
-                munikey = SchoolDB.models.get_key_from_string(muni)
+                munikey = SchoolDB.utility_functions.get_key_from_string(muni)
                 province = SchoolDB.models.Municipality.get(munikey).province
                 data["province"] = str(province.key())
             except:
@@ -2504,7 +2455,7 @@ class ProvinceForm(OrganizationForm):
 
     def generate_javascript_code(self, javascript_generator):
         reg = javascript_generator.add_autocomplete_field(
-            class_name = "region")
+            class_name = "region", delay=200)
 
 #----------------------------------------------------------------------   
 
@@ -2531,7 +2482,7 @@ class ContactForm(BaseStudentDBForm):
     parent_form = BaseStudentDBForm
 
     def create_new_instance(self):
-        organization_key =  SchoolDB.models.get_key_from_string( 
+        organization_key =  SchoolDB.utility_functions.get_key_from_string( 
             self.cleaned_data["parent_key"])
         return  SchoolDB.models.Contact.create(name = self.cleaned_data["name"],
                                organization = organization_key)
@@ -2633,7 +2584,7 @@ class SchoolDayForm(MultiLevelDefinedForm):
             'id_school_year_name', key_field_name = 'id_school_year')
         daytype = javascript_generator.add_autocomplete_field(
             class_name = "day_type", field_name = 
-            'id_day_type')
+            'id_day_type', delay=10)
         daytype.set_local_choices_list(SchoolDB.choices.SchoolDayType)
 
     @staticmethod
@@ -2949,7 +2900,7 @@ class ClassSessionForm(StudentGroupingForm):
             year_string = str(year.key())
             data["school_year"] = year_string
             data["school_year_name"] = unicode(year)
-        year = SchoolDB.models.get_instance_from_key_string(year_string)
+        year = SchoolDB.utility_functions.get_instance_from_key_string(year_string)
         if (not data.get("start_date", None) and year):
             data["start_date"] = year.start_date
         if (not data.get("end_date", None)  and year):
@@ -2981,16 +2932,18 @@ class ClassSessionForm(StudentGroupingForm):
 
     @staticmethod
     def generate_class_javascript_code(javascript_generator):
-        subject = javascript_generator.add_autocomplete_field("subject")
+        subject = javascript_generator.add_autocomplete_field("subject",
+                                                              delay=300)
         subject.add_extra_params({"use_class_query":"!true!"})
         studentmjr = javascript_generator.add_autocomplete_field(
-            "student_major")
+            "student_major", delay=300)
         studentmjr.add_extra_params({"use_class_query":"!true!"})
         level = javascript_generator.add_autocomplete_field(
-            class_name = "level", field_name = "id_level")
+            class_name = "level", field_name = "id_level", delay=10)
         level.set_local_choices_list(SchoolDB.choices.ClassLevel)
         clsyr = javascript_generator.add_autocomplete_field(
-            class_name = "class_year", field_name = "id_class_year")
+            class_name = "class_year", field_name = "id_class_year",
+            delay=10)
         clsyr.set_local_choices_list(SchoolDB.choices.ClassYearNames)
         sect = javascript_generator.add_autocomplete_field(
             class_name = "section", field_name = "id_section_name",
@@ -3003,8 +2956,7 @@ class ClassSessionForm(StudentGroupingForm):
         tchr = javascript_generator.add_autocomplete_field(
             class_name = "teacher")
         schlyr = javascript_generator.add_autocomplete_field(
-            class_name = "school_year")
-        schlyr.add_extra_params({"ignore_organization":"!true!"})
+            class_name = "school_year", extra_params={"ignore_organization":"!true!"})
         return subject,studentmjr,clsyr,sect,prd,clsrm,tchr,schlyr
 
     def generate_javascript_code(self, javascript_generator):
@@ -3221,7 +3173,7 @@ class AssignStudentsForm(BaseStudentDBForm):
             javascript_generator.add_javascript_params ({
                 "class_session_key":str(self.class_session.key()),
                 "student_major_key":
-                str(SchoolDB.models.get_key_from_instance(
+                str(SchoolDB.utility_functions.get_key_from_instance(
                     self.class_session.student_major)),
                 "class_year":self.class_session.class_year
                 })
@@ -3250,7 +3202,7 @@ class AssignStudentsForm(BaseStudentDBForm):
         assigned_students_list = []
         assigned_students_text = self.cleaned_data["assigned_students"]
         #Get the instance again to assure that it is the correct class
-        class_session_instance = SchoolDB.models.get_instance_from_key_string(
+        class_session_instance = SchoolDB.utility_functions.get_instance_from_key_string(
             self.cleaned_data["object_instance"], 
             SchoolDB.models.ClassSession)
         assigned_students_list = []
@@ -3330,7 +3282,7 @@ class AssignSectionStudentsForm(BaseStudentDBForm):
         section_students_list = []
         section_students_text = self.cleaned_data["section_students"]
         #Get the instance again to assure that it is the correct class
-        class_session_instance = SchoolDB.models.get_instance_from_key_string(
+        class_session_instance = SchoolDB.utility_functions.get_instance_from_key_string(
             self.cleaned_data["class_session"], SchoolDB.models.ClassSession)
         section_students_list = []
         if (section_students_text):
@@ -3699,20 +3651,67 @@ class GradesForm(GradeWorkForm):
                 javascript_generator, select_field, title)
 
 #---------------------------------------------------------------------- 
+class SectionAchievementTestGradesForm(BaseStudentDBForm):
+    """
+    This form is used to set or view grades for all subjects on an 
+    achievement test by section.
+    """
+    achievement_test_name = forms.CharField(required=False, 
+                label="Achievement Test:",
+                widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
+    achievement_test = forms.CharField(required=False,
+                              widget=forms.HiddenInput, initial = "")   
+    section = forms.CharField(required=False,
+                              widget=forms.HiddenInput, initial = "")   
+    parent_form = BaseStudentDBForm
+
+    def modify_params(self, param_dict):
+        param_dict["id_right_btn"] = "save_grades_btn"
+        active_section_key = \
+            DatabaseUser.get_single_value(None, "active_section")
+        section_name = unicode(Section.get(active_section_key))
+        param_dict["form_title"] = \
+            "Set Achievement Test Grades for Section " + section_name
+        param_dict["section_name"] = section_name
+        
+    def generate_javascript_code(self, javascript_generator):
+        active_section_key = \
+            DatabaseUser.get_single_value(None, "active_section")        
+        achtest = javascript_generator.add_autocomplete_field(
+            class_name = "achievement_test", 
+            field_name = "id_achievement_test_name",
+            key_field_name = "id_achievement_test",
+            ajax_root_path = "/ajax/get_achievement_tests_for_section",
+            extra_params = {'filterkey-section': str(active_section_key)})
+        
+    @staticmethod
+    def process_request(data):
+        try:
+            active_section_key = \
+                DatabaseUser.get_single_value(None, "active_section")
+            data["section"] = str(active_section_key)
+            if active_section_key:
+                data["section_name"] = unicode(Section.get(active_section_key))
+            else:
+                data["section_name"] = ""
+        except:
+            pass
+                            
+#---------------------------------------------------------------------- 
 class AchievementTestGradesForm(BaseStudentDBForm):
     """
     This form is used to set or view grades for all subjects on an 
     achievement test by section.
     """
-    class_year = forms.CharField(required=True, label="Year Level",
+    class_year = forms.CharField(required=True, label="Year Level:",
                                  widget=forms.TextInput(attrs={
                                      'class':'autofill required entry-field'}))
-    section_name = forms.CharField(required=False, label="Section",
+    section_name = forms.CharField(required=False, label="Section:",
                 widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
     section = forms.CharField(required=False,
                               widget=forms.HiddenInput, initial = "")
     achievement_test_name = forms.CharField(required=False, 
-                label="Achievement Test",
+                label="Achievement Test:",
                 widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
     achievement_test = forms.CharField(required=False,
                               widget=forms.HiddenInput, initial = "")   
@@ -3720,10 +3719,13 @@ class AchievementTestGradesForm(BaseStudentDBForm):
 
     def modify_params(self, param_dict):
         param_dict["id_right_btn"] = "save_grades_btn"
- 
+        param_dict["form_title"] = \
+            "Set Achievement Test Grades"
+        
     def generate_javascript_code(self, javascript_generator):
         clsyr = javascript_generator.add_autocomplete_field(
-            class_name = "class_year", field_name = "id_class_year")
+            class_name = "class_year", field_name = "id_class_year",
+            delay=10)
         clsyr.set_local_choices_list(SchoolDB.choices.ClassYearNames)
         sect = javascript_generator.add_autocomplete_field(
             class_name = "section", field_name = "id_section_name",
@@ -3736,25 +3738,6 @@ class AchievementTestGradesForm(BaseStudentDBForm):
             ajax_root_path = "/ajax/get_achievement_tests_for_section")
         achtest.add_dependency(sect, True)
         
-        
-    #@staticmethod
-    #def initialize(data):
-        #"""
-        #Initialize the class year and section to the users section.
-        #Note: This should be done only when coming from the teacher's       
-        #My Work page.
-        #"""
-        #if (getprocessed()):
-            #if (getprocessed().return_page == "my_work"):
-                #section_keystr = getprocessed().cookies["aS"]
-                #if section_keystr:
-                    #section = SchoolDB.models.get_instance_from_key_string(section_keystr, 
-                                                    #SchoolDB.models.Section)
-                    #if section:
-                        #data["section"] = section_keystr
-                        #data["section_name"] = unicode(section)
-                        #data["class_year"] = section.class_year
-
     @staticmethod
     def process_request(data):
         try:
@@ -3891,6 +3874,8 @@ class AttendanceForm(BaseStudentDBForm):
             errors = form.errors
             if not errors:
                 redirect_page = form.cleaned_data["redirect_page"]
+                if (redirect_page != "/my_work"):
+                    redirect_page = "index"
         except ValueError, err:
             errors['__all__'] = unicode(err)
         return http.HttpResponseRedirect(redirect_page)
@@ -4005,8 +3990,8 @@ class MasterDatabaseUserForm(BaseStudentDBForm):
     parent_form = BaseStudentDBForm
 
     def create_new_instance(self):
-        org_key = SchoolDB.models.get_key_from_string(self.cleaned_data["organization"])
-        user_type_key = SchoolDB.models.get_key_from_string(self.cleaned_data["user_type"])
+        org_key = SchoolDB.utility_functions.get_key_from_string(self.cleaned_data["organization"])
+        user_type_key = SchoolDB.utility_functions.get_key_from_string(self.cleaned_data["user_type"])
         return SchoolDB.models.DatabaseUser(
             first_name = self.cleaned_data["first_name"],
             last_name = self.cleaned_data["last_name"],
@@ -4019,12 +4004,14 @@ class MasterDatabaseUserForm(BaseStudentDBForm):
         usr_type = javascript_generator.add_autocomplete_field(
             class_name = "user_type")
         org = javascript_generator.add_autocomplete_field(
-            class_name = "organization")
+            class_name = "organization", 
+            extra_params = {"filter-deped_org":"!true!"})
         per = javascript_generator.add_autocomplete_field(
-            class_name = "teacher", field_name = "id_person_name",
-            key_field_name = "id_person")
-        per.add_extra_params({"ignore_organization":"!true!"})
+           class_name = "database_user", field_name = "last_name",
+           key_field_name = "id_last_name", 
+           extra_params = {"ignore_organization":"True"})
         per.add_dependency(org, True)
+        per.add_dependency(usr_type, True)
         return org,per,usr_type
     
     def generate_javascript_code(self, javascript_generator):
@@ -4049,14 +4036,12 @@ class MasterDatabaseUserForm(BaseStudentDBForm):
         org, per, usr_type = \
            MasterDatabaseUserForm.generate_class_javascript_code(
             javascript_generator)
-        select_field.add_dependency(org, True)
-        select_field.add_dependency(usr_type, True)
-        select_field.add_extra_params({
-            "filter_school":"false",
-            "ignore_organization":"!true!",
+        select_field.add_extra_params({"filter_school":"false",
             "extra_fields":"first_name|middle_name|organization|email|user_type",
             "format": "last_name_only",
-            "leading_value_field":"last_name"})
+            "leading_value_field":"last_name", "ignore_organization":"!true!"})
+        select_field.add_dependency(org)
+        select_field.add_dependency(usr_type)
 
     @staticmethod
     def initialize(data):
@@ -4129,7 +4114,7 @@ class StandardDatabaseUserForm(BaseStudentDBForm):
         from implied information derived from the person of the user.
         """
         current_user = getActiveDatabaseUser().get_active_user()      
-        person = get_instance_from_key_string(
+        person = SchoolDB.utility_functions.get_instance_from_key_string(
             self.cleaned_data.get("person",None),Person)
         email = self.cleaned_data.get("email", None)
         if (person and email):
@@ -4154,9 +4139,10 @@ class StandardDatabaseUserForm(BaseStudentDBForm):
             else:
                 database_user = edited_user
         else:
-            query = DatabaseUser.all()
+            query = DatabaseUser.all(keys_only=True)
             query.filter("person =", person)
-            database_user = query.get()
+            key = query.get()
+            database_user = db.get(key)
             if (not database_user):
                 database_user = DatabaseUser(organization=organization,
                                              email=email)
@@ -4210,7 +4196,6 @@ class SelectForm(BaseStudentDBForm):
             self.requested_action = "View"
         self.return_url = "/" + select_class_name
         self.submit_action = submit_action
-        self.page_path_action = "Push"
         #self.breadcrumbs, self.return_url, page_prior_url = \
             #generate_breadcrumb_line(self.return_url)
         self.select_class.initialize_form_params(self)
@@ -4256,11 +4241,12 @@ class SelectForm(BaseStudentDBForm):
         select_field = javascript_generator.add_autocomplete_field(
             class_name = self.select_class_name, 
             field_name = "id_selection",
-            response_command = "createWidgetTable(ajaxResponse);")
+            response_command = "createWidgetTable(ajaxResponse);",
+            delay=1000)
         select_field.ajax_root_path = "/ajax/select_table"
         select_field.add_extra_params({"filter_school":"true",
                                        "leading_value_field":"name",
-                                       "maximum_count":150})
+                                       "maximum_count":100})
         self.select_class.generate_select_javascript_code(
             javascript_generator, select_field)
         #now generate the title if necessary because we have the correct
@@ -4342,7 +4328,7 @@ class MyWorkForm(BaseStudentDBForm):
         self.user_is_class_session_teacher = False
         session = None
         if (self.users_section):
-            section = SchoolDB.models.get_instance_from_key_string(
+            section = SchoolDB.utility_functions.get_instance_from_key_string(
                 self.users_section, SchoolDB.models.StudentGrouping)
             if section :
                 self.users_section_name = unicode(section)
@@ -4350,7 +4336,7 @@ class MyWorkForm(BaseStudentDBForm):
                     self.user_is_section_advisor = \
                         (section.teacher.key()== self.person.key())
             if (self.users_class_session):
-                session = SchoolDB.models.get_instance_from_key_string(
+                session = SchoolDB.utility_functions.get_instance_from_key_string(
                     self.users_class_session, 
                     SchoolDB.models.StudentGrouping)
             if session:
@@ -4362,8 +4348,8 @@ class MyWorkForm(BaseStudentDBForm):
     def build_choice_list(self, choices_class):
         """
         Create a choice list for the form that will be shown in a
-        autofill field. The key has a special use here. THe keystring
-        is prefixed by a '=' or '-' to indicate if the user is the
+        autofill field. The key has a special use here. The keystring
+        is prefixed by a '+' or '-' to indicate if the user is the
         teacher for the section or class. This must be stripped in the
         javascript on the webpage before sending as a key to the
         database.
@@ -4399,7 +4385,7 @@ class MyWorkForm(BaseStudentDBForm):
         sect = javascript_generator.add_autocomplete_field(
             class_name = "section", field_name = "id_users_section_name",
             key_field_name = "id_users_section",
-            custom_handler = sect_handler)
+            custom_handler = sect_handler, delay=50)
         sect.set_local_choices_list(self.build_choice_list(SchoolDB.models.Section))
         cls_handler = """
         select: function(event, data) {
@@ -4408,7 +4394,8 @@ class MyWorkForm(BaseStudentDBForm):
             class_name = "class_session",
             field_name = "id_users_class_session_name",
             key_field_name = "id_users_class_session",
-            custom_handler = cls_handler)
+            custom_handler = cls_handler,
+            delay=100)
         cls.set_local_choices_list(
             self.build_choice_list(SchoolDB.models.ClassSession))
         #Allow intial functionwithou a person associated with the database
@@ -4435,7 +4422,8 @@ class MyWorkForm(BaseStudentDBForm):
             })
         return javascript_generator
     
-    #def save(self):
+
+        #def save(self):
         #"""
         #Set the selected section and class session in the user data
         #"""
@@ -4447,6 +4435,19 @@ class MyWorkForm(BaseStudentDBForm):
             #self.cleaned_data["users_class_session_name"]}
         #self.dbuser.set_private_info_multiple_values(
             #saved_values)
+ 
+    def save(self):
+        """
+        Set the selected section and class session in the user data
+        """
+        saved_values = {"active_section": 
+                            self.cleaned_data["users_section"],
+            "active_section_name":self.cleaned_data["users_section_name"],
+            "active_class_session":self.cleaned_data["users_class_session"],
+            "active_class_session_name":
+            self.cleaned_data["users_class_session_name"]}
+        self.dbuser.set_private_info_multiple_values(
+            saved_values)
 
     @staticmethod
     def process_request(data):
@@ -4548,7 +4549,8 @@ class StudentAgeReportForm(BaseStudentDBForm):
         
     def generate_javascript_code(self, javascript_generator):
         clsyr = javascript_generator.add_autocomplete_field(
-                class_name = "class_year", field_name = "id_class_year")
+                class_name = "class_year", field_name = "id_class_year",
+                delay=10)
         clsyr.set_local_choices_list(SchoolDB.choices.ClassYearNames)
         sect = javascript_generator.add_autocomplete_field(
                 class_name = "section")
@@ -4596,14 +4598,15 @@ class SectionGradingPeriodGradesForm(BaseStudentDBForm):
         sect = javascript_generator.add_autocomplete_field(
             class_name = "section")
         gdprd = javascript_generator.add_autocomplete_field(
-            class_name = "grading_period")
-        gdprd.add_extra_params({"use_class_query":"!true!"})
+            class_name = "grading_period", 
+            ajax_root_path = "/ajax/select_via_function",
+            extra_params = {"function":"get_completed_grading_periods_selection_list"})
         return javascript_generator
     
     @staticmethod
     def process_request(data):
         try:
-            if (getprocessed().path_page_stack[-1] == "/my_work"):
+            if (getprocessed().get_path_stack()[1] == "/my_work"):
                 active_section_key = \
                     DatabaseUser.get_single_value(None, "active_section")
                 active_section = Section.get(active_section_key)
@@ -4653,7 +4656,7 @@ class Form1ReportForm(BaseStudentDBForm):
         
     def generate_javascript_code(self, javascript_generator):
         sect = javascript_generator.add_autocomplete_field(
-            class_name = "section")
+            class_name = "section", delay=400)
         return javascript_generator
 
 #----------------------------------------------------------------------  
@@ -4680,7 +4683,7 @@ class Form2ReportForm(BaseStudentDBForm):
         
     def generate_javascript_code(self, javascript_generator):
         sect = javascript_generator.add_autocomplete_field(
-            class_name = "section")
+            class_name = "section", delay=400)
         
 #----------------------------------------------------------------------  
 class Form14ReportForm(BaseStudentDBForm):
@@ -4718,12 +4721,13 @@ class Form14ReportForm(BaseStudentDBForm):
     def generate_javascript_code(self, javascript_generator):
         sect = javascript_generator.add_autocomplete_field(
             class_name = "section", field_name = "id_section_name",
-            key_field_name = "id_section")
+            key_field_name = "id_section", delay=400)
         achtest = javascript_generator.add_autocomplete_field(
             class_name = "achievement_test", 
             field_name = "id_achievement_test_name",
             key_field_name = "id_achievement_test",
-            ajax_root_path = "/ajax/get_achievement_tests_for_section")
+            ajax_root_path = "/ajax/get_achievement_tests_for_section",
+            delay=200)
         achtest.add_dependency(sect, True)
 
 #----------------------------------------------------------------------  
@@ -4759,7 +4763,7 @@ class AdminOnlyEncodingCheckForm(BaseStudentDBForm):
     def generate_javascript_code(self, javascript_generator):
         schl= javascript_generator.add_autocomplete_field(
             class_name = "school", field_name = "id_school_name",
-            key_field_name = "id_school")
+            key_field_name = "id_school", delay=200)
 
 #----------------------------------------------------------------------  
 class BaseSummaryForm(BaseStudentDBForm):
@@ -4839,7 +4843,7 @@ class AchievementTestSummaryForm(BaseSummaryForm):
 
     def generate_javascript_code(self, javascript_generator):
         achtest = javascript_generator.add_autocomplete_field(
-            class_name = "achievement_test")
+            class_name = "achievement_test", delay=200)
         field_choices_table = self.parent_form.generate_javascript_code(
             self, javascript_generator)
         field_choices_table.LoadData(
@@ -4847,7 +4851,8 @@ class AchievementTestSummaryForm(BaseSummaryForm):
         field_choices_descriptor = "(%s)" %field_choices_table.ToJSon()
         sub = javascript_generator.add_autocomplete_field(
             class_name = "subject",
-            ajax_root_path = "/ajax/get_subjects_for_achievement_test")
+            ajax_root_path = "/ajax/get_subjects_for_achievement_test",
+            delay=300)
         sub.add_dependency(achtest)
         javascript_generator.add_javascript_params({
             "field_choices_table":field_choices_descriptor,
@@ -5313,12 +5318,12 @@ def create_section_students_table(parameter_dict, primary_object,
     """
     special_field = parameter_dict.get("special_field","")
     class_session = parameter_dict.get("class_session","")
-    query = SchoolDB.models.Student.all()
+    query = SchoolDB.models.Student.all(keys_only=True)
     SchoolDB.models.active_student_filter(query)
     query.filter("section = ", primary_object)
     query.order("last_name")
     query.order("first_name")
-    students = query.fetch(200)
+    keys = query.fetch(200)
     selection_table = []
     selection_keys = []
     table_description = [('last_name', 'string', 'Family Name'),
@@ -5330,7 +5335,7 @@ def create_section_students_table(parameter_dict, primary_object,
     elif (special_field == "assignment_status"):
         table_description.append(
             ('record_complete', 'string', 'Assignment Status'))       
-    for student in students:
+    for student in db.get(keys):
         table_entry = [student.last_name, student.first_name, 
                 student.middle_name]
         if (special_field == "records_check"):
@@ -5390,13 +5395,15 @@ def create_section_classes_table(parameter_dict, primary_object,
     columns for the student name.
     The primary_object is the class session.
     """
-    query = SchoolDB.models.ClassSession.all()
+    query = SchoolDB.models.ClassSession.all(keys_only=True)
     query.filter("organization = " , 
                 SchoolDB.models.getActiveDatabaseUser().get_active_organization())
     query.filter("section = ", primary_object)
     query.filter("school_year =", SchoolDB.models.SchoolYear.school_year_for_date())
-    class_sessions = query.fetch(100)
-    ordered_class_sessions = SchoolDB.models.ClassSession.sort_by_time(class_sessions)
+    keys = query.fetch(100)
+    class_sessions = db.get(keys)
+    ordered_class_sessions = \
+        SchoolDB.models.ClassSession.sort_by_time(class_sessions)
     selection_table = []
     selection_keys = []
     for session  in ordered_class_sessions:
@@ -5421,13 +5428,14 @@ def create_students_eligible_for_class_table(parameter_dict, primary_object,
     """
     class_year = parameter_dict["class_year"]
     student_major = primary_object
-    students_query = SchoolDB.models.Student.all()
+    students_query = SchoolDB.models.Student.all(keys_only=True)
     students_query.filter("organization = " , 
             SchoolDB.models.getActiveDatabaseUser().get_active_organization())
     students_query.filter("class_year = ", class_year)
     students_query.filter("student_major = ", student_major)
     SchoolDB.models.active_student_filter(students_query)
-    all_legal_students = students_query.fetch(1000)
+    keys = students_query.fetch(1000)
+    all_legal_students = db.get(keys)
     if (parameter_dict.get("list_all_students", False)):
         eligible_students = all_legal_students
     else:
@@ -5502,12 +5510,12 @@ def get_active_pages_from_cookies():
         section_keystr = \
             getprocessed().cookies["aS"]
         if section_keystr:
-            section = SchoolDB.models.get_instance_from_key_string(
+            section = SchoolDB.utility_functions.get_instance_from_key_string(
                 section_keystr, SchoolDB.models.Section) 
         class_session_keystr = \
             getprocessed().cookies["aC"]
         if class_session_keystr:
-            class_session = SchoolDB.models.get_instance_from_key_string(
+            class_session = SchoolDB.utility_functions.get_instance_from_key_string(
                 class_session_keystr, SchoolDB.models.ClassSession)
     return section, class_session
 
@@ -5623,7 +5631,6 @@ class ProcessedRequest:
         self.prior_selection = None
         self.cookies = None
         self.return_page = ""
-        self.is_real_database = True
         self.save_request = False
         self.values = {}
         if request:
@@ -5637,13 +5644,13 @@ class ProcessedRequest:
                 self.values.get("selection_key", None))
             if (self.selection_key):
                 self.requested_instance = \
-                    SchoolDB.models.get_instance_from_key_string(self.selection_key)
+                    SchoolDB.utility_functions.get_instance_from_key_string(self.selection_key)
                 self.selection_key_valid = (self.requested_instance != None)
             self.current_instance_key = filter_keystring(
                 self.values.get("object_instance", None))
             if (self.current_instance_key):
                 self.current_instance = \
-                    SchoolDB.models.get_instance_from_key_string(self.current_instance_key)
+                    SchoolDB.utility_functions.get_instance_from_key_string(self.current_instance_key)
                 self.current_instance_valid = (self.current_instance != None)
             self.cookies = request.COOKIES
             if (self.cookies):
@@ -5655,10 +5662,7 @@ class ProcessedRequest:
                     SchoolDB.utility_functions.cleanup_django_escaped_characters(
                         rptext)
                 self.bc_page_stack = self.get_path_stack("bcSt")
-                #self.path_page_stack = self.get_path_stack("pgSt")
-                #logging.info("-----------next:'%s'" %self.return_page)
                 logging.info("-----------bc stack: '%s'" %self.bc_page_stack)
-                #logging.info("-----------path stack: '%s'" %self.path_page_stack)
             #filter for unkown or illegal values
             self.state = self.values.get("state","New")
             if (["New","Exists"].count(self.state) == 0):
@@ -5674,12 +5678,6 @@ class ProcessedRequest:
             #Not really an input value. Used to save changed cookies
             #for response
             self.response_cookies = {}
-            #request_url = request.environ["HTTP_HOST"]
-            #self.is_real_database = \
-                #(request_url.find("pi-schooldb.appspot") > -1)
-            self.is_real_database = \
-                (app_identity.get_application_id() == 
-                 "pi-schooldb.appspot")
             
     def get_path_stack(self, cookie_name = "bcSt"):
         text = self.cookies.get(cookie_name,"[]")[:200]
@@ -5713,6 +5711,9 @@ def initrequest(http_request):
     __http_request__ = http_request
     __processed_request__ = ProcessedRequest(http_request)
 
+def is_real_database():
+    return (app_identity.get_application_id() == 
+                 "pi-schooldb.appspot")
 #----------------------------------------------------------------------
 class BreadcrumbGenerator:
     """
@@ -5751,6 +5752,7 @@ class BreadcrumbGenerator:
             "schooladmin_maint":"Maintenance",
             "othertypes":"Maintenance",
             "my_work":"My Work",
+            "my_choices":"My Choices",
             "student":"Student",
             "section":"Section",
             "choose_report":"Choose a Report Type",
@@ -5759,7 +5761,6 @@ class BreadcrumbGenerator:
             "class_session_students":"Class Students",
             "section_classes":"Section Class Schedule",
             "student_emergency":"Student Emergency",
-            "othertypes":"Special Information",
             "teacher":"Teacher",
             "administrator":"Administrator",
             "class_session":"Class",
@@ -5780,7 +5781,7 @@ class BreadcrumbGenerator:
             "user_type":"User Type",
             "school_year":"School Year",
             "calendar":"School Calendar",
-            "schoolday":"School Day",
+            "school_day":"School Day",
             "school_day_type":"School Day Type",
             "class_period":"Class Period",
             "achievement_test":"Achievement Test",
@@ -5809,12 +5810,13 @@ class BreadcrumbGenerator:
             "utilrequest":"Run Utility",
             "utilresponse":"Utility Response"
         }
+        self.popup_urls = ["parent_or_guardian", "history", "contact"]
     
     def _initialize_url_list(self):
         """
         Create the first part of the final url list. 
         """
-        #The Main menu is always tje first element. If this is request 
+        #The Main menu is always the first element. If this is request 
         #url then we are finished
         try:
             if (self.name_map.get(self.request_url, "") == "Main Menu"):
@@ -5915,6 +5917,10 @@ class BreadcrumbGenerator:
         The second argument, separator, can be used to define a different
         separator value. The default value is the most commonly used.
         """
+        if (self.popup_urls.count(self.request_url)):
+            #A popup should not have a breadcrumb, change cookies,
+            #or have a prior_url
+            return "", self.request_url, ""
         self._build_breadcrumb_list()
         breadcrumb_text = ''
         breadcrumb_text = '<div class="breadcrumb print-hidden">'

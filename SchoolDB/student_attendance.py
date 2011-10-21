@@ -394,12 +394,14 @@ class AttendanceResultsProcessor():
     student to map the date to the data.
     """
 
-    #----------------------------------------------------------------------
-    def __init__(self, keys, attendance_data, days):
+    def __init__(self, json_attendance_data, section_name = ""):
         """Constructor"""
-        self.keys = keys
-        self.attendance_data = attendance_data
-        self.days = days
+        self.json_attendance_data = json_attendance_data
+        self.attendance_data = simplejson.loads(json_attendance_data)
+        self.records_data = self.attendance_data["records_data"]
+        self.dates = self.attendance_data["dates"]
+        self.keys = self.attendance_data["keys"]
+        self.section_name = section_name
         
     def process_data(self):
         """
@@ -412,7 +414,57 @@ class AttendanceResultsProcessor():
             if (i < num_records):
                 self._load_student_record(student_key,
                     self.attendance_data[i])
-                
+
+    @staticmethod
+    def save_attendance(json_attendance_data):
+        """
+        This is the function called to update the student attendance records
+        that is called as a task. The json attendance data has already been converted by the task manager so it is in the usable form.
+        """
+        try:
+            attendance_data = json_attendance_data
+            records_data = attendance_data["records_data"]
+            dates = attendance_data["dates"]
+            keys = attendance_data["keys"]
+            num_records = len(records_data)
+            for i in range(len(keys)):
+                student_key = keys[i]
+                if (i < num_records):
+                    AttendanceResultsProcessor.load_student_record(student_key,
+                        records_data[i], dates)
+            logging.info("Completed attendance update for " + 
+                         attendance_data["section_name"])
+            return True
+        except StandardError, e:
+            logging.error("Failed attendance update for %s: %s" \
+                         %(attendance_data["section_name"], e))
+            return True
+            
+
+    @staticmethod
+    def load_student_record(student_key, students_record_data,
+                            dates):
+        """
+        Put attendance information back into the database. It
+        is already packed.
+        """
+        student = SchoolDB.models.Student.get(db.Key(student_key))
+        if (student):
+            student.attendance.save_multiple_dates(dates,
+                students_record_data)
+        
+    def process_data_by_task(self):
+        """
+        Create a task that will perform the actual update
+        """
+        task_generator = SchoolDB.assistant_classes.TaskGenerator(
+            task_name="Update Attendance Records: " + self.section_name,
+            function = "SchoolDB.student_attendance.AttendanceResultsProcessor.save_attendance", 
+            function_args="json_attendance_data=" + self.json_attendance_data,
+            start_delay = 0.5)
+        logging.info("Scheduling attendance save for " + self.section_name)
+        task_generator.send_task()
+
     def _load_student_record(self, student_key, students_attendance_data):
         """
         Put attendance information back into the database. It
@@ -420,8 +472,8 @@ class AttendanceResultsProcessor():
         """
         student = SchoolDB.models.Student.get(db.Key(student_key))
         if (student):
-            student.attendance.save_multiple_dates(self.days,
-                students_attendance_data)
+            student.attendance.save_multiple_dates(
+                self.dates, students_attendance_data)
 
 #----------------------------------------------------------------------
 

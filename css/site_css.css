@@ -111,6 +111,10 @@ td.width450 {
 	width:  450px;
 }
 
+td.width250 {
+	width:  250px;
+}
+
 td.width200 {
 	width:  200px;
 }
@@ -255,6 +259,11 @@ a.initial_breadcrumb:hover {
 	float: right;
 }
 
+.version_info {
+	color: #0b620b;;
+	font-size: 0.9em;
+	}
+	
 .info_text {
 	padding: 5px 5px 5px 10px ;
 	font-family: "Arial" , sans-serif;

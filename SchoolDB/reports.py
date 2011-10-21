@@ -27,6 +27,7 @@ import SchoolDB.models
 import SchoolDB.views
 import SchoolDB.assistant_classes
 import SchoolDB.summaries
+import SchoolDB.utility_functions
 
 class ReportError(exceptions.Exception):
     def __init__(self, args=None):
@@ -67,7 +68,7 @@ class StudentAgeReport():
                         ["Number of Students",0,0,0,None,None,None]]
 
     def _get_age_distribution(self):
-        query = SchoolDB.models.Student.all()
+        query = SchoolDB.models.Student.all(keys_only=True)
         SchoolDB.models.active_student_filter(query)
         if (self.section):
             query.filter("section = ", self.section)
@@ -78,8 +79,8 @@ class StudentAgeReport():
         else:
             self.error ="No class year or section requested for report"
             return
-        students = query.fetch(1000)
-        for student in students:
+        keys = query.fetch(1000)
+        for student in db.get(keys):
             self.summary[4][3] += 1
             student_age = student.age(self.reference_date, self.age_calc_type)
             bucket = None
@@ -215,7 +216,7 @@ class SchoolRegisterReport():
         self.section = section
         self.gender = params.get("gender","Male")
         self.class_year = params.get("class_year", None)
-        query = SchoolDB.models.Student.all()
+        query = SchoolDB.models.Student.all(keys_only=True)
         SchoolDB.models.active_student_filter(query)  
         if (self.class_year):
             query.filter('class_year = ', self.class_year)
@@ -285,9 +286,9 @@ class SchoolRegisterReport():
         table_contents = []
         keys = []
         records_list = []
-        for student in self.query:
-            table_contents.append(self.get_single_student_info(student))
-            keys.append(str(student.key))
+        for student_key in self.query:
+            table_contents.append(self.get_single_student_info(db.get(student_key)))
+            keys.append(str(student_key))
         #(sorted_table,sorted_keys) = \
          #SchoolDB.models.sort_table_contents_and_key(
              #table_contents, keys, [(1,False),(0,False)])
@@ -450,7 +451,7 @@ class StudentRecordCheck:
                             ('first_name','string','First Name'),
                             ('class_year','string','Year Level')]
         for student in self.students:
-            self.keys.append(str(SchoolDB.models.get_key_from_instance(
+            self.keys.append(str(SchoolDB.utility_functions.get_key_from_instance(
                 student)))
             self.table_contents.append([student.last_name, 
                                    student.first_name, student.class_year])
@@ -479,7 +480,7 @@ class StudentRecordCheck:
                 student.get_missing_fields()
             if (missing_count):
                 self.keys.append(str(
-                    SchoolDB.models.get_key_from_instance(
+                    SchoolDB.utility_functions.get_key_from_instance(
                         student)))
                 table_entry = [student.last_name, student.first_name]
                 for i in ("mun","bg","bd","ed","cy","sd","bp","bm","bb",
@@ -520,7 +521,7 @@ class EncodingCheck:
             self.school = primary_object
         else:
             self.school = SchoolDB.models.getActiveOrganization()
-        self.enrolled_key = SchoolDB.models.get_entities_by_name(
+        self.enrolled_key = SchoolDB.utility_functions.get_entities_by_name(
         SchoolDB.models.StudentStatus, "Enrolled", True)    
         
     def _build_section_dict(self):
@@ -528,23 +529,24 @@ class EncodingCheck:
         Create the section dict keyed with a combination of the
         section class year and name to allow simple sorting
         """
-        query = SchoolDB.models.Section.all()
+        query = SchoolDB.models.Section.all(keys_only=True)
         query.filter("termination_date = ", None)
         query.ancestor(self.school)
-        sections = query.fetch(500)
-        for section in sections:
+        keys = query.fetch(500)
+        for section in db.get(keys):
             name = section.name
             class_year = section.class_year
             if (section.teacher):
                 advisor = unicode(section.teacher)
             else:
                 advisor = "Not Set"
-            student_query = SchoolDB.models.Student.all()
+            student_query = SchoolDB.models.Student.all(keys_only=True)
             student_query.filter("section =", section.key())
             student_query.filter("student_status =", self.enrolled_key)
             student_count = student_query.count()
             if student_count:
-                student = student_query.get()
+                key = student_query.get()
+                student = db.get(key)
                 last_attendance_date = self._get_last_attendance_date(student)
             else:
                 last_attendance_date = " -- "
@@ -554,6 +556,7 @@ class EncodingCheck:
                 sort_name = class_year + " - " + name
             self.section_dict[sort_name] = [name, class_year, advisor, 
                                             student_count, last_attendance_date]
+            
     def _get_last_attendance_date(self, student):
         """
         Get the last date that the student has had attendance set.
@@ -943,9 +946,10 @@ class Form14Report():
         is used to generate the data in the form used by the
         AjaxGetGradeHandler
         """
-        query = SchoolDB.models.GradingInstance.all()
+        query = SchoolDB.models.GradingInstance.all(keys_only=True)
         query.ancestor(self.achievement_test)
-        return(query.fetch(20))
+        keys = query.fetch(20)
+        return(db.get(keys))
     
     def generate_json_data(self):
         instances = [str(instance.key()) for instance in 
@@ -1010,7 +1014,7 @@ class SummaryReportBase():
             school_text_key_list = simplejson.loads(
                 self.parameter_dict["orgs_to_show"])
             self.schools_list = [
-                SchoolDB.models.get_instance_from_key_string(key_string,
+                SchoolDB.utility_functions.get_instance_from_key_string(key_string,
                                 SchoolDB.models.School) 
                 for key_string in school_text_key_list]
         else:
@@ -1389,7 +1393,7 @@ def get_upper_level_report_common_params(parameter_dict):
     Process the summary report request for parameters common to all
     """
     requested_org = \
-        SchoolDB.models.get_instance_from_key_string(
+        SchoolDB.utility_functions.get_instance_from_key_string(
             parameter_dict.get("top_level_org", None))
     if (not requested_org):
         requested_org = \

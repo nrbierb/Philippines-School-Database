@@ -47,6 +47,14 @@ $(function(){
             }
     });
     
+    $("#view_contact_btn").click(function()
+    {
+            var viewKey = contactsTable.getSingleSelectedKey();
+            if (viewKey) {
+                openEditWindow("/contact", viewKey, null, "&requested_action=View");
+            }
+    });
+    
     $("#delete_contact_btn").click(function()
     {
 		contactsTable.deleteSelectedRow();
@@ -109,7 +117,7 @@ $(function(){
 <table><tr><td width="500px">
 <div id="id_contacts" class="blockFrame"></div>
 </td><td class="top_align">
-<table id="contact_buttons" class="right_side_buttons">
+<table id="contact_buttons" class="right_side_buttons print-hidden">
         <tr>
         <td><input type="button" id="new_contact_btn" value="New Contact" class="btn tb inside"></td>
         </tr>
@@ -119,6 +127,10 @@ $(function(){
         <tr>
         <td><input type="button" id="delete_contact_btn" value="Delete Contact" class="btn tb inside"></td>
         </tr>
+        <tr>
+        <td class="hidden only-in-view"><input type="button" id="view_contact_btn" value=" View Contact" class="btn tb inside only-in-view same-in-view"
+			title="Choose  one of the Contacts from the list. Then click this button to view that person."></td>
+		</tr>
 </table>
 </td>
 </tr></table>

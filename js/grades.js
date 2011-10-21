@@ -102,13 +102,15 @@ function cleanupFormActions() {
 		returnResults();
 		});	
 }
+
 $(function() {
-	$("#initial-div-cancel_button").click(function(){
+	$("#initial_div_cancel_button").click(function(){
 		//redefine this funcion as needed locally
 		cleanupForCancel();
-		history.back();
+		location.href = page_prior_url;
 	});
 });
+
 
 function loadGrades(studentGroup, gradingInstances) {
 	encoded_data = JSON.stringify({
@@ -201,7 +203,7 @@ function loadGradingPeriodGrades(editGradingPeriods, viewGradingPeriods) {
 	var student_list = [];
 	json_student_list = JSON.stringify(student_list);
 	if (! localParams["user_is_teacher"]) {
-		changeBottomButtonsToFinished();		
+		changeBottomButtonsToFinished(true);		
 	}
 	showGradesDiv();
 	gradesTable.setDom(document.getElementById('id_grades_table'));

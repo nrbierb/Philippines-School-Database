@@ -1,6 +1,16 @@
 {% extends 'forms_base.html' %}
 {% block script %} {{ block.super }}
 {% endblock %}
+{% block local_javascript_code %}
+$("#dialog_set_municipality").dialog(std_ok_dialog);
+function checkMunicipalitySet(){
+	if ($("#id_municipality").val() == "") {
+		$("#dialog_set_municipality").dialog("open");
+		return false;
+	}
+	return true;
+}
+{% endblock local_javascript_code %}
 {% block extended %}
 <fieldset class="std-block">
 <legend>Name</legend>
@@ -44,13 +54,13 @@
 	<td>{{form.title}}</td></tr>
 	{% endif %}
 	{% if show_municipality %}
-	<tr><td><label for="id_municipality_name" title="The municipality where the person currenty lives.">Municipality:</label></td>
+	<tr><td><label for="id_municipality_name" title="The municipality where the person currenty lives. Please enter one or more of the letters of the name to start.">Municipality:</label></td>
 	<td><div class="fieldWrapper">
 			{{form.municipality.name.errors}}{{form.municipality_name}}
 		</div></td></tr>
 	{% endif %}
 	{% if show_community %}
-	<tr><td><label for="id_community_name" title="The barangay where the person currenty lives.">Barangay:</label></td>
+	<tr><td><label for="id_community_name" title="The barangay where the person currenty lives.  Please enter one or more of the letters of the name to start.">Barangay:</label></td>
 	<td><div class="fieldWrapper">
 			{{form.community_name.errors}}{{form.community_name}}
 		</div></td></tr>
@@ -79,4 +89,6 @@
 </fieldset>
 {{ form.municipality }}
 {{ form.community }}
+<div class="hidden" id="dialog_set_municipality" title="Choose Municipalty First"> 
+	<p>Please choose the municipality first.</p></div>
 {% endblock extended %}

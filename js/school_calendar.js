@@ -82,6 +82,9 @@ $(function() {
 				break;
 			case "Not In Session":
 			case "Break":
+				event.className = "calendar-vacation selectable-event";
+				showInfo = false;
+				break;
 			case "Other Not Attend":
 				event.className = "calendar-vacation selectable-event";
 				break;

@@ -38,124 +38,7 @@ var controlNowPressed = false;
 var pageHelpText = "Sorry. No help ready for this page...";
 var balloonHelp= {};
 
-/*
-function pagePathIsSamePage(pageStack){
-    var parsedUri = parseUri(document.baseURI);
-    var path = parsedUri.path;
-    return (path === pageStack[pageStack.length - 1]);
-}
 
-function cleanPriorSamePage(pageStack){
-    //search for same page already and truncate it.
-    var parsedUri = parseUri(document.baseURI);
-    var thisPath = parsedUri.path;
-    for (i = 0; i < pageStack.length; i++) {
-        if (pageStack[i] == thisPath) {
-            pageStack.length = i;
-            break;
-        }
-    }
-}
-
-function pagePathPush(cookieName, setNp){
-    var pageStack = jQuery.parseJSON($.cookie(cookieName));
-    cleanPriorSamePage(pageStack);
-    var parsedUri = parseUri(document.baseURI);
-    var current_path = parsedUri.path;
-    pageStack.push(current_path);
-    $.cookie(cookieName, JSON.stringify(pageStack), {
-        path: '/'
-    });
-    if (setNp) {
-        $.cookie("nP", "", {
-            path: '/'
-        });
-    }
-}
-
-function pagePathIndex(cookieName, setNp){
-    $.cookie(cookieName, null);
-    $.cookie("nP", null);
-    $.cookie(cookieName, JSON.stringify(["/index"]), {
-        path: '/'
-    });
-    $.cookie("nP", "", {
-        path: '/'
-    });
-}
-
-function pagePathPop(cookieName, setNp){
-    var pageStack = jQuery.parseJSON($.cookie(cookieName));
-    // assure no loops
-    while (pagePathIsSamePage(pageStack)) {
-        pageStack.pop();
-    }
-    var nextPage = pageStack.pop();
-    $.cookie(cookieName, JSON.stringify(pageStack));
-    if (setNp) {
-        $.cookie("nP", nextPage, {
-            path: '/'
-        });
-    }
-}
-
-function pagePathNoAction(cookieName, setNp){
-    if (setNp) {
-        $.cookie("nP", "", {
-            path: '/'
-        });
-    }
-}
-
-function pagePathFixedUrl(cookieName, setNp, setPath){
-    if (setNp) {
-        $cookie("nP", fixedReturnUrl, {
-            path: '/'
-        });
-    }
-    if (setPath) {
-        var path = fixedReturnUrl.split("/").slice(1);
-        $.cookie(cookieName, path, {
-            path: '/'
-        });
-    }
-}
-
-function assurePgStCookieExists(cookieName){
-    if (jQuery.parseJSON($.cookie(cookieName)) === null) {
-        pagePathIndex(cookieName);
-    }
-}
-
-function performPagePathActionSetup(action){
-    assurePgStCookieExists("pgSt");
-    assurePgStCookieExists("bcSt");
-    switch (action) {
-        case "Pop":
-            pagePathPop("pgSt", true);
-            pagePathPush("bcSt", false);
-            break;
-        case "Push":
-            pagePathPush("pgSt", true);
-            pagePathPush("bcSt", false);
-            break;
-        case "Index":
-            pagePathIndex("pgSt", true);
-            pagePathIndex("bcSt", false);
-            break;
-        case "NoAction":
-            pagePathNoAction("pgSt", true);
-            break;
-        case "FixedUrl":
-            pagePathFixedUrl("pgSt", true, true);
-            pagePathFixedUrl("bcSt", false, true);
-            break;
-        default:
-            pagePathPop("pgSt", true);
-            pagePathPush("bcSt", false);
-    }
-}
-*/
 function setupEntryFields(){
     var entryFields = $(".entry-field");
     
@@ -201,6 +84,10 @@ function setupEntryFields(){
 
 var server_error_text = "Unknown error.";
 
+//empty function for local redefinition
+function savePreprocess(){	
+}
+
 function saveAnnounce(){
 	// perform special actions here
 	try {
@@ -215,17 +102,13 @@ function standardSave(){
     // perform special actions here
     if (validator.form()) {
         $("#save_button").unbind('click');
+		savePreprocess();
         saveAnnounce();
         $("#form1").submit();
     }
 }
 
 function standardFinish(){
-    //A simple way to return to the nextmost upper page wihout
-    //further action. While the url is set to "/index" the actual
-    //page will be determined by the pagePathPop result
-    //pagePathPop("pgSt", true);
-    //pagePathPop("bcSt", true);
     location.href = page_prior_url;
     window.location = page_prior_url;
 }
@@ -236,10 +119,11 @@ function cleanupForCancel(){
 
 function standardCancel(){
     cleanupForCancel();
-    //pagePathPop("pgSt", true);
-    //pagePathPop("bcSt", true);
-    //location.href = "/dynamic";
-	location.href = page_prior_url;
+	if (page_prior_url != "") {
+		location.href = page_prior_url;
+	} else {
+		close();
+	}
 }
 
 /*
@@ -608,12 +492,19 @@ function setActiveClassSessionIfCookieAvailable(){
  "Cancel": function() { $(this).dialog("destroy");}}});
  }
  */
-function changeBottomButtonsToFinished(){
-    var finishButtonHtml = '<tr><td class="buttons centered">' +
-    '<input value="Finished" id="finish_button" name="action" title="Click to return back to your work" class="btn tb action"/>' +
-    '</td></tr>';
-    $("#cancel_save_button_fieldset tr").replaceWith(finishButtonHtml);
-    $("#cancel_save_button_fieldset").removeClass("one-col-buttons").addClass("single-button");
+function changeBottomButtonsToFinished(useFinishButton){
+	if (useFinishButton) {
+		var finishButtonHtml = '<tr><td class="buttons centered">' +
+		'<input value="Finished" id="finish_button" name="action" title="Click to return back to your work" class="btn tb action"/>' +
+		'</td></tr>';
+		$("#cancel_save_button_fieldset tr").replaceWith(finishButtonHtml);
+	} else {
+		var closeButtonHtml = '<tr><td class="buttons centered">' +
+		'<input value="Close" id="close_button" name="action"  title="Click to close this window." class="btn tb action"/>' +
+		'</td></tr>';
+		$("#cancel_save_button_fieldset tr").replaceWith(closeButtonHtml);
+	}
+   $("#cancel_save_button_fieldset").removeClass("one-col-buttons").addClass("single-button");
     setupTooltips();
     initializeBottomButtons();
 }
@@ -621,10 +512,11 @@ function changeBottomButtonsToFinished(){
 function makePageReadOnly(){
     $("input:not(.same-in-view),textarea,select").attr("disabled", "disabled");
     $("input:not(.same-in-view),textarea,select,body,fieldset:not(.same-in-view)").addClass("viewonly");
-    $("input:button:not(.same-in-view)").attr("class", "hidden");
+	$(".only-in-view").removeClass("hidden");
+    $("input:button:not(.same-in-view)").hide();
     $(".ui-datepicker-trigger").remove();
     $(".ui-datepicker").remove();
-    changeBottomButtonsToFinished();
+    changeBottomButtonsToFinished((page_prior_url != ""));
 }
 
 var simple_ok_dialog = {
@@ -719,8 +611,7 @@ function getUserPreferences(preference_names){
         error: function(xhr, textStatus, errorThrown){
             // just return empty values
             var emptyValues = {};
-            var i;
-            for (i = 0; i < preference_names.length; i++) {
+            for (var i = 0; i < preference_names.length; i++) {
                 emptyValues[preference_names] = "";
             }
             return emptyValues;

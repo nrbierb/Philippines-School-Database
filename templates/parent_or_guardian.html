@@ -2,12 +2,7 @@
 {% block local_javascript_code %}
 $(function() {
     $.initWindowMsg();
-	
     loadParentWindowKey("id_family","id_family");
-	
-    $("#cancel_button").click(function(){
-        close();
-    });
 });
 {% endblock local_javascript_code %}
 {% block extended %}

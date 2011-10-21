@@ -269,14 +269,18 @@ def get_entities_by_name(class_name, search_name, key_only = False,
     If organization specified filter by that organization
     """
     search_name = search_name.strip()
-    query = class_name.all(keys_only=key_only)
+    query = class_name.all(keys_only=True)
     query.filter("name =", search_name)
     if organization:
         query.filter("organization =", organization)
     if single_only:
-        return query.get()
+        keys = query.get()
     else:
-        return query.fetch(max_fetched)
+        keys = query.fetch(max_fetched)
+    if key_only:
+        return keys
+    else:
+        return(db.get(keys))
 
 def get_class_session_from_section_and_subject(section_name, 
                 subject_name, organization_name = ""):
@@ -306,14 +310,14 @@ def get_class_session_from_section_and_subject(section_name,
     if not subject_key:
         logging.info("No subject named '%s'" %subject_name)
         return None
-    query = SchoolDB.models.ClassSession.all()
+    query = SchoolDB.models.ClassSession.all(keys_only=True)
     query.filter("section = ", section_key)
     query.filter("subject = ", subject_key)
-    class_session = query.get()
-    if not class_session:
+    key = query.get()
+    if not key:
         logging.info("No class session found for section %s subject %s" \
                     %(section_name, subject_name))
-    return class_session
+    return db.get(key)
 
 def get_schools_in_named_organization(organization_name = "", 
                                       use_default_org = True):
@@ -457,12 +461,12 @@ def get_name(instance_key):
     """
     Get the text value from the named memcache "Names" associated with
     an etity key. This will normally be the name for the instance that is
-    created with the etities "unicode" function
+    created with the entities "unicode" function
     """
     if instance_key:
         name = memcache.get(str(instance_key), namespace="Names")
         if name:
-            logging.info("Found '%s'" %name)
+            #logging.info("Found '%s'" %name)
             return name
         else:
             instance = db.get(instance_key)
@@ -500,6 +504,9 @@ def simple_remove(entity, perform_remove):
     try:
         if perform_remove:
             entity.delete()
+            #This is very expensive but is the only way to be absolutely
+            #sure that there is no incorrect information in the cache
+            #memcache.flush_all()
             text = "Removed %s %s" %(entity.classname, unicode(entity))
         else:
             text = "Simulated removal of %s %s" %(entity.classname, 

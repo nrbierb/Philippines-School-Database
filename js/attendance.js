@@ -148,8 +148,9 @@ function cleanupFormActions() {
 	$("#save_button").unbind("click");
 	
 	function attendanceSave() {
+		$("#save_button").unbind("click");
 		saveAnnounce();
-		returnResults();
+		returnResults();		
 		};	
 				
 	$("#save_button").one("click", attendanceSave);	
@@ -381,7 +382,9 @@ function marshallResults(){
 		attendanceData[dataField.row][dataField.column] = 
 			dataField.packValues();
 	}
-	var theData = {"keys":attTable.keysArray, "dates":datesArray, "attendance_data":attendanceData};
+	var theData = {"keys":attTable.keysArray, "dates":datesArray,
+		 	"records_data":attendanceData,
+			"section_name":$("#id_section_name").val()};
 	return (JSON.stringify(theData));
 }
 

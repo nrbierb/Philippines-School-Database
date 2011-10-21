@@ -170,7 +170,7 @@ function suggestSiblings(){
 
 function createFamilyAndParent(){
 	createFamily();
-	openEditWindow("parent", null, null);
+	openEditWindow("parent_or_guardian", null, null);
 	shouldCreateFamily = false;
 }
 
@@ -241,7 +241,7 @@ $("#reset_siblings_btn").click(function(){
 $("#new_parent_btn").click(function(){
 	var family = $("#id_family").val();
 	if ((family != "") && (family != "NOTSET")) {
-		openEditWindow("parent", null, null);
+		openEditWindow("parent_or_guardian", null, null);
 	}
 	else {
 		if ($("#id_last_name").val()) {
@@ -270,6 +270,12 @@ $("#delete_parent_btn").click(function(){
 	parentsTable.deleteSelectedRow();
 });
 
+$("#view_parent_btn").click(function(){
+    var viewKey = parentsTable.getSingleSelectedKey();
+    if (viewKey) {
+        openEditWindow("/parent_or_guardian", viewKey, null, '&requested_action="View"');
+    }
+});
 
 $.windowMsg("child_closing", function(message){
 	delayedTableUpdate();

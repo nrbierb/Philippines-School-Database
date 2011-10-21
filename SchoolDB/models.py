@@ -33,6 +33,8 @@ import SchoolDB.assistant_classes
 import SchoolDB.reports
 import SchoolDB.summaries
 import SchoolDB.student_attendance
+import SchoolDB.utility_functions
+
 # The global object that represents the database user active for this 
 # session
 
@@ -803,13 +805,14 @@ class Organization(polymodel.PolyModel):
         then the dict will have keys for each of the direct
         subordinates and with lists of the secondary subordinates
         """
-        query = subordinate_class.all()
+        query = subordinate_class.all(keys_only=True)
         filter_string = filter_name + " ="
         query.filter(filter_string, self)
         #comment out for now -- seems to have some problem...
         #if active_only:
             #query.filter("inactive =", False)
-        subordinates = query.fetch(500)
+        subordinate_keys = query.fetch(500)
+        subordinates = db.get(subordinate_keys)
         subordinate_dict={}
         if not next_level_only or self.lowest_level_org():
             for subordinate in subordinates:
@@ -994,8 +997,9 @@ class National(Organization):
 
     @staticmethod
     def get_national_org():
-        qry = National.all()
-        national = qry.get()
+        query = National.all(keys_only=True)
+        national_key = query.get()
+        national = db.get(national_key)
         if (not national):
             # the object hasn't been created yet (this happens only once!)
             national = National(name = "National")
@@ -1011,10 +1015,11 @@ class National(Organization):
         better solution would simple be to query upon the classtype.
         """
         subordinates = []
-        query = Region.all()
+        query = Region.all(keys_only=True)
         if active_only:
             query.filter("inactive =", False)
-        regions = query.fetch(100)
+        region_keys = query.fetch(100)
+        regions = db.get(region_keys)
         subordinates = regions
         if not next_level_only:
             for region in regions:
@@ -1026,8 +1031,9 @@ class National(Organization):
         """
         Get all schools because all schools are in system
         """
-        query = School.all()
-        return query.fetch(3000)
+        query = School.all(keys_only=True)
+        school_keys = query.fetch(3000)
+        return db.get(school_keys)
     
 #----------------------------------------------------------------------
 class Region(Organization):
@@ -1154,9 +1160,10 @@ class Division(Organization):
         """
         Return a list of municipalities in this division
         """
-        query = Municipality.all()
+        query = Municipality.all(keys_only=True)
         query.filter("division =", self)
-        return query.fetch(500)
+        keys = query.fetch(500)
+        return db.get(keys)
     
 #----------------------------------------------------------------------
 class Municipality(Organization):
@@ -1192,7 +1199,7 @@ class Municipality(Organization):
             object_list = school.students_municipalities
         except:
             object_list = []
-        return object_list,  " "    
+        return object_list,  " ", False    
 
     @staticmethod
     def get_field_names():
@@ -1215,11 +1222,12 @@ class Municipality(Organization):
         """
         Return a list of schools located in this municipality
         """
-        query = School.all()
+        query = School.all(keys_only=True)
         query.filter("municipality =", self)
         if active_only:
             query.filter("inactive =", False)
-        return(query.fetch(100))
+        keys = query.fetch(100)
+        return(db.get(keys))
     
 #----------------------------------------------------------------------
 class Community(Organization):
@@ -1496,7 +1504,7 @@ class MultiLevelDefined(polymodel.PolyModel):
             query_descriptor.set("filters", [("organization", authority)])
             query = SchoolDB.assistant_classes.QueryMaker(target_class, 
                                                           query_descriptor)
-            object_list, extra_data =  query.get_objects()
+            object_list, extra_data, message_text =  query.get_objects()
             merge_list = MultiLevelDefined.merge_lists(merge_list,
                                                        object_list)
             if (extra_data):
@@ -1509,7 +1517,7 @@ class MultiLevelDefined(polymodel.PolyModel):
         if return_only_keys:
             key_list = [obj.key() for obj in merge_list]
             merge_list = key_list
-        return merge_list, all_extra_data
+        return merge_list, all_extra_data, message_text
 
     @staticmethod    
     def sort_by_org_level(instances):
@@ -1657,9 +1665,10 @@ class SchoolYear(DateBlock):
         Return the school year object for the specified date at the
         most local
         """
-        query = SchoolYear.all()
+        query = SchoolYear.all(keys_only=True)
         query.filter("end_date >=",date)
-        years = query.fetch(100)
+        keys = query.fetch(100)
+        years = db.get(keys)
         #can only do inequality query filter on one property so must
         #do other filter here. Not too bad, most of the time there will 
         #probably be only one or two SchoolYears
@@ -1747,7 +1756,7 @@ class GradingPeriod(DateBlock):
         field_names = DateBlock.get_field_names()
         field_names.append(("school_year", "School Year"))
         return field_names
-
+    
     @staticmethod
     def get_completed_grading_periods():
         """
@@ -1758,14 +1767,15 @@ class GradingPeriod(DateBlock):
         a list from 0 - 3 element long sorted by start date.
         """
         school_year = SchoolYear.school_year_for_date()
-        query = GradingPeriod.all()
+        query = GradingPeriod.all(keys_only=True)
         #query.filter("start_date >=", school_year.start_date)
         query.filter("end_date <=", date.today())
         query.order("-end_date")
         #with inverse sort order only the most recent will be included
         #this assumes that no more than four years of grading periods
         #have been defined for the future
-        periods = query.fetch(12)
+        keys = query.fetch(12)
+        periods = db.get(keys)
         #now work backwards to get sorted in the correct way
         in_range_periods = []
         for i in range(len(periods) ,0,-1):
@@ -1808,6 +1818,28 @@ class GradingPeriod(DateBlock):
         final_periods_list = GradingPeriod.sort_function(filtered_periods)
         return final_periods_list
 
+    @staticmethod
+    def get_completed_grading_periods_selection_list(unused):
+        """
+        Return a selection list of the grading periods in the current
+        school year that have already occurred. Return in the same form
+        as the standard queries.
+        """
+        periods = GradingPeriod.get_completed_grading_periods()
+        keys = [str(period.key()) for period in periods]
+        combined = [{"value": unicode(period), "label": unicode(period),
+                              "key" : str(period.key())} for period in periods]
+        return periods, keys, combined
+
+    def get_school_year(self):
+        """
+        Return the school year that this grading period is in
+        """
+        return SchoolYear.school_year_for_date(self.start_date)
+    
+    def __unicode__(self):
+        return ("%s %s" %(self.name, unicode(self.get_school_year())))
+                          
 #----------------------------------------------------------------------
 class SchoolDay(MultiLevelDefined):
     """
@@ -1832,7 +1864,7 @@ class SchoolDay(MultiLevelDefined):
         The school day is rather unique. The name is really only a marker
         derived from the date and the organization but it is required to create the instance. Thus it must be generated from the other information prior to instance creation.
         """
-        organization = get_instance_from_key_string(organization_keystring,
+        organization = SchoolDB.utility_functions.get_instance_from_key_string(organization_keystring,
                                                     Organization)
         if organization:
             org_name = unicode(organization)
@@ -1856,9 +1888,10 @@ class SchoolDay(MultiLevelDefined):
         A special purpose query that returns both the most local day
         and the one above if the record is local to the school.
         """
-        query = SchoolDay.all()
+        query = SchoolDay.all(keys_only=True)
         query.filter("date =", date)
-        days = query.fetch(10)
+        keys = query.fetch(10)
+        days = db.get(keys)
         if (len(days) == 0):
             day = None
         elif (len(days) == 1):
@@ -1895,8 +1928,34 @@ class SchoolDay(MultiLevelDefined):
                 day = local_daytype
             else:
                 day = general_daytype
-        return day   
-
+        return day
+    
+    def set_date(self, new_date, ajax_object):
+        """
+        Change the date of the SchoolDay. This will be used to move the day in
+        response to an Ajax request.
+        """
+        legal, view_only = SchoolDB.views.validate_action("edit", 
+                                    ajax_object._return_ajax_permissions_error, 
+                                    SchoolDay, self)
+        #if the action was not legal validate_action has already raised an exception
+        #that will be caught in the ajax code.
+        if legal:
+            current_date = self.date
+            today = date.today()
+            if ((current_date < today) or (new_date < today)):
+                return("Both the original date and the new date must not be in the past", False)
+            for day_type in ("School Day", "Weekend", "Not In Session", "Break"):
+                if (self.day_type == day_type):
+                    return("You may not move a '%s' day" %day_type, False)
+            self.date = new_date
+            self.put()
+            return ("""%s has been moved from %s to %s. 
+            If you did not wish to make this change just move it back to the date 
+            it was at before. """ \
+                   %(self.day_type, current_date, new_date), True)
+        else:
+            return ("You do not have permission to change this school day date", False)
 #----------------------------------------------------------------------
 class ClassPeriod(MultiLevelDefined):
     start_time = db.TimeProperty()
@@ -2130,9 +2189,10 @@ class Person(polymodel.PolyModel):
         """
         Find the database user associated with this person.
         """
-        query = DatabaseUser.all()
+        query = DatabaseUser.all(keys_only=True)
         query.filter("person =", self)
-        return (query.get())
+        key = query.get()
+        return (db.get(key))
 
     def in_organization(self, organization_key, requested_action):
         if (self.organization):
@@ -2544,7 +2604,7 @@ class StudentSchoolSummary(db.Model):
                 function=
                 "SchoolDB.models.StudentSectionSummary.perform_update_task",
                 function_args=('"' +str(section_summary_key)+ '"'), 
-                organization=str(self.school))
+                organization=str(self.school), rerun_if_failed=False)
             task_generator.queue_tasks()
         except StandardError, e:
             logging.error("Create update section summary task failed: %s" %e)
@@ -2713,7 +2773,7 @@ class StudentSectionSummary(db.Model):
         summary status as section current. Return a boolean for the
         success of the action.
         """
-        section_summary = get_instance_from_key_string(
+        section_summary = SchoolDB.utility_functions.get_instance_from_key_string(
             section_summary_keystr)
         if (section_summary):
             return section_summary.update()
@@ -2747,7 +2807,6 @@ class School(Organization):
     principal = db.ReferenceProperty(Person)
     school_creation_date = db.DateProperty()
     school_closure_date = db.DateProperty()
-    students_municipalities = db.ListProperty(db.Key)
     student_summary = db.ReferenceProperty(StudentSchoolSummaryHistory)
     classname = "School"
     
@@ -2766,22 +2825,6 @@ class School(Organization):
                 query.filter("province =", province_key)
         return query
         
-    def save_municipalities_list(self, result_list):
-        """
-        Set the list of municipalities to the keys in the list that 
-        has been given. The argument list is a list of tuples. The first
-        value in each tuple is the key so use that and ignore the rest.
-        """
-        data_list = get_key_list(result_list, "Organization")
-        self.students_municipalities = data_list
-
-    def get_students_municipalities(self):
-        """
-        return a list of keys and names of the students municipalites
-        """
-        return SchoolDB.utility_functions.get_key_name_list(
-            st_muni_ent, self.students_municipalities)
-
     def post_creation(self):
         """
         Create the student summary associated with the school
@@ -2806,6 +2849,17 @@ class School(Organization):
         return (not self.school_closure_date or 
                      (self.school_closure_date >= compare_date))
 
+    def get_possible_municipalities(self):
+        """
+        This returns a list of all municipalities in the province that
+        the school is in. This can be used to limit the number of
+        choices shown for students. Students could be in the school
+        from different divisions but never different provinces.
+        """
+        query = Municipality.all(keys_only=True)
+        query.filter("province = ", self.division.province.kye())
+        return query.fetch(500)
+        
     def update_student_summary(self, force_update=False):
         """
         Update the student summary for the school. Force update will
@@ -2845,8 +2899,9 @@ def update_all_schools_summaries(logger, force_update = False):
     is performed nightly. Only the summaries which have been marked for
     updating will do anything unless force update is set True.
     """
-    query = School.all()
-    schools = query.fetch(1000)
+    query = School.all(keys_only=True)
+    keys = query.fetch(1000)
+    schools = db.get(keys)
     for school in schools:
         school.update_student_summary(force_update)
         
@@ -3164,17 +3219,19 @@ class Section(StudentGrouping):
         in a single section at a school. Sort by gender and last
         name. This only yields the students currently in section,
         """
-        query = Student.all(keys_only=keys_only)
+        query = Student.all(keys_only=True)
         query.filter("section =", self)
         active_student_filter(query) 
         if (gender):
             query.filter("gender =", gender)
         query.order("last_name")
         query.order("first_name")
-        results = query.fetch(500)
-        return results
-    
-    
+        keys = query.fetch(500)
+        if (keys_only):
+            return keys
+        else:
+            return db.get(keys)
+        
     def user_is_section_head(self):
         if (self.teacher):
             return (self.teacher.key() == 
@@ -3192,19 +3249,18 @@ class Section(StudentGrouping):
         genders = []
         keys = []
         keystrings = []
-        query = Student.all()
+        query = Student.all(keys_only=True)
         active_student_filter(query)
         query.filter('section = ', self)
         if gender:
             query.filter(gender)
         query.order('last_name')
         query.order('first_name')
-        students = query.fetch(300)
-        for student in students:
+        keys = query.fetch(300)
+        for key in keys:
+            student = db.get(key)
             names.append(student.full_name_lastname_first())
             genders.append(student.gender)
-            key = student.key()
-            keys.append(key)
             keystrings.append(str(key))
         return keys, keystrings, names, genders
     
@@ -3284,6 +3340,24 @@ class Section(StudentGrouping):
         school_summary = school.student_summary
         school_summary.mark_section_needs_update(self.key())
                 
+    @staticmethod
+    def save_section_student_count(section_keystring, target_date):
+        """
+        Static call to be used for tasking
+        """
+        try:
+            section = SchoolDB.utility_functions.get_instance_from_key_string(
+                section_keystring, Section)
+            males_count, females_count = \
+                section.save_student_count(date.fromordinal(target_date))
+            logging.info(
+                "Updated section '%s' students list: %d males %d females"
+                    %(unicode(section), males_count, females_count))
+        except StandardError, e:
+            logging.error("Failed to save the student count: %s" %e)
+            return False
+        return True
+    
     def save_student_count(self, target_date=date.today()):
         """
         Save a count of the number of students in the section. This is
@@ -3315,14 +3389,15 @@ class Section(StudentGrouping):
         in the class are taking. For now this includes all subjects
         that the section has for classes and TLE.
         """
-        query = ClassSession.all()
+        query = ClassSession.all(keys_only=True)
         #query.filter("end_date =", None)
         query.filter("section =", self)
-        class_sessions = query.fetch(100)
+        keys = query.fetch(100)
         subjects_dict = {}
-        for session in class_sessions:
+        for key in keys:
+            session = db.get(key)
             subject = session.subject
-            subjects_dict[unicode(subject)] = subject.key()
+            subjects_dict[unicode(subject)] = key
         # arbitrary but good for the moment
         subjects_dict["TLE"] = SchoolDB.utility_functions.get_entities_by_name(
             Subject, "TLE")
@@ -3333,10 +3408,11 @@ class Section(StudentGrouping):
         Return a list of all classes that are taught by section for this section
         and that are active.
         """
-        query = ClassSession.all()
+        query = ClassSession.all(keys_only=True)
         query.filter("end_date >", date.today())
         query.filter("section =", self.key())
-        return (query.fetch(20))
+        keys = query.fetch(20)
+        return db.get(keys)
                 
     @staticmethod
     def get_field_names():
@@ -3377,7 +3453,6 @@ class ClassSession(StudentGrouping):
     school_year = db.ReferenceProperty(SchoolYear)
     credit_units = db.FloatProperty()
     grade_instance_ordered_list = db.ListProperty(db.Key)
-    #students_list = db.ListProperty(db.Key)
     classname = "Class Session"    
 
     def detailed_name(self):
@@ -3411,15 +3486,16 @@ class ClassSession(StudentGrouping):
         by section!
         """
         logging_prefix = 'Create class_session "' + name +'"'
-        subject = get_instance_from_key_string(subject_keystring)
-        section = get_instance_from_key_string(section_keystring)
-        school_year = get_instance_from_key_string(school_year_keystring)
+        subject = SchoolDB.utility_functions.get_instance_from_key_string(subject_keystring)
+        section = SchoolDB.utility_functions.get_instance_from_key_string(section_keystring)
+        school_year = SchoolDB.utility_functions.get_instance_from_key_string(school_year_keystring)
         if subject and section and school_year:
-            query = ClassSession.all()
+            query = ClassSession.all(keys_only=True)
             query.filter("subject =",subject)
             query.filter("section =" ,section)
             query.filter("school_year = ", school_year)
-            class_session_entity = query.get()
+            key = query.get()
+            class_session_entity = db.get(key)
         else:
             logging.error(logging_prefix + " failed: One or more bad keys.")
             return None
@@ -3489,7 +3565,7 @@ class ClassSession(StudentGrouping):
         filter the key list first.
         """
         if keys_are_strings:
-            keys = get_key_list(class_session_keys,"StudentGrouping")
+            keys = SchoolDB.utility_functions.get_key_list(class_session_keys,"StudentGrouping")
         else:
             keys = class_session_keys
         try:
@@ -3504,11 +3580,15 @@ class ClassSession(StudentGrouping):
         return result_list
 
     def get_student_class_records(self, status_filter = "", keys_only=False):
-        q = StudentsClass.all(keys_only=keys_only)
-        q.filter("class_session =", self)
+        query = StudentsClass.all(keys_only=True)
+        query.filter("class_session =", self)
         if (status_filter):
-            q.filter("current_status =", status_filter)
-        return (q.fetch(900))
+            query.filter("current_status =", status_filter)
+        keys = query.fetch(900)
+        if keys_only:
+            return keys
+        else:
+            return (db.get(keys))
 
     @staticmethod    
     def sort_students_in_place(students):
@@ -3588,11 +3668,11 @@ class ClassSession(StudentGrouping):
         class_session_name = ""
         student_name = ""
         try:
-            class_session = get_instance_from_key_string(
+            class_session = SchoolDB.utility_functions.get_instance_from_key_string(
                 class_session_keystring, ClassSession)
             if class_session:
                 class_session_name = unicode(class_session)
-                student = get_instance_from_key_string(
+                student = SchoolDB.utility_functions.get_instance_from_key_string(
                     student_keystring, Student)
                 if student:
                     student_name = unicode(student)
@@ -3703,10 +3783,13 @@ class ClassSession(StudentGrouping):
         Query the database for all grading instances belonging to 
         this class session.
         """
-        query = GradingInstance.all()
+        query = GradingInstance.all(keys_only=True)
         query.ancestor(self)
-        instances = query.fetch(1000)        
-        return instances
+        keys = query.fetch(1000)
+        if keys_only:
+            return keys
+        else:
+            return db.get(keys)
 
     def user_is_class_session_teacher(self):
         if (self.teacher):
@@ -3955,7 +4038,7 @@ class AchievementTest(MultiLevelDefined):
             delta = timedelta(date_range + 1)
             min_date = date - delta
             max_date = date + delta
-        query = AchievementTest.all()
+        query = AchievementTest.all(keys_only=True)
         query.filter("organization = ", organization)
         if min_date:
             query.filter("date >", min_date)
@@ -3965,17 +4048,15 @@ class AchievementTest(MultiLevelDefined):
             query.filter("grading_type = ", grading_type)
         if class_year:
             query.filter("class_year = ", class_year)
-        tests = query.fetch(50)
-        if (len(tests) == 0):
+        keys = query.fetch(50)
+        if (len(keys) == 0):
             return None
-        if (name and (len(tests) > 1)):
-            for test in tests:
+        if (name and (len(keys) > 1)):
+            for test in db.get(keys):
                 if (test.name.find(name)):
                     return test
-        if (len(tests) == 0):
-            return None
         else:
-            return test[0]
+            return db.get(keys[0])
 
     @staticmethod
     def findAchievementTestsForSchool(school, min_date=None, max_date=None):
@@ -3994,14 +4075,14 @@ class AchievementTest(MultiLevelDefined):
             max_date = date.today() + timedelta(10)
         tests = []
         for org in [school, division, region, national]:
-            query = AchievementTest.all()
+            query = AchievementTest.all(keys_only=True)
             query.filter("organization =", org)
             query.filter("date >", min_date)
             query.filter("date <", max_date)
             query.order("-date")
-            org_tests = query.fetch(100)
-            if org_tests:
-                tests.extend(org_tests)
+            keys = query.fetch(100)
+            if keys:
+                tests.extend(db.get(keys))
         return tests
 
     @staticmethod
@@ -4034,7 +4115,7 @@ class AchievementTest(MultiLevelDefined):
                      get_possible_subjects("used_in_achievement_tests =")
         class_years = get_class_years_only()
         view_info = [ ]
-        at_instance = get_instance_from_key_string(instance_string)
+        at_instance = SchoolDB.utility_functions.get_instance_from_key_string(instance_string)
         if (at_instance):
             for year in class_years:
                 grading_instances = at_instance.get_grading_instances(
@@ -4058,13 +4139,14 @@ class AchievementTest(MultiLevelDefined):
         section defined. If both are undefined then all grading
         instances for the test are returned.
         """
-        query = GradingInstance.all()
+        query = GradingInstance.all(keys_only=True)
         if section:
             class_year = section.class_year
         if class_year:
             query.filter("class_year =", class_year)
         query.ancestor(self)
-        gi_list = query.fetch(100)
+        keys = query.fetch(100)
+        gi_list = db.get(keys)
         gi_list.sort(key = lambda gi: unicode(gi.subject))
         return gi_list
 
@@ -4077,16 +4159,18 @@ class AchievementTest(MultiLevelDefined):
         schools. Thus once the initial set of infos has been created the 
         no others are created. 
         """
-        query = AchievementTestSchoolInfo.all()
+        query = AchievementTestSchoolInfo.all(keys_only=True)
         query.ancestor(self)
-        school_info_list = query.fetch(1000)
-        if (len(school_info_list) == 0):
+        keys = query.fetch(1000)
+        school_info_list = db.get(keys)
+        if (not school_info_list):
             #no entities have yet been created so create one for each school
             schools = self.organization.get_schools()
-            for school in schools:
+            school_info_list = []
+            for school in db.get(schools):
                 name = "%s-%s" %(unicode(self), unicode(school))
-                school_info_list.append(AchievementTestSchoolInfo.create(name,
-                                                                         self, school))
+                school_info_list.append(AchievementTestSchoolInfo.create(
+                    name, self, school))
         return school_info_list
                 
     def update(self, updated_information):
@@ -4187,12 +4271,14 @@ class AchievementTest(MultiLevelDefined):
         Get the school achievement test summary information for the section's
         school. Perform the summary update for grades in that school summary object.
         """
-        query = AchievementTestSchoolInfo.all()
+        query = AchievementTestSchoolInfo.all(keys_only=True)
         query.filter("organization =", section.parent())
         query.ancestor(self)
-        school_summary_info = query.get()
-        if (school_summary_info):
-            school_summary_info.update_summary_information(section, grade_lists)
+        key = query.get()
+        if (key):
+            school_summary_info = db.get(key)
+            school_summary_info.update_summary_information(
+                section, grade_lists)
         
     #def mark_test_completed(self):
         #"""
@@ -4383,31 +4469,21 @@ class Family(db.Model):
     def post_creation(self):
         self.put()
 
-    def filter_class(self, instances, filter_name):
-        """  
-        Because of the problems with the polymodel neither the class
-        nor the collection list name work. This requires the rather
-        obtuse approach of testing for a property that is unique to the
-        particular class.
-        """       
-        filtered_list = []
-        for instance in instances:
-            properties = instance.properties()
-            if (properties.has_key(filter_name)):
-                filtered_list.append(instance)
-        return filtered_list
-
     def get_parents(self):
         """
         Get references for all parentsOrGuardians instances that
         reference the family.
         """
-        instances = self.parentorguardian_set.fetch(100)
-        return self.filter_class(instances, "relationship")
+        query = ParentOrGuardian.all(keys_only=True)
+        query.filter("family = ", self.key())
+        keys = query.fetch(100)
+        return ParentOrGuardian.get(keys)
 
     def get_siblings(self):
-        instances = self.students_set.fetch(100)
-        return self.filter_class(instances, "class_year")
+        query = Student.all(keys_only=True)
+        query.filter("family = ", self.key())
+        keys = query.fetch(100)
+        return Student.get(keys)
 
     def in_organization(self, organization_key, requested_action):
         """
@@ -5271,10 +5347,11 @@ class StudentsClass(db.Model):
         Return the grading period result oject that is associated with this
         class record for the specific grading period.
         """
-        query = GradingPeriodResult.all()
+        query = GradingPeriodResult.all(keys_only=True)
         query.filter("grading_period = ", grading_period)
         query.filter("student_class_record", self)
-        return query.get()
+        key = query.get()
+        return db.get(key)
 
     def get_grading_period_grade(self, grading_period):
         """
@@ -5295,10 +5372,10 @@ class StudentsClass(db.Model):
         grading periods with only a single query.
         """
         grades = {}
-        query = GradingPeriodResult.all()
+        query = GradingPeriodResult.all(keys_only=True)
         query.filter("student_class_record", self)
-        gp_results = query.fetch(100)
-        for gp_result in gp_results:
+        keys = query.fetch(100)
+        for gp_result in db.get(keys):
             grades[gp_result.grading_period] = gp_result.assigned_grade
         return grades
 
@@ -5312,7 +5389,7 @@ class StudentsClass(db.Model):
         by accident.
         """
         #check for grading period results
-        query = GradingPeriodResult.all()
+        query = GradingPeriodResult.all(keys_only=True)
         query.ancestor(self)
         if (query.count() == 0):
             grade_info = self.get_grade_info()
@@ -5441,8 +5518,10 @@ class Student(Person):
         else:
             self.organization = \
                 getActiveDatabaseUser().get_active_organization()
-        registered_status_type = get_entities_by_name(StudentStatus,
-                        "Registered", key_only = True, single_only=True)
+        registered_status_type = \
+            SchoolDB.utility_functions.get_entities_by_name(
+                StudentStatus, "Registered", key_only = True, 
+                single_only=True)
         if (self.student_status_change_date):
             startdate = self.student_status_change_date
         else: 
@@ -5618,7 +5697,8 @@ class Student(Person):
                     pass
         
             
-    def assign_class_session(self, class_session, subject, start_date = None):
+    def assign_class_session(self, class_session, subject, 
+                             start_date = None):
         """
         Create a StudentsClass object for the student with a specified
         classsession instance. If the startdate is the default "None"
@@ -5626,15 +5706,17 @@ class Student(Person):
         If a record for the same class session has already been created
         do not create a new one, just return the one already created.
         """
-        q = StudentsClass.all()
-        q.filter("class_session =", class_session)
-        q.ancestor(self)
-        students_class = q.get()
-        if (not students_class):
+        query = StudentsClass.all(keys_only=True)
+        query.filter("class_session =", class_session)
+        query.ancestor(self)
+        key = query.get()
+        if (not key):
             students_class = StudentsClass.create(self, class_session,
                                                   subject, start_date)
             if students_class:
                 self.update_active_classes_cache()
+        else:
+            students_class = db.get(key)    
         return students_class
 
     def update_active_classes_cache(self):
@@ -5666,7 +5748,7 @@ class Student(Person):
         Use the active class records cache to quickly return the current
         active student class records
         """
-        if (self.active_class_records == None):
+        if (self.active_class_record_cache == None):
             self.update_active_classes_cache()
         return self.active_class_record_cache
 
@@ -5689,9 +5771,10 @@ class Student(Person):
         Get all classes that the student has ever participated in
         no matter what the status.
         """
-        q = StudentsClass.all()
-        q.ancestor(self)
-        return q.fetch(500)
+        query = StudentsClass.all(keys_only=True)
+        query.ancestor(self)
+        keys = query.fetch(500)
+        return db.get(keys)
 
     def get_class_records_by_subject(self, subjectkey_list, 
                                      known_class_sessions):
@@ -5728,10 +5811,11 @@ class Student(Person):
         specified grading period
         """
         try:
-            query = GradingPeriodResult.all()
+            query = GradingPeriodResult.all(keys_only=True)
             query.filter("grading_period = ", grading_period)
             query.ancestor(self)
-            return query.fetch(50)
+            keys = query.fetch(100)
+            return db.get(keys)
         except:
             return []
     
@@ -5937,7 +6021,7 @@ class Student(Person):
         descriptor.set("sort_order", sort_params)
         descriptor.set("leading_value", "last_name")
         query = SchoolDB.assistant_classes.QueryMaker(Student, descriptor)
-        student_list, extra_data = query.get_objects()
+        student_list, extra_data, message_text = query.get_objects()
         students = []
         return_string = ""
         for student in student_list:
@@ -5949,7 +6033,7 @@ class Student(Person):
             string = name + "|" + str(key) +"\n"
             return_string = return_string + string
             students.append((key, name, section, class_year, gender))
-        return students, return_string
+        return students, return_string, message_text
 
     def __unicode__(self):
         """
@@ -6359,16 +6443,16 @@ class DatabaseUser(db.Model):
         if not organization:
             organization = getActiveDatabaseUser().get_active_organization()
         #no "or" in filtering so get two lists and combine.
-        query = Teacher.all()
+        query = Teacher.all(keys_only=True)
         query.filter("organization =", organization)
-        possible_candidates = query.fetch(500)
-        query = Administrator.all()
+        keys = query.fetch(500)
+        query = Administrator.all(keys_only=True)
         query.filter("organization =", organization)
-        possible_candidates.extend(query.fetch(500))
+        keys.extend(query.fetch(500))
         #list now includes all teachers and administrators in the organization
         # now choose only those that have no current reference
         candidates = []
-        for person in possible_candidates:
+        for person in db.get(keys):
             try:
                 if not person.databaseuser_set.get():
                     candidates.append(person)
@@ -6556,8 +6640,7 @@ class DatabaseUser(db.Model):
         info, info_dict = self._get_private_info()
         needs_put = False
         for (key, value) in values_dict.items():
-            if (not info_dict
-.get(key,None) == value):
+            if (not info_dict.get(key,None) == value):
                 info_dict[key] = value
                 needs_put = True
         if (needs_put):
@@ -7163,33 +7246,6 @@ def _sync_history_fields(instance, history):
 
 ######### Utility Functions not associated with a single class for #######
 ######### external use. #######
-def filter_by_date(query, before_or_after = "after", parameter = 
-                   "student_status_change_date", delta_days = 0, 
-                                        specified_date = None):
-    """
-    Add a filter to a query to add a date check. This does not
-    perform a query, it just adds a computed filter statement to a
-    query description. If delta days is 0 then the date is set to four
-    weeks before the current school year so that the function can be
-    easily used to filter for current students.
-    """
-    if (specified_date):
-        compare_date = specified_date
-    elif (delta_days == 0):
-        current_year = SchoolYear.school_year_for_date()
-        if current_year:
-            compare_date = current_year.start_date - timedelta(28)
-        else:
-            #no school year, just use today
-            compare_date = date.today()
-    else:
-        compare_date = date.today() - timedelta(delta_days)
-    if (before_or_after == "after"):
-        match = parameter + " > "
-    else:
-        match = parameter + " < "
-    query.filter(match, compare_date)
-    return query
 
 def is_school_day(date, section = None):
     """
@@ -7276,9 +7332,10 @@ def all_children(entity, childrens_classes):
     """
     children = []
     for cls in childrens_classes:
-        q = cls.all()
-        q.ancestor(entity)
-        children.extend(q.fetch(1000))
+        query = cls.all(keys_only=True)
+        query.ancestor(entity)
+        keys = query.fetch(1000)
+        children.extend(db.get(keys))
     return children
 
 def fully_delete_entity(entity, childrens_classes, perform_remove):
@@ -7329,11 +7386,12 @@ def get_possible_subjects(filter_string):
     then the string is "used_in_achievement_tests =", if for
     class_session creation then the string is "taught_by_section =".
     """
-    query = Subject.all()
+    query = Subject.all(keys_only=True)
     query.filter("organization =", National.get_national_org()) 
     query.filter(filter_string, True)
     query.order("name")
-    subjects = query.fetch(20)
+    keys = query.fetch(20)
+    subjects = db.get(keys)
     subject_name_to_key_dict = {}
     subject_key_to_name_dict = {}
     subject_names = []
@@ -7345,24 +7403,6 @@ def get_possible_subjects(filter_string):
     return (subject_names, subject_name_to_key_dict, 
             subject_key_to_name_dict)
 
-def get_key_from_string(key_string):
-    key = None
-    try:
-        if key_string :
-            key = db.Key(key_string)
-    except:
-        pass
-    return key
-
-def get_key_from_instance(instance):
-    """
-    Trivial wrapper that prevents a exception if instance is None
-    for those times that None is an acceptable value
-    """
-    if instance:
-        return instance.key()
-    else:
-        return None
 
 def custom_query(organization, leading_value, value_dict, target_class):
     """
@@ -7370,43 +7410,7 @@ def custom_query(organization, leading_value, value_dict, target_class):
     filter value is the "name" field. The list is ordered by name
     """
     query = SchoolDB.assistant_classes.QueryMaker(target_class, value_dict)
-    return query.get_keys_and_names(),  " "    
-
-def get_key_list(key_string_list, object_class):
-    """
-    Get a list of keys for objects of a defined class from 
-    a list of tuples which each have a key string as the first 
-    list element
-    """
-    key_list = []
-    if (key_string_list):
-        for element in key_string_list:
-            try:
-                element_key_string = element[0]
-                element_key = db.Key(element_key_string)
-                if (element_key.kind() == object_class):
-                    key_list.append(element_key)
-            except db.BadKeyError:
-                continue               
-    return key_list
-
-
-def get_instance_from_key_string(key_string, instance_type = db.Model):
-    """
-    Try to find an instance from a string that should be a key. If
-    found, check the instance class to confirm that it is actually an
-    instance that is useable. Remember that the class is the base type
-    if the class is a child class.
-    """
-    the_instance = None
-    try:
-        the_key = get_key_from_string(key_string)
-        if (the_key):
-            the_instance = instance_type.get(the_key)
-    except db.BadKeyError, e:
-        error_string = "failed to get correct instance from key " + str(e)
-        the_instance = None
-    return the_instance
+    return query.get_keys_and_names()   
 
 def get_model_class_from_name(name_string):
     """
@@ -7461,43 +7465,6 @@ def get_model_class_from_name(name_string):
         model_class = class_name_map.get(name_string, None)
     return model_class
 
-def get_entities_by_name(class_name, search_name, key_only = False, 
-                 single_only=True, organization=None, max_fetched=50):
-    """
-    Get entities of class class_name with the name search_name.
-    If key_only return just the key(s). 
-    If single_only return at most one result directly from a get,
-    otherwise return a list as a result of a fetch.
-    If organization specified filter by that organization
-    """
-    search_name = search_name.strip()
-    query = class_name.all(keys_only=key_only)
-    query.filter("name =", search_name)
-    if organization:
-        query.filter("organization =", organization)
-    if single_only:
-        return query.get()
-    else:
-        return query.fetch(max_fetched)
-
-def get_blocks_from_iterative_query(query, blocksize):
-    """
-    Return a list of blocks (a list of max-size blocksize) of
-    the result of an iterative query. This will return all results
-    of the query.
-    """
-    blocks_list = []
-    block = []
-    #>>problem with cache software
-    for i in query:
-        block.append(i)
-        if (len(block) >= blocksize):
-            blocks_list.append(block)
-            block = []
-    #Add remainder as final block. This also assures that the returned
-    #structure is consistent even if there are no query results.
-    blocks_list.append(block)
-    return blocks_list
     
 def setActiveDatabaseUser(databaseUser):
     global __activeDatabaseUser, __activeOrganization

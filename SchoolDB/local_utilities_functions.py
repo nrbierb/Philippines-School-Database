@@ -20,13 +20,15 @@ Utilities that are normally used as scheduled jobs or called from the
 
 import cPickle, zlib, datetime, random, logging, csv
 import StringIO, codecs, base64
+import SchoolDB.views
+import SchoolDB.models
+import SchoolDB.utility_functions
 from django.utils import simplejson
 from google.appengine.api import mail
 from google.appengine.api import memcache
 from google.appengine.ext import db
 
 import SchoolDB.models
-
 
 def change_parameter(keystr, change_parameters):
     """
@@ -49,24 +51,24 @@ def change_parameter(keystr, change_parameters):
     entries 3-6 need not be defined.
     """ 
     try:
-        obj = SchoolDB.models.get_instance_from_key_string(keystr)
+        obj = SchoolDB.utility_functions.get_instance_from_key_string(keystr)
         has_history = (change_parameters.has_key("change_date") and 
             change_parameters.has_key("date_parameter"))
-        if has_history:
-            prior_date = getattr(obj, 
-                    change_parameters["date_parameter"]).toordinal()
-            if (prior_date > change_parameters["change_date"]):
-                #change occured later than date to be set leave unchanged
-                return True
+        #if has_history:
+            #prior_date = getattr(obj, 
+                    #change_parameters["date_parameter"]).toordinal()
+            #if (prior_date > change_parameters["change_date"]):
+                ##change occured later than date to be set leave unchanged
+                #return True
         new_value = change_parameters["new_value"]
         old_value = getattr(obj, 
                         change_parameters["changed_parameter"])
         if change_parameters.get("value_is_reference", False):
-            new_value = SchoolDB.models.get_key_from_string(new_value)
+            new_value = SchoolDB.utility_functions.get_key_from_string(new_value)
             old_value = old_value.key()
         if (new_value == old_value):
-            #If the value is already set to new value do nothing
-            #This saves time (the history is already idempotent)
+            ##If the value is already set to new value do nothing
+            ##This saves time (the history is already idempotent)
             return True
         setattr(obj, change_parameters["changed_parameter"], new_value)
         if has_history:
@@ -90,11 +92,11 @@ def change_parameter(keystr, change_parameters):
                     start_date=change_date,
                     info_str=string_val, info_reference= ref_val)
         obj.put()
-        return True
     except StandardError, e:
         logging.error("Change_parameter failed on %s '%s': '%s'" 
                       %(obj.class_name, unicode(obj), e))
         return False
+    return True
 
 def bulk_update_by_task(model_class, filter_parameters, change_parameters,
                         task_name = "Bulk Update", organization = None):
@@ -138,15 +140,16 @@ def bulk_update_by_task(model_class, filter_parameters, change_parameters,
             qmkr_desc.set("keys_only", True)
             qmkr_query = SchoolDB.assistant_classes.QueryMaker(
                 model_class, qmkr_desc)
-            query_iterator, extra_data = qmkr_query.get_objects()
+            query_iterator, extra_data, message_text = qmkr_query.get_objects()
             if query_iterator and query_iterator.count():
-                task_generator =SchoolDB.assistant_classes.TaskGenerator(
+                task_generator = SchoolDB.assistant_classes.TaskGenerator(
                     task_name=task_name, function = 
                     "SchoolDB.local_utilities_functions.change_parameter", 
                     function_args=change_parameters, 
                     organization=organization, 
                     query_iterator=query_iterator,
-                    instances_per_task=10)
+                    instances_per_task=10, 
+                    rerun_if_failed=False)
                 successful, result_string = task_generator.queue_tasks()
         return result_string
     except StandardError, e:
@@ -167,6 +170,17 @@ def duplicate_log_entries(logger, text, warning_level = False):
     
 #---------------------------------------------------------------------
 
+def memcache_stats(logger):
+    stats = memcache.get_stats()
+    duplicate_log_entries(logger, "Cache stats: %s" %stats)
+    
+def flush_memcache(logger):
+    """
+    Remove all contents of the memcache
+    """
+    memcache_stats(logger)
+    memcache.flush_all()
+    
 def update_student_summary(force = False):
     """
     The utility function called as a scheduled job to perform an update
@@ -213,9 +227,10 @@ def update_student_summary_utility(logger, encompassing_organization_name="",
     """
     encompassing_organization = None
     if (encompassing_organization_name):
-        q = SchoolDB.models.Organization.all()
+        q = SchoolDB.models.Organization.all(keys_only=True)
         q.filter("name =", encompassing_organization_name)
-        encompassing_organization = q.get()
+        encompassing_organization_key = q.get()
+        encompassing_organization = db.get(encompassing_organization_key)
     update_student_summary_by_task(encompassing_organization, (force != ""))
     logger.add_line("Queued all")
  
@@ -246,13 +261,19 @@ def update_section_initial_student_counts(logger=None, \
             if section_name:
                 query.filter("name =", section_name)
             section_keys = query.fetch(200)
-            sections = db.get(section_keys)
-            for section in sections:
-                males_count, females_count = \
-                           section.save_student_count(target_date)
-                logging.info(
-                    "Updated section '%s' students list: %d males %d females"
-                             %(unicode(section), males_count, females_count))
+            organization_keystring = str(organization.key())
+            for section_key in section_keys:
+                task_name = "Update section student count: %s" \
+                    %SchoolDB.utility_functions.get_name(section_key)
+                function_args = "section_keystring='%s', target_date=%d" \
+                    %(section_key, target_date.toordinal())
+                task_generator = SchoolDB.assistant_classes.TaskGenerator(
+                    task_name=task_name, function = 
+                    "SchoolDB.models.Section.save_section_student_count", 
+                    function_args=function_args, 
+                    organization=organization_keystring, 
+                    rerun_if_failed=False)
+                task_generator.queue_tasks()
             logging.info(
                 "Completed section_prior_list_update for all sections in school '%s'" 
                 %unicode(organization))
@@ -304,7 +325,7 @@ def build_all_student_class_records_for_school_task():
     """
     Create student class records for all students for all classes
     taught by section. This uses tasks to complete a very heavyweight
-    action. This would normally only be run once a yera and, in fact,
+    action. This would normally only be run once a year and, in fact,
     should never need to be run. It is only useful when there has failed
     to be an automatic creation at the time of class creation or
     student assignment to a section.
@@ -385,11 +406,11 @@ def count_student_class_records_task():
             section_count = {}
             section_names = {}
             sections_class_sessions = {}
-            query = SchoolDB.models.Section.all()
+            query = SchoolDB.models.Section.all(keys_only=True)
             query.filter("organization =", school)
-            sections = query.fetch(500)
-            for section in sections:
-                q = SchoolDB.models.Student.all()
+            keys = query.fetch(500)
+            for section in db.get(keys):
+                q = SchoolDB.models.Student.all(keys_only=True)
                 SchoolDB.models.active_student_filter(q)
                 q.filter("section =", section)
                 count = q.count()
@@ -473,11 +494,11 @@ def count_student_class_records_task_multitask():
     if (school.classname == "School"):
         section_count = {}
         section_names = {}
-        query = SchoolDB.models.Section.all()
+        query = SchoolDB.models.Section.all(keys_only=True)
         query.filter("organization =", school)
-        sections = query.fetch(500)
-        for section in sections:
-            q = SchoolDB.models.Student.all()
+        keys = query.fetch(500)
+        for section in db.get(keys):
+            q = SchoolDB.models.Student.all(keys_only=True)
             SchoolDB.models.active_student_filter(q)
             q.filter("section =", section)
             count = q.count()
@@ -728,10 +749,10 @@ def bulk_student_status_change_utility(logger, class_year,
             change_date = \
                  SchoolDB.models.SchoolYear.school_year_start_for_date(
                      test_date)
-    prior_student_status_object = SchoolDB.models.get_entities_by_name(
+    prior_student_status_object = SchoolDB.utility_functions.get_entities_by_name(
         SchoolDB.models.StudentStatus, prior_status_name)
     new_student_status_object = \
-            SchoolDB.models.get_entities_by_name(SchoolDB.models.StudentStatus, new_status_name)
+            SchoolDB.utility_functions.get_entities_by_name(SchoolDB.models.StudentStatus, new_status_name)
     new_student_status_keystring = str(new_student_status_object.key())
     if (prior_student_status_object and new_student_status_object):
         model_class = SchoolDB.models.Student
@@ -749,36 +770,38 @@ def bulk_student_status_change_utility(logger, class_year,
         bulk_update_by_task(model_class, query_filters, 
                             change_parameters, organization=organization)
 
-def end_of_year_update_school(logger):
+def end_of_year_update_school(logger, organization=None):
     logging.info("Starting stat change")
     for class_year in ["First Year", "Second Year", "Third Year"]:
         bulk_student_status_change_utility(logger, class_year, 
                             prior_status_name = "Enrolled", 
                             new_status_name="Not Currently Enrolled",
-                            change_date = datetime.date(2011,3,31))
+                            change_date = datetime.date(2012,3,31))
         logging.info("Called bulk for " + class_year)
     bulk_student_status_change_utility(logger, "Fourth Year", 
                             prior_status_name = "Enrolled", 
                             new_status_name="Graduated",
-                            change_date = datetime.date(2011,3,30))
+                            change_date = datetime.date(2012,3,30))
     logging.info("Called bulk for Fourth Year")
     logging.info("All bulk called")
 
-def start_of_year_update_school(logger):
+def start_of_year_update_school(logger, organization=None):
     """
     Set the enrollment date for all students. This should NOT be done on
     the real database
     """
-    if (SchoolDB.views.getprocessed().is_real_database):
-        looging.info("start_of_year_update_school not allowed for real database")
+    if SchoolDB.views.is_real_database():
+        duplicate_log_entries(logger, \
+            "start_of_year_update_school not allowed for real database. Aborting.", True)
+        return False
     logging.info("Starting stat change")
     for class_year in ["First Year", "Second Year", "Third Year"]:
         bulk_student_status_change_utility(logger, class_year, 
                             prior_status_name = "Enrolled", 
                             new_status_name="Enrolled",
                             change_date = datetime.date(2011,6,7))
-        logging.info("Called bulk for " + class_year)
-    logging.info("All bulk called")
+        duplicate_log_entries(logger,"Called bulk for " + class_year)
+    duplicate_log_entries(logger,"All bulk called")
 
 def check_encoding_count(logger):
     """
@@ -789,7 +812,7 @@ def check_encoding_count(logger):
     """
     duplicate_log_entries(logger,"Beginning encoding count check.", True)
     school_query = SchoolDB.models.School.all()
-    enrolled_key = SchoolDB.models.get_entities_by_name(
+    enrolled_key = SchoolDB.utility_functions.get_entities_by_name(
         SchoolDB.models.StudentStatus, "Enrolled", True)    
     for school in school_query:
         school_name = school.name
@@ -798,7 +821,7 @@ def check_encoding_count(logger):
         section_query.ancestor(school)
         for section in section_query:
             section_name = section.name
-            student_query = SchoolDB.models.Student.all()
+            student_query = SchoolDB.models.Student.all(keys_only=True)
             student_query.filter("section =", section.key())
             student_query.filter("student_status =", enrolled_key)
             count = student_query.count()
@@ -815,12 +838,11 @@ def find_duplicate_students(logger):
     """
     student_list = []
     logging.info("Starting find_duplicate students")
-    query = SchoolDB.models.Student.all()
+    query = SchoolDB.models.Student.all(keys_only=True)
     query.filter("organization =", SchoolDB.models.getActiveOrganization())
     student_list = []
-    #>> This needs change. Will not work with cache software. Too big 
-    #>> to run if not task. 
-    for student in query:
+    for student_key in query:
+        student = db.get(student_key)
         if student.birthdate:
             birthday = student.birthdate.toordinal()
         else:
@@ -979,10 +1001,10 @@ def section_name_letter_case_cleanup(logger, section_name):
     section = SchoolDB.utility_functions.get_entities_by_name(
         SchoolDB.models.Section, section_name)
     change_count = 0
-    query = SchoolDB.models.Student.all()
+    query = SchoolDB.models.Student.all(keys_only=True)
     query.filter("section =", section.key())
-    students = query.fetch(400)
-    for student in students:
+    keys = query.fetch(400)
+    for student in db.get(keys):
         original_name = unicode(student)
         student.first_name = \
             SchoolDB.utility_functions.clean_up_letter_casing(
@@ -1228,7 +1250,7 @@ def create_fake_at_grades(class_year, achievement_test_keystr):
     """
     #Confirm that this class year has taken the achievement test
     try:
-        achievement_test = SchoolDB.models.get_instance_from_key_string(
+        achievement_test = SchoolDB.utility_functions.get_instance_from_key_string(
             achievement_test_keystr, SchoolDB.models.AchievementTest)
         achievement_test.class_years.index(class_year)
         #will throw exception if class year not in list
@@ -1277,8 +1299,23 @@ def create_fake_gp_grades(class_year, grading_period_name):
                          unicode(class_session))
     logging.info("All fake grades enqueued")
         
-
-
+def set_deped_org_param(logger):
+    filter_parameters = [("deped_org =", False)]
+    change_parameters = {"changed_parameter":"deped_org", 
+                         "new_value":"True"}
+    for model_class in (SchoolDB.models.National, SchoolDB.models.Region,
+                        SchoolDB.models.Division, SchoolDB.models.School):
+        duplicate_log_entries(logger, \
+                bulk_update_by_task(model_class, filter_parameters,
+                        change_parameters, task_name = "Deped Update"))
+    filter_parameters = [("deped_org =", "True")]
+    change_parameters["new_value"] = "False"
+    for model_class in (SchoolDB.models.Province, SchoolDB.models.Municipality,
+                        SchoolDB.models.Community):
+        duplicate_log_entries(logger, \
+                bulk_update_by_task(model_class, filter_parameters,
+                        change_parameters, task_name = "Deped Update"))
+                
 def dump_student_info_to_email(logger, class_year, email_address):
     """ 
     Write the basic student information for all students in a class
@@ -1338,12 +1375,12 @@ def dump_student_info_to_email_task_ascii(class_year, email_address,
             for s in csv_field_names:
                 val_dict[s] = s
             writer.writerow(val_dict)
-        query = SchoolDB.models.Student.all()
+        query = SchoolDB.models.Student.all(keys_only=True)
         query.filter("organization =", SchoolDB.models.getActiveOrganization())
         query.filter("class_year =", class_year)
         SchoolDB.models.active_student_filter(query)
-        students = query.fetch(block_size, offset=last_count)
-        for student in students:
+        keys = query.fetch(block_size, offset=last_count)
+        for student in db.get(keys):
             for s in csv_field_names:
                 val_dict[s] = ""
             val_dict["first_name"]=student.first_name
@@ -1352,11 +1389,11 @@ def dump_student_info_to_email_task_ascii(class_year, email_address,
             val_dict["gender"]=student.gender
             val_dict["address"]=unicode(student.address)
             val_dict["municipality"]= \
-                    SchoolDB.utility_functions.get_fields_value(student,
-                                                        municipality)
+                    SchoolDB.utility_functions.get_fields_value(
+                        student, "municipality")
             val_dict["barangay"]= \
-                    SchoolDB.utility_functions.get_fields_value(student,
-                                                        community)
+                    SchoolDB.utility_functions.get_fields_value(
+                        student, "community")
             val_dict["birthdate"]=unicode(student.birthdate)
             sib_string = ""
             for sibling in student.get_siblings():
@@ -1369,7 +1406,7 @@ def dump_student_info_to_email_task_ascii(class_year, email_address,
                 val_dict["p1name"]=unicode(p)
                 val_dict["p1relationship"]=\
                     SchoolDB.utility_functions.get_fields_value(p,
-                                                        relationship)
+                                                        "relationship")
                 val_dict["p1occupation"]=unicode(p.occupation)
                 val_dict["p1cell_phone"]=unicode(p.cell_phone)
                 val_dict["p1email"]=unicode(p.email)
@@ -1377,8 +1414,8 @@ def dump_student_info_to_email_task_ascii(class_year, email_address,
                 p = p_list[1]
                 val_dict["p2name"]=unicode(p)
                 val_dict["p2relationship"]=\
-                    SchoolDB.utility_functions.get_fields_value(p2,
-                                                        relationship)
+                    SchoolDB.utility_functions.get_fields_value(p,
+                                                        "relationship")
                 val_dict["p2occupation"]=unicode(p.occupation)
                 val_dict["p2cell_phone"]=unicode(p.cell_phone)
                 val_dict["p2email"]=unicode(p.email)
@@ -1391,14 +1428,14 @@ def dump_student_info_to_email_task_ascii(class_year, email_address,
             if student.birth_municipality:
                 val_dict["birth_municipality"]=\
                     SchoolDB.utility_functions.get_fields_value(student,
-                                                        birth_municipality)
+                                                        "birth_municipality")
             else:
                 val_dict["birth_municipality"]=\
                         unicode(student.birth_municipality_other)
             if student.birth_community:
                 val_dict["birth_barangay"]=\
                     SchoolDB.utility_functions.get_fields_value(student,
-                                                        birth_municipality)
+                                                        "birth_community")
             else:
                 val_dict["birth_barangay"]=unicode(student.birth_community_other)
             val_dict["elementary_school"]=unicode(student.elementary_school)
@@ -1515,12 +1552,12 @@ def dump_student_info_to_email_task(class_year, email_address, memcache_key,
             for s in csv_field_names:
                 row.append(s)
             writer.writerow(row)
-        query = SchoolDB.models.Student.all()
+        query = SchoolDB.models.Student.all(keys_only=True)
         query.filter("organization =", SchoolDB.models.getActiveOrganization())
         query.filter("class_year =", class_year)
         SchoolDB.models.active_student_filter(query)
-        students = query.fetch(block_size, offset=last_count)
-        for student in students:
+        keys = query.fetch(block_size, offset=last_count)
+        for student in db.get(keys):
             for s in csv_field_names:
                 val_dict[s] = ""
             val_dict["first_name"]=student.first_name

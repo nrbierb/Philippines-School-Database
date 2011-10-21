@@ -22,7 +22,7 @@
 <table class="lg-btn" >
  <tbody>
 	<tr>
-      	<td class="width200"><a id="school_calendar" class="btn blue tb" href="/select/school_day">School Day</a></td>
+ 		<td class="width200"><a id="calendar"  class="btn blue tb" href="/calendar">Calendar</a></td>
 		<td class="width200"><a id="school_year"  class="btn blue tb" href="/select/school_year">School Year Dates</a></td>
 	</tr>
 	<tr>
@@ -30,8 +30,8 @@
 		<td class="width200"><a id="class_period"  class="btn blue tb" href="/select/class_period">Class Period Times</a></td>
 	</tr>
 	<tr>
-		<td class="width200"><a id="calendar"  class="btn blue tb" href="/calendar">Calendar</a></td>
-		<td class="width200"><a id="schoolday_type"  class="btn blue tb" href="/select/school_day_type">School Day Type</a></td>
+     	<td class="width200"><a id="school_day" class="btn blue tb" href="/select/school_day">School Day</a></td>
+		<!--<td class="width200"><a id="schoolday_type"  class="btn blue tb" href="/select/school_day_type">School Day Type</a></td>-->
 	</tr>
  </tbody>
 </table>
@@ -99,7 +99,9 @@
 </table>
 </fieldset>
 <br/>
+{% include 'finish_button.html' %}
 
+<!--
 <fieldset class="major one-col-buttons" >
 <legend class="major">Action</legend>
 <table class="action-btn"  width="100%">
@@ -112,5 +114,5 @@
   </tbody>
 </table>
 </fieldset>
-
+-->
 {% endblock %}

@@ -40,10 +40,17 @@
 			  <td class="width200"><a id="attendance_button"  class="btn blue tb menu-button" 
 			  	href="/initialselect/section/attendance/Select-a-Section-for-Attendance">Attendance</a></td>
 		  </tr>
+		  {% if guidance_counselor %}
 		  <tr>
 			  <td class="width200" ><a id="grades_button" class="btn blue tb menu-button" 
-			  href="/initialselect/class_session/grading_period_results/Select-a-Class-to-Work-With-Grades">Grades</a></td>
+			  href="/achievement_test_grades">Grades</a></td>
 		  </tr>
+		  {% else %}
+		  <tr>
+			  <td class="width200" ><a id="grades_button" class="btn blue tb menu-button not-ready" 
+			  >Grades</a></td>
+		  </tr>
+		{% endif %}		  
 		  <tr>
 			  <td class="width200" ><a id="reports_button"  class="btn blue tb menu-button" href="/choose_report">Reports</a></td>
 		  </tr>

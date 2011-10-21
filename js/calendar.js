@@ -21,6 +21,33 @@ $(function() {
 		$('#form2').submit();
 	}
 	
+	function moveSchoolDay(event){
+		$.ajax( {
+			url: "/ajax/set_schoolday_date/",
+			type: "POST",
+			dataType: "json",
+	        data: {"class":"school_day",
+				"key":event.key,
+				"new_date":convertDateToJson(event.start)},
+			success: function(ajaxResponse){
+				//This will also handle the date not changed result
+				if (ajaxResponse.changeMade) {
+					event.databaseDate = new Date(event.start.valueOf());
+					reportError(ajaxResponse.dialogText, "Date Changed");					
+				} else {
+					event.start = new Date(event.databaseDate.valueOf());
+					reportError(ajaxResponse.dialogText, "Date Was Not Changed");
+					$('#calendar').fullCalendar("updateEvent", event);										
+				}
+				setupTooltips();
+			},
+			error:	function(xhr, textStatus, errorThrown) {
+				event.start = event.databaseDate;
+				reportServerError(xhr, textStatus, errorThrown);				
+				}
+		});
+	}
+	
 	function clearSchoolDaySelection() {
 		$('#id_selection_key').val("");
 		$('#id_object_instance').val("");
@@ -59,13 +86,18 @@ $(function() {
 			if (event.info !== null) {
 				element.attr("title", event.info);
 			}
+		},
+		eventDrop: function(event, dayDelta, minuteDelta, allDay, revertFunc, jsEvent, ui, view){
+			moveSchoolDay(event);
 		}
+				
     });
 
 	function createEvent(data){
-		//date is single element of json return containing a dictionary of information
+		//data is single element of json return containing a dictionary of information
 		var event = {};
 		event.start = new Date(data.d[0], data.d[1], data.d[2]);
+		event.databaseDate = new Date(data.d[0], data.d[1], data.d[2]);
 		event.allDay = true;
 		event.key = data.k;
 		var title = data.c;
@@ -82,6 +114,9 @@ $(function() {
 				break;
 			case "Not In Session":
 			case "Break":
+				event.className = "calendar-vacation selectable-event";
+				showInfo = false;
+				break;
 			case "Other Not Attend":
 				event.className = "calendar-vacation selectable-event";
 				break;
@@ -90,11 +125,9 @@ $(function() {
 				event.className = "calendar-holiday selectable-event";
 				break;
 			case "Makeup Full Day":
+			case "Makeup Half Day Morning":
+			case "Makeup Half Day Afternoon":
 				event.className = "calendar-makeup selectable-event";
-				break;
-			case "Makeup Half Day":
-				event.className = "calendar-makeup selectable-event";
-				event.allDay = false;
 				break;
 			default:
 				event.className = "calendar-markerday";
@@ -111,7 +144,7 @@ $(function() {
 	}
 	
 	function getCalendarInfo(startDate, endDate) {
-		//Request the information for a clandar date range and 
+		//Request the information for a calendar date range
 		$.ajax( {
 			url: "/ajax/get_calendar/",
 			type: "POST",

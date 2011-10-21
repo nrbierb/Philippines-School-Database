@@ -6,13 +6,38 @@
 <legend class="major">Run Utilty Command Line Program</legend>
 <table class="lg-btn" >
   <tbody>
+    <!--<tr>
+		<td><label class= "float-left">Command:</label></td>
+		<td><input type="text" name="util" style="width:500px"></input>
+	</tr>-->
     <tr>
-	<td><label class= "float-left">Command:</label></td>
-		<td><input type="text" name="util" style="width:500px"></input></td>
+		<td><label class= "float-left">Command:</label></td>
+		<td><select name="util" style="width:500px" size="5">
+			<option title="N/A" value="SchoolDB.local_utilities_functions.memcache_stats">memcache_stats</option>
+			<option title="N/A" value="SchoolDB.local_utilities_functions.flush_memcache">flush_memcache</option>
+		    <option title="force=False" value="SchoolDB.local_utilities_functions.update_student_summary_utility">update_student_summary_utility</option>
+		    <option title="target_date_string, section_name" value="SchoolDB.local_utilities_functions.update_section_initial_student_counts">update_section_initial_student_counts</option>
+		    <option title="organization_name" value="SchoolDB.local_utilities_functions.build_all_student_class_records">build_all_student_class_records</option>
+		    <option title="organization_name" value="SchoolDB.local_utilities_functions.count_student_class_records">count_student_class_records</option>
+		    <option title="organization_name, change_database=False" value="SchoolDB.local_utilities_functions.fix_student_class_record_count">fix_student_class_record_count</option>
+		    <option title="organization_name" value="SchoolDB.local_utilities_functions.end_of_year_update_school">end_of_year_update_school</option>
+		    <option title="organization_name" value="SchoolDB.local_utilities_functions.start_of_year_update_school">start_of_year_update_school</option>
+		    <option title="N/A" value="SchoolDB.local_utilities_functions.check_encoding_count">check_encoding_count</option>
+		    <option title="N/A" value="SchoolDB.local_utilities_functions.find_duplicate_students">find_duplicate_students</option>
+		    <option title="N/A" value="SchoolDB.local_utilities_functions.create_new_attendance_records_utility">create_new_attendance_records_utility</option>
+		    <option title="class_year, achievement_test_keystring" value="SchoolDB.local_utilities_functions.create_fake_at_grades">create_fake_at_grades</option>
+		    <option title="class_year, grading_period_name" value="SchoolDB.local_utilities_functions.create_fake_gp_grades">create_fake_gp_grades</option>
+		    <option title="class_year, email_address" value="SchoolDB.local_utilities_functions.dump_student_info_to_email">dump_student_info_to_email</option>
+		    <option title="N/A" value="assign_student_majors_for_test_database">assign_student_majors_for_test_database</option>
+		    <option title="school_name, students_per_section" value="create_students_for_school">create_students_for_school</option>
+			<option title="N/A", value="update_database_user_types">update_database_user_types</option>
+			<option title="N/A" value="SchoolDB.local_utilities_functions.set_deped_org_param">set_deped_org_param</option>
+		</select></td>
+	</tr>
 	<tr>
 		<td><label class= "float-left">Command Arguments:</label>
 		<td><input type="text" name="args" style="width:500px"></input></td>	
-		</td>
+		</tr>
 	</tbody>
 </table>
 </fieldset>

@@ -31,6 +31,7 @@ from django import http
 from django.utils import simplejson
 import settings
 import SchoolDB
+import SchoolDB.utility_functions
 import SchoolDB.student_attendance
 
 class AjaxError(exceptions.Exception):
@@ -67,6 +68,7 @@ class AjaxServer():
         self.return_string = simplejson.dumps("")
         self.action_mapping = {
             "select":self._select,
+            "select_via_function":self._select_via_function,
             "select_table":self._select_table,
             "generated_table":self._generated_object_table,
             "calculated_table":self._calculated_table,
@@ -86,6 +88,7 @@ class AjaxServer():
             "get_attendance":self._get_attendance,
             "set_attendance":self._set_attendance,
             "get_calendar":self._get_calendar,
+            "set_schoolday_date":self._set_schoolday_date,
             "get_grades":self._get_grades,
             "set_grades":self._set_grades,
             "get_achievement_test_grading_instances":\
@@ -137,7 +140,7 @@ class AjaxServer():
         """
         Check the values in the args dict for basic validity. Confirm
         that all dict keys are alphnumeric characters only and are of
-        reasonable length. Raise and AjaxExcpetion if a test is not passed.
+        reasonable length. Raise an AjaxException if a test is not passed.
         """
         safe_size = 100
         for key in self.argsDict.keys():
@@ -187,7 +190,7 @@ class AjaxServer():
     def _get_object(self, object_class, key_string):
         if (object_class and key_string and (key_string != "NOTSET")):
             object = \
-                SchoolDB.models.get_instance_from_key_string(
+                SchoolDB.utility_functions.get_instance_from_key_string(
                 key_string, object_class)
             if (not object):
                 self.error_string = \
@@ -204,10 +207,10 @@ class AjaxServer():
         query = SchoolDB.assistant_classes.QueryMaker(self.target_class,
                                             self._build_query_descriptor())
         if (self.argsDict.has_key("names_only")):
-            result_list, key_list, combined_list = \
+            result_list, key_list, combined_list, message_text = \
                        query.get_keys_and_names()
         else:
-            object_list, extra_data = query.get_objects()        
+            object_list, extra_data, message_text = query.get_objects()        
             result_list, key_list, combined_list = \
                 query.get_keys_names_fields_from_object_list(object_list,
                     extra_fields = self.extra_fields, 
@@ -215,6 +218,17 @@ class AjaxServer():
         self.return_string = simplejson.dumps(combined_list)
         return result_list
 
+    def _select_via_function(self):
+        """
+        Use a named function to create the selection list. The function
+        is returned by _get_mapped_function. The function returns the 
+        combined list in the form used by autocomplete.
+        """
+        function = self._get_mapped_function()
+        result_list, key_list, combined_list = function(self.argsDict)
+        self.return_string = simplejson.dumps(combined_list)
+        return result_list
+    
     def select_from(self):
         """
         Select an object of a different class to be used as a selector
@@ -232,7 +246,7 @@ class AjaxServer():
         
         query = SchoolDB.assistant_classes.QueryMaker(self.target_class,
                                             self._build_query_descriptor())
-        object_list, extra_data = query.get_objects()        
+        object_list, extra_data, message_text = query.get_objects()        
         self._produce_table_from_object_list(object_list, extra_data)
         
     def _generated_object_table(self):
@@ -250,7 +264,7 @@ class AjaxServer():
         All function calls include this object.
         """
         function = self._get_mapped_function()
-        secondary_key = SchoolDB.models.get_key_from_instance(
+        secondary_key = SchoolDB.utility_functions.get_key_from_instance(
             self.secondary_object)
         object_list = function(self.argsDict, self.secondary_class,
                                secondary_key)
@@ -307,7 +321,7 @@ class AjaxServer():
             query = SchoolDB.assistant_classes.QueryMaker(
                 self.secondary_class, self._build_query_descriptor())
             query.ancestor = self.target_object
-            object_list, extra_data = query.get_objects()
+            object_list, extra_data, message_text = query.get_objects()
             self._process_object_list(object_list)
         else:
             self.error_string = "No usable parent instance could be found in this Ajax children_list request."
@@ -340,7 +354,8 @@ class AjaxServer():
             pref_names = simplejson.loads(self.argsDict["user_preferences"])
             for value_name in pref_names:
                 preferences[value_name] = \
-                    SchoolDB.models.DatabaseUser.get_single_value(value_name)
+                    SchoolDB.models.DatabaseUser.get_single_value(
+                        None, value_name)
         self.return_string = simplejson.dumps(preferences)
         
     def _get_grades(self):
@@ -484,7 +499,7 @@ class AjaxServer():
         """
         query =  SchoolDB.assistant_classes.QueryMaker(
             SchoolDB.models.Student, self._build_query_descriptor())
-        siblings_list, extra_data = query.get_objects()
+        siblings_list, extra_data, message_text = query.get_objects()
         self._filter_out_object(siblings_list, self.target_object)
         self._produce_table_from_object_list(siblings_list)
         
@@ -542,10 +557,10 @@ class AjaxServer():
             attendance_data = simplejson.loads(json_attendance_data)
             data_processor = \
                 SchoolDB.student_attendance.AttendanceResultsProcessor(
-                    keys = attendance_data["keys"], 
-                    attendance_data = attendance_data["attendance_data"],
-                    days = attendance_data["dates"])
-            data_processor.process_data()
+                    json_attendance_data = json_attendance_data,
+                    section_name = attendance_data["section_name"]
+                )
+            data_processor.process_data_by_task()
             
     def _get_calendar(self):
         """
@@ -562,11 +577,12 @@ class AjaxServer():
             "end_date", ""))
         end_date = date(dateArray[0],dateArray[1],dateArray[2])
         datalist = []
-        query = SchoolDB.models.SchoolDay.all()
+        query = SchoolDB.models.SchoolDay.all(keys_only=True)
         query.filter("date >=", start_date)
         query.filter("date <=", end_date)
         query.order("date")
-        days = query.fetch(400)
+        day_keys = query.fetch(400)
+        days = SchoolDB.models.SchoolDay.get(day_keys)
         for day in days:
             #convert for javascript 
             the_date = day.date
@@ -596,7 +612,17 @@ class AjaxServer():
                         "i":detailed_information}
             datalist.append(day_data)
         self.return_string = simplejson.dumps(datalist)
-            
+    
+    def _set_schoolday_date(self):
+        """
+        Change the date of a schoolday.
+        """
+        dt = simplejson.loads(self.argsDict.get("new_date", ""))
+        new_date = date(dt[0],dt[1],dt[2])
+        result_text, change_made = self.target_object.set_date(new_date, self)
+        self.return_string = simplejson.dumps({"dialogText":result_text,
+                                               "changeMade":change_made})
+        
     def _get_achievement_test_grading_instances(self):
         """
         Return a list of keys of all of the grading instances in the 
@@ -689,7 +715,7 @@ class AjaxServer():
             "end_date", ""))
         end_date = date(dateArray[0],dateArray[1],dateArray[2])
         datalist = []
-        class_session = SchoolDB.models.get_instance_from_key_string(
+        class_session = SchoolDB.utility_functions.get_instance_from_key_string(
                         self.argsDict.get("class_session", ""), 
                         SchoolDB.models.ClassSession)
         if class_session:
@@ -746,7 +772,7 @@ class AjaxServer():
         community
         birthday
         """
-        query = SchoolDB.models.Student.all()
+        query = SchoolDB.models.Student.all(keys_only=True)
         organization = \
             SchoolDB.models.getActiveDatabaseUser().get_active_organization_key()
         query.filter("organization =", organization)
@@ -755,7 +781,8 @@ class AjaxServer():
         match = None
         result = {}
         found_match = False
-        students = query.fetch(1000)
+        student_keys = query.fetch(1000)
+        students = db.get(student_keys)
         for student in students:
             score = 0
             if student.birthdate:
@@ -766,7 +793,7 @@ class AjaxServer():
                 self.argsDict["first_name"].lower()):
                 score += 50
             if (self.argsDict["community"]):
-                community_key = SchoolDB.models.get_key_from_string(
+                community_key = SchoolDB.utility_functions.get_key_from_string(
                     self.argsDict["community"])
                 if (student.community and 
                     student.community.key() == community_key):
@@ -850,9 +877,7 @@ class AjaxServer():
         text in the stored version so that the text may be tested
         before saving.
         """
-        breadcrumb_text = SchoolDB.views.generate_breadcrumb_line(
-            self.request.COOKIES)
-        return_data = {"breadcrumb_line":breadcrumb_text}
+        return_data = {}
         text_manager_name = self.argsDict.get("text_manager_name", None)
         if not text_manager_name:
             dialog_text="""
@@ -863,7 +888,7 @@ class AjaxServer():
                        "balloon_help": {}})
             self.return_string = simplejson.dumps(return_data)
             return
-        text_manager = SchoolDB.models.get_entities_by_name(
+        text_manager = SchoolDB.utility_functions.get_entities_by_name(
             SchoolDB.models.VersionedTextManager, text_manager_name,
             single_only=True)
         if not text_manager:            
@@ -902,12 +927,13 @@ class AjaxServer():
                 filter_param = arg_key.split("-")[1]
                 filter_value = self.argsDict[arg_key]
                 if (filter_value):
+                    filter_value = convert_boolean_string(filter_value)
                     filters.append((filter_param, filter_value))
             elif arg_key.startswith("filterkey-"):
                 filter_param = arg_key.split("-")[1]
                 keystring = self.argsDict[arg_key]
                 if (keystring):
-                    filter_value = SchoolDB.models.get_key_from_string(
+                    filter_value = SchoolDB.utility_functions.get_key_from_string(
                         keystring)
                     if (filter_value and db.get(filter_value)):
                         #confirm that the key is valid -- a filter
@@ -1078,10 +1104,14 @@ class AjaxServer():
         elif (self.function_name == "create_encoding_check_table"):
             function = \
                 SchoolDB.reports.EncodingCheck.create_report_table
+        elif (self.function_name == 
+              "get_completed_grading_periods_selection_list"):
+            function = \
+                SchoolDB.models.GradingPeriod.get_completed_grading_periods_selection_list
         else: 
             function = None
         #It is assumed that the function is always needed. If it is
-        #defined raise an error
+        #not defined raise an error
         if (not function):
             self.error_string = \
                   "Function %s not defined." %self.function_name
@@ -1098,12 +1128,16 @@ class AjaxServer():
         #this will need to be changed whem the 403 page is built
         return http.HttpResponseForbidden(error_string)
 
-def convertJsBoolean(stringVal):
+def convert_boolean_string(string_val):
     """
-    The javascript values for true or false is "true" and "false".
-    These are transferred as strings so convert to boolean. Use
-    False as the default.
+    Booleans are sent as strings so they need conversion. If the
+    string is "true" or "false" then return boolean value. Pass
+    through unchanged otherwise. This is safe to use with any string.
     """
-    return (stringVal == "true")
+    test_val = string_val.lower()
+    if not (test_val == "true" or test_val == "false"):
+        return string_val
+    else:
+        return (test_val == "true")
 
             

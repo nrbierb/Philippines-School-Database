@@ -13,11 +13,6 @@ indexes:
 - kind: DatabaseUser
   properties:
   - name: organization
-  - name: name
-
-- kind: DatabaseUser
-  properties:
-  - name: organization
   - name: last_name
   - name: first_name
 
@@ -364,11 +359,6 @@ indexes:
   - name: __key__
     direction: desc
 
-- kind: HistoryEntry
-  properties:
-  - name: __key__
-    direction: desc
-
 - kind: MultiLevelDefined
   properties:
   - name: __key__
@@ -444,6 +434,11 @@ indexes:
   - name: region
   - name: name
 
+- kind: Organization
+  properties:
+  - name: deped_org
+  - name: name
+
 - kind: Person
   properties:
   - name: __key__
@@ -517,6 +512,12 @@ indexes:
   - name: section
   - name: student_status
   - name: student_status_change_date
+
+- kind: Person
+  properties:
+  - name: class
+  - name: last_name
+  - name: first_name
 
 - kind: Person
   properties:
@@ -652,8 +653,50 @@ indexes:
 - kind: StudentGrouping
   properties:
   - name: class
+  - name: class_year
+  - name: school_year
+  - name: student_major
+  - name: name
+
+- kind: StudentGrouping
+  properties:
+  - name: class
+  - name: class_year
+  - name: school_year
+  - name: student_major
+  - name: subject
+  - name: name
+
+- kind: StudentGrouping
+  properties:
+  - name: class
+  - name: class_year
+  - name: school_year
+  - name: subject
+  - name: name
+
+- kind: StudentGrouping
+  properties:
+  - name: class
   - name: organization
   - name: school_year
+  - name: class_year
+  - name: student_major
+  - name: name
+
+- kind: StudentGrouping
+  properties:
+  - name: class
+  - name: organization
+  - name: school_year
+  - name: name
+
+- kind: StudentGrouping
+  properties:
+  - name: class
+  - name: organization
+  - name: school_year
+  - name: student_major
   - name: name
 
 - kind: StudentGrouping
@@ -677,6 +720,14 @@ indexes:
   properties:
   - name: class
   - name: organization
+  - name: school_year
+  - name: teacher
+  - name: name
+
+- kind: StudentGrouping
+  properties:
+  - name: class
+  - name: organization
   - name: section
   - name: subject
   - name: name
@@ -684,11 +735,16 @@ indexes:
 - kind: StudentGrouping
   properties:
   - name: class
-  - name: organization
-  - name: student_major
+  - name: school_year
+  - name: subject
   - name: name
 
 - kind: StudentTransfer
   properties:
   - name: __key__
     direction: desc
+
+- kind: UserType
+  properties:
+  - name: deped_org
+  - name: name

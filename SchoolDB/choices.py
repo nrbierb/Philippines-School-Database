@@ -116,6 +116,23 @@ MunicipalityType = [
     "First Class",
     "City" ]
 
+utility_function_choices = [
+    "SchoolDB.local_utilities_functions.update_student_summary_utility",
+    "SchoolDB.local_utilities_functions.update_section_initial_student_counts",
+    "SchoolDB.local_utilities_functions.build_all_student_class_records",
+    "SchoolDB.local_utilities_functions.count_student_class_records_task",
+    "SchoolDB.local_utilities_functions.fix_student_class_record_count",
+    "SchoolDB.local_utilities_functions.end_of_year_update_school",
+    "SchoolDB.local_utilities_functions.start_of_year_update_school",
+    "SchoolDB.local_utilities_functions.check_encoding_count",
+    "SchoolDB.local_utilities_functions.find_duplicate_students",
+    "SchoolDB.local_utilities_functions.create_new_attendance_records_utility",
+    "SchoolDB.local_utilities_functions.create_fake_at_grades",
+    "SchoolDB.local_utilities_functions.create_fake_gp_grades",
+    "SchoolDB.local_utilities_functions.dump_student_info_to_email",
+    "assign_student_majors_for_test_database",
+    "create_students_for_school"]
+
 def convert_to_form_choice_list(base_list):
 	expanded_list = []
 	for entry in base_list:

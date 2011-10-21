@@ -22,6 +22,7 @@ support code in one or more other files.
 import cPickle, zlib, datetime, base64, logging
 import SchoolDB.models 
 import SchoolDB.views
+import SchoolDB.utility_functions
 from django.utils import simplejson
 from google.appengine.ext import db
 from google.appengine.api import taskqueue
@@ -213,7 +214,7 @@ class TaskGenerator():
     def __init__(self, task_name, function, function_args="", 
                     organization = None, instance_keylist = None,
                     query_iterator = None, instances_per_task = 10,
-                    rerun_if_failed = True):
+                    rerun_if_failed = True, start_delay = 0.0):
         active_user_keystr = \
             str(SchoolDB.models.getActiveDatabaseUser().get_active_user().key())
         self.task_dict = {"task_name":task_name, "function":function, 
@@ -225,6 +226,12 @@ class TaskGenerator():
         self.task_name = task_name
         self.instance_keylist = instance_keylist
         self.instances_per_task = instances_per_task
+        #until all code changed ...
+        if rerun_if_failed:
+            self.task_retry_limit = 2
+        else:
+            self.task_retry_limit = 0
+        self.start_delay = start_delay
         self.query_iterator = query_iterator
         
     def send_task(self):
@@ -235,7 +242,12 @@ class TaskGenerator():
         packed = zlib.compress(cPickle.dumps(self.task_dict))
         encoded = base64.b64encode(packed)
         params_data = {"task_data":encoded}
-        taskqueue.add(url="/task", params=params_data) 
+        retry_options = taskqueue.TaskRetryOptions(
+            task_retry_limit = self.task_retry_limit)
+        the_task = taskqueue.Task(url="/task", params=params_data,
+                    countdown = self.start_delay, retry_options = retry_options)
+        the_task.add()                        
+        #taskqueue.add(url="/task", params=params_data) 
         
     def queue_tasks(self):
         """
@@ -253,7 +265,7 @@ class TaskGenerator():
                     del self.instance_keylist[0:block_end]
                     task_count += 1
             elif self.query_iterator:
-                keys_blocks = SchoolDB.models.get_blocks_from_iterative_query(
+                keys_blocks = SchoolDB.utility_functions.get_blocks_from_iterative_query(
                     self.query_iterator, self.instances_per_task)
                 for block in keys_blocks:
                     keystring_block = [str(key) for key in block]
@@ -1060,7 +1072,7 @@ class AjaxGetGradeHandler:
         header = [("name","string","Student Name")]
         grading_instances_list = [None]
         for gi_keystr in self.grading_instances_key_strings:
-            gi_key = SchoolDB.models.get_key_from_string(gi_keystr)
+            gi_key = SchoolDB.utility_functions.get_key_from_string(gi_keystr)
             grading_instance = SchoolDB.models.GradingInstance.get(
                 self.grading_instance_keys_dict[gi_key])
             subject = grading_instance.subject
@@ -1240,7 +1252,7 @@ class AjaxGetGradeHandler:
         """
         detail_dict = {}
         for key_string in key_strings:
-            index_key = SchoolDB.models.get_key_from_string(key_string)
+            index_key = SchoolDB.utility_functions.get_key_from_string(key_string)
             gi_key = instance_dictionary.get(index_key, None)
             if (gi_key):
                 gi = SchoolDB.models.GradingInstance.get(gi_key)
@@ -1426,7 +1438,7 @@ class AjaxSetGradeHandler:
                 scr_keystring = self.student_class_records_table[i][j]
                 if (not self.student_class_record_dict.has_key(
                     scr_keystring)):
-                    instance = SchoolDB.models.get_instance_from_key_string(
+                    instance = SchoolDB.utility_functions.get_instance_from_key_string(
                         scr_keystring, SchoolDB.models.StudentsClass)
                     if (not instance):
                         raise SchoolDB.ajax.AjaxError(
@@ -1517,7 +1529,7 @@ def process_grade_instance_keys(gi_string_keys, owner=None):
     valid_instance_keys_dict = {}
     for key_string in gi_string_keys:
         try:
-            instance_key = SchoolDB.models.get_key_from_string(key_string)
+            instance_key = SchoolDB.utility_functions.get_key_from_string(key_string)
             #the key strings
             valid_string_keys.append(key_string)
             #the actual keys
@@ -1563,7 +1575,7 @@ class GradingPeriodGradesHandler:
         self.reporting_action = {}
         self.edit_grading_periods_from_get = []	
         for keystr in gd_keystrs:
-            gd_key = SchoolDB.models.get_key_from_string(keystr)
+            gd_key = SchoolDB.utility_functions.get_key_from_string(keystr)
             if (edit_grading_periods.count(keystr)):
                 self.reporting_periods.append(gd_key)
                 self.reporting_action[gd_key] = True
@@ -1575,7 +1587,7 @@ class GradingPeriodGradesHandler:
         if (len(students)):
             #a list of students has been sent
             for student_key in students:
-                student = SchoolDB.models.get_instance_from_key_string(
+                student = SchoolDB.utility_functions.get_instance_from_key_string(
                     student_key)
                 name = student.full_name_lastname_first()
             self.class_roster.append([student, name])
@@ -1613,7 +1625,7 @@ class GradingPeriodGradesHandler:
                 #for result in self.grade_period_results:
                     #if ((result.grading_period == period) and
                         #(result.parent() == 
-                            #SchoolDB.models.get_instance_from_key_string(student))):
+                            #SchoolDB.utility_functions.get_instance_from_key_string(student))):
                         #table[i][j + 1] = result
         #build table for data
         row = [None for i in range(len(self.reporting_periods)+1)]
@@ -1628,7 +1640,7 @@ class GradingPeriodGradesHandler:
                 for result in grading_period_results:
                     if ((result.grading_period.key() == period_key) and
                         (result.parent_key() == 
-                         SchoolDB.models.get_key_from_string(student))):
+                         SchoolDB.utility_functions.get_key_from_string(student))):
                         table[i][j + 1] = result.assigned_grade
         #change format information for edited columns
         report_col_index=-1
@@ -1721,11 +1733,11 @@ class GradingPeriodGradesHandler:
         sets_count = 0
         for x, gd_inst_keystr in enumerate(self.results_table["columns"]):
             gd_period = \
-                      SchoolDB.models.get_instance_from_key_string(gd_inst_keystr)
+                      SchoolDB.utility_functions.get_instance_from_key_string(gd_inst_keystr)
             grading_period_results = SchoolDB.models.GradingPeriodResult.get_results_for_class_session(self.class_session,gd_period)
             for y, student_keystr in enumerate(self.results_table["keys"]):
                 student_key = \
-                            SchoolDB.models.get_key_from_string(student_keystr)
+                            SchoolDB.utility_functions.get_key_from_string(student_keystr)
                 if (self._set_grading_period_grade(gd_period, student_key, 
                                                    grading_period_results, 
                                                    self.results_table["data"][y][x])):
@@ -1818,14 +1830,14 @@ class QueryMaker:
             #query = self.model_class.all(keys_only=True)
         #else:
             #query = self.model_class.all()
-        
+        message_text = False
         if (self.descriptor.get("filter_by_organization") and
             self.model_class.properties().has_key("organization")):
             organization = \
                 SchoolDB.models.getActiveDatabaseUser().get_active_organization_key()
             query.filter("organization", organization)
         for filter_def in self.descriptor.get("filters"):
-            if (filter_def[1]):
+            if (filter_def[0]):
                 query.filter(filter_def[0], filter_def[1])
         if (self.descriptor.get("leading_value")):
             leading_field, leading_string = self.descriptor.get("leading_value")
@@ -1838,7 +1850,7 @@ class QueryMaker:
                 query.filter(leading_field + ' <', upper_limit)
         if (self.descriptor.get("ancestor_filter_value")):
             ancestor_key_string = self.descriptor.get("ancestor_filter_value")
-            ancestor = SchoolDB.models.get_instance_from_key_string(
+            ancestor = SchoolDB.utility_functions.get_instance_from_key_string(
                 ancestor_key_string)
             if (ancestor):
                 query.ancestor(ancestor)    
@@ -1851,7 +1863,7 @@ class QueryMaker:
             query.order(sort_param)
         if (self.descriptor.get("return_iterator")):
             #return the query itself for use as iterator
-            return query, None
+            return query, None, ""
         else:
             #check the number of found compared with the max number 
             #to show. If greater add a warning text.
@@ -1859,13 +1871,14 @@ class QueryMaker:
             total_found = query.count()
             total_returned = total_found
             maximum_count = int(self.descriptor.get("maximum_count"))
+            message_text = ""
             if (total_found > maximum_count):
                 total_returned = maximum_count
                 if (total_found == 1000):
                     leader_string = "More than "
                 else:
                     leader_string = ""
-                extra_data = \
+                message_text = \
                 """
                 <p><em>Warning:</em></p> 
                 <p>%s%d entries found but only %d entries shown.</p>
@@ -1880,7 +1893,7 @@ class QueryMaker:
                 object_list = db.get(keys_list)
             else:
                 object_list = keys_list                
-            return object_list, extra_data
+            return object_list, extra_data, message_text
 
     def _build_lower_match_string(self, initial, should_capitalize):
         lower_match = initial.strip()
@@ -1932,7 +1945,7 @@ class QueryMaker:
         keys only query and resolves the names with the name memcache
         """
         self.descriptor.set("keys_only", True)
-        keys_list, extra_data = self.get_objects()
+        keys_list, extra_data, message_text = self.get_objects()
         names_list = [SchoolDB.utility_functions.get_name(key) for
                       key in keys_list]
         combined_list = []
@@ -1940,7 +1953,7 @@ class QueryMaker:
             combined_entry = {"value": names_list[i], "label": names_list[i],
                               "key" : str(keys_list[i])}
             combined_list.append(combined_entry)
-        return names_list, keys_list, combined_list
+        return names_list, keys_list, combined_list, message_text
 
     @staticmethod
     def get_keys_names_fields_from_object_list(object_list,
@@ -1961,6 +1974,8 @@ class QueryMaker:
         key_list = []
         combined_list = []
         for object in object_list:
+            if not object:
+                continue
             the_key = str(object.key())
             key_list.append(the_key)
             the_name = ""
@@ -2006,14 +2021,13 @@ class AutoCompleteField():
     """
     def __init__(self, class_name, field_name, key_field_name,
                  ajax_root_path, response_command, custom_handler, use_key,
-                 names_only):
+                 names_only, extra_params={}, minlength=0, delay=600, max_choices=40, gate_function = "true"):
         self.class_name = class_name
         self.field_name = field_name
         self.key_field_name = key_field_name
         self.depends_upon = []
         self.require_filled = []
-        self.autocomplete_params = {'minLength':0,'delay':500}
-        self.extra_params = {}
+        self.autocomplete_params = {'minLength':minlength,'delay':delay}
         self.dependent_fields = []
         self.local_choices_list = None
         self.use_local_choices = False
@@ -2026,8 +2040,11 @@ class AutoCompleteField():
         self.response_command = response_command
         self.custom_handler = custom_handler
         self.javascript_text = ""
+        self.extra_params = extra_params
+        self.extra_params["maximum_count"] = str(max_choices)
+        self.gate_function = gate_function
         if self.names_only:
-            self.extra_params = {"names_only":"true"}
+            self.extra_params["names_only"] = "True"
 
     def add_dependency(self, dependency_field, is_key = True):
         self.depends_upon.append({"field":dependency_field, 
@@ -2118,35 +2135,38 @@ class AutoCompleteField():
 		}""" %(dependent_field["field"].field_name,
                        dependent_field["field"].get_query_value_field())
                 extra_params = extra_params + field_string
+                
             for dict_entry in self.extra_params.items():
                 param_string = """,
 		'%s': '%s'""" %(dict_entry[0], dict_entry[1])
                 extra_params = extra_params + param_string
             source = """
     source: function(request, response) {
+    if (%s) {
         showQueryActive(%s);
-	$.ajax({
-	    url: "%s",
-	    data: {
-	        'class': "%s",
-	        'q':    request.term%s
-	        },
-	    success: function(ajaxResponse, textStatus, XMLHttpRequest) {
-	        showQueryCompleted(%s);
-	        if ((ajaxResponse === null) || (ajaxResponse.length === 0)) {
-	            showQueryNoData(%s);
-	            return [];
-	            }
-	        %s
-	    },
-	    error: function(xhr, textStatus, errorThrown){
-	        alert(textStatus);
-	        showQueryError(%s);
-	        reportServerError(xhr, textStatus, errorThrown);
-		}
-	    });
+        $.ajax({
+            url: "%s",
+            data: {
+                'class': "%s",
+                'q':    request.term%s
+                },
+            success: function(ajaxResponse, textStatus, XMLHttpRequest) {
+                showQueryCompleted(%s);
+                if ((ajaxResponse === null) || (ajaxResponse.length === 0)) {
+                    showQueryNoData(%s);
+                    return [];
+                    }
+                %s
+            },
+            error: function(xhr, textStatus, errorThrown){
+                alert(textStatus);
+                showQueryError(%s);
+                reportServerError(xhr, textStatus, errorThrown);
+            }
+            });
+            }
         },
-""" %(jq_name, self.ajax_root_path, self.class_name, 
+""" %(self.gate_function, jq_name, self.ajax_root_path, self.class_name, 
       extra_params, jq_name, jq_name, self.response_command,
       jq_name)	
         return source
@@ -2268,7 +2288,9 @@ $(function(){
                                ajax_root_path="/ajax/select",
                                response_command="response(ajaxResponse);",
                                custom_handler="",
-                               use_key=False, names_only=True):
+                               use_key=False, names_only=True,
+                               minlength=0, delay=600, max_choices=40,
+                               extra_params={}, gate_function="true"):
         if (not field_name):
             field_name = "id_" + class_name + "_name"
         if (not key_field_name):
@@ -2278,7 +2300,10 @@ $(function(){
                         ajax_root_path=ajax_root_path,
                         response_command=response_command,
                         custom_handler=custom_handler,
-                        use_key=use_key, names_only=names_only)
+                        use_key=use_key, names_only=names_only,
+                        minlength=minlength, delay=delay, 
+                        max_choices=max_choices, extra_params=extra_params,
+                        gate_function=gate_function)
         self.autocomplete_fields.append(autocomplete_field)
         return autocomplete_field
 

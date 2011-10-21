@@ -19,18 +19,6 @@ function saveSelectedInCookie() {
 	$.cookie("aS", $("#id_users_section").val(), {page:'/'});
 	$.cookie("aCn", $("#id_users_class_session_name").val(), {page:'/'});
 	$.cookie("aC", $("#id_users_class_session").val(), {page:'/'});
-	//selected values are used in return to the my_work page
-	/*
-	$.cookie("sSn", $("#id_users_section_name").val(), {page:'/'});
-	$.cookie("sS", $("#id_users_section").val(), {page:'/'});
-	$.cookie("sCn", $("#id_users_class_session_name").val(), {page:'/'});
-	$.cookie("sC", $("#id_users_class_session").val(), {page:'/'});
-	//selected values are used in return to the my_work page
-	$.cookie("sSn",null);
-	$.cookie("sS", null);
-	$.cookie("sCn", null);
-	$.cookie("sC",null);
-	*/
 }
 
 function saveSelected() {
@@ -199,7 +187,7 @@ $(function(){
 					}
 				target="Section";
 				action="Edit";
-				url="/achievement_test_grades";
+				url="/section_achievement_test_grades";
 				break;
 			case "sect_details_button":
 				target = "Section";

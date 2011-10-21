@@ -16,11 +16,12 @@ $(function() {
 		});
 });	
 $(function() {
-	$("#grades_div").hide();
+	//$("#grades_div").hide();
 	$("#save_grades_btn").click(function(){
 		returnResults("section", $("#id_section").val(),"achievement_test", 
 			$("#id_achievement_test").val());		
 		});
+	$("#cancel_button").click(standardCancel);
 });
 	
 {% endblock local_javascript_code %}
@@ -29,9 +30,9 @@ $(function() {
 <legend>Selection Information</legend>
 <table class="unbordered"> 
 	<tr>
-	<td>{{form.class_year.label}}:</td><td>{{form.class_year}}</td>
+	<td>{{form.class_year.label}}</td><td>{{form.class_year}}</td>
 	</tr><tr>
-	<td>{{form.section_name.label}}:</td><td>{{form.section_name}}</td>
+	<td>{{form.section_name.label}}</td><td>{{form.section_name}}</td>
 	</tr><tr>
 	<td>{{form.achievement_test_name.label}}</td><td>{{form.achievement_test_name}}</td>
 	</tr>
