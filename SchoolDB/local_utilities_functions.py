@@ -99,7 +99,8 @@ def change_parameter(keystr, change_parameters):
     return True
 
 def bulk_update_by_task(model_class, filter_parameters, change_parameters,
-                        task_name = "Bulk Update", organization = None):
+                        task_name = "Bulk Update", organization = None,
+                        filter_by_organization = True):
     """
     Change the value of a parameter for all class objects that meet the
     filter specification. This may be used with a parameter that uses an
@@ -130,17 +131,19 @@ def bulk_update_by_task(model_class, filter_parameters, change_parameters,
     number of instances.
     """
     try:
-        result_string = "Nothing queued"
+        result_string = "Nothing queued."
         if (change_parameters.has_key("changed_parameter") and
                  change_parameters.has_key("new_value") and model_class):
             #if these aren't defined do nothing...
             qmkr_desc = SchoolDB.assistant_classes.QueryDescriptor()
+            qmkr_desc.set("filter_by_organization", filter_by_organization)
             qmkr_desc.set("filters", filter_parameters)
             qmkr_desc.set("return_iterator", True)
             qmkr_desc.set("keys_only", True)
             qmkr_query = SchoolDB.assistant_classes.QueryMaker(
                 model_class, qmkr_desc)
             query_iterator, extra_data, message_text = qmkr_query.get_objects()
+            
             if query_iterator and query_iterator.count():
                 task_generator = SchoolDB.assistant_classes.TaskGenerator(
                     task_name=task_name, function = 
@@ -151,6 +154,7 @@ def bulk_update_by_task(model_class, filter_parameters, change_parameters,
                     instances_per_task=10, 
                     rerun_if_failed=False)
                 successful, result_string = task_generator.queue_tasks()
+                result_string = "%s  Count: %d" %(result_string, query_iterator.count())
         return result_string
     except StandardError, e:
         result_string = "bulk_update_by_task for %s failed: %s" %(model_class, e)
@@ -1300,22 +1304,34 @@ def create_fake_gp_grades(class_year, grading_period_name):
     logging.info("All fake grades enqueued")
         
 def set_deped_org_param(logger):
-    filter_parameters = [("deped_org =", False)]
+    filter_parameters = [("deped_org =", "False")]
     change_parameters = {"changed_parameter":"deped_org", 
-                         "new_value":"True"}
+                         "new_value":True}
     for model_class in (SchoolDB.models.National, SchoolDB.models.Region,
                         SchoolDB.models.Division, SchoolDB.models.School):
         duplicate_log_entries(logger, \
                 bulk_update_by_task(model_class, filter_parameters,
-                        change_parameters, task_name = "Deped Update"))
+                        change_parameters, task_name = "Deped Update",
+                        filter_by_organization = False))
     filter_parameters = [("deped_org =", "True")]
-    change_parameters["new_value"] = "False"
+    change_parameters["new_value"] = False
     for model_class in (SchoolDB.models.Province, SchoolDB.models.Municipality,
                         SchoolDB.models.Community):
         duplicate_log_entries(logger, \
                 bulk_update_by_task(model_class, filter_parameters,
-                        change_parameters, task_name = "Deped Update"))
-                
+                        change_parameters, task_name = "Deped Update",
+                        filter_by_organization = False))
+
+def set_deped_employee(logger):
+    filter_parameters = ""
+    change_parameters = {"changed_parameter":"deped_employee", 
+                         "new_value":True}
+    for model_class in (SchoolDB.models.Teacher, SchoolDB.models.Administrator):
+        duplicate_log_entries(logger, \
+                bulk_update_by_task(model_class, filter_parameters,
+                        change_parameters, task_name = "Deped Update",
+                        filter_by_organization=False))
+    
 def dump_student_info_to_email(logger, class_year, email_address):
     """ 
     Write the basic student information for all students in a class

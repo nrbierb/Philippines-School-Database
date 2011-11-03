@@ -394,7 +394,7 @@ $(function(){
 $.datepicker.setDefaults({
     changeMonth: true,
 	changeYear: true,
-	yearRange: "-5:+2",
+	yearRange: '-5:+2',
     showOn: 'button',
     buttonImageOnly: true,
     buttonImage: '/media/calendar.gif',

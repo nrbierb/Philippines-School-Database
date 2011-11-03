@@ -155,16 +155,19 @@ class AjaxServer():
         no error is reported if they are missing
         """
         self._validate_argsDict()
-        self.target_class = self._get_class('class')
+        self.target_class_name, self.target_class = \
+            self._get_class('class')
         key_string = SchoolDB.views.filter_keystring(
             self.argsDict.get('key', None))
         self.target_object = self._get_object(self.target_class,
                                               key_string)
         if (self.target_class):
+            
             SchoolDB.views.validate_action("View", 
                 self._return_ajax_permissions_error, 
-                self.target_class, self.target_object)
-        self.secondary_class = self._get_class('secondary_class')
+                self.target_class_name, self.target_object)
+        self.secondary_class_name, self.secondary_class = \
+            self._get_class('secondary_class')
         key_string = SchoolDB.views.filter_keystring(
             self.argsDict.get('secondary_key', None))
         self.secondary_object = self._get_object(self.secondary_class,
@@ -183,9 +186,9 @@ class AjaxServer():
                 e = 'Unknown data type "%s" in ajax  %s request.' \
                     %(str(class_name), str(self.action))
                 raise AjaxError, e
-            return class_type
+            return class_name, class_type
         else:
-            return None
+            return "", None
     
     def _get_object(self, object_class, key_string):
         if (object_class and key_string and (key_string != "NOTSET")):
@@ -247,7 +250,8 @@ class AjaxServer():
         query = SchoolDB.assistant_classes.QueryMaker(self.target_class,
                                             self._build_query_descriptor())
         object_list, extra_data, message_text = query.get_objects()        
-        self._produce_table_from_object_list(object_list, extra_data)
+        self._produce_table_from_object_list(object_list, extra_data,
+                                             message_text)
         
     def _generated_object_table(self):
         """
@@ -270,7 +274,8 @@ class AjaxServer():
                                secondary_key)
         self._produce_table_from_object_list(object_list)
     
-    def _produce_table_from_object_list(self, object_list, extra_data = None):
+    def _produce_table_from_object_list(self, object_list, extra_data = None,
+                                        message_text = None):
         result_list, key_list, combined_list = \
             SchoolDB.assistant_classes.QueryMaker.get_keys_names_fields_from_object_list(object_list,
                 extra_fields = self.extra_fields, 
@@ -284,7 +289,7 @@ class AjaxServer():
             table_description.append((field, "string", 
                                       field_title.title())) 
         self._produce_table(table_description, result_list, key_list, 
-                            extra_data)
+                            extra_data, message_text)
         
     def _calculated_table(self):
         function = self._get_mapped_function()
@@ -299,14 +304,16 @@ class AjaxServer():
                             extra_data)
         
     def _produce_table(self, table_description, table_data, key_list, 
-                           extra_data=None):
+                           extra_data=None, message_text=None):
         json_table = self._make_table(table_description, table_data)
         json_key_list = simplejson.dumps(key_list)
         json_extra_data = simplejson.dumps(extra_data)
+        json_message_text = simplejson.dumps(message_text)
         json_combined = simplejson.dumps({
             "extraData":json_extra_data,
             "keysArray":json_key_list, 
-            "tableDescriptor":json_table})
+            "tableDescriptor":json_table,
+            "messageText":json_message_text})
         self.return_string = json_combined
         
     def _set_single_value(self):

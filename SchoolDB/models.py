@@ -1935,9 +1935,9 @@ class SchoolDay(MultiLevelDefined):
         Change the date of the SchoolDay. This will be used to move the day in
         response to an Ajax request.
         """
-        legal, view_only = SchoolDB.views.validate_action("edit", 
+        legal, view_only = SchoolDB.views.validate_action("Edit", 
                                     ajax_object._return_ajax_permissions_error, 
-                                    SchoolDay, self)
+                                    "school_day", self)
         #if the action was not legal validate_action has already raised an exception
         #that will be caught in the ajax code.
         if legal:
@@ -2089,6 +2089,7 @@ class Person(polymodel.PolyModel):
     email = db.StringProperty(required=False)
     other_contact_info = db.StringProperty(multiline=True)
     position = db.StringProperty(required=False)
+    deped_employee = db.BooleanProperty(default=False)
     organization = db.ReferenceProperty(Organization, 
                                         collection_name="person_organization")
     organization_change_date = db.DateProperty()
@@ -2136,7 +2137,8 @@ class Person(polymodel.PolyModel):
         else:
             initial = ""
         short_name = initial + self.last_name
-        
+        return short_name
+            
     @staticmethod    
     def format_full_name_lastname_first(person):
         try:
@@ -2352,6 +2354,7 @@ class Administrator(Person):
         A default action that does nothing
         """
         Person.post_creation(self)
+        self.deped_employee = True
         self.put()
 
     @staticmethod
@@ -2446,6 +2449,7 @@ class StudentSchoolSummary(db.Model):
     """
     school = db.ReferenceProperty()
     section_dict = db.BlobProperty()
+    needs_cleanup = db.BooleanProperty(default = False)
     
     @staticmethod
     def create(parent, school):
@@ -2487,7 +2491,7 @@ class StudentSchoolSummary(db.Model):
                 logging.info(
                     "Created section summary information for new section %s")\
                        %unicode(Section.get(section_key))
-                
+            
     def mark_section_needs_update(self, section_key, put_self=True):
         """
         When a student record for the section is created or changed
@@ -2562,10 +2566,10 @@ class StudentSchoolSummary(db.Model):
 
     def update_if_necessary(self):
         """
-        Check the status of the summary. If all are current do nothing.
-        If at least one is not current then check the status dict for
-        each section. If it is not marked current then update the
-        section summary in a unique task. Return a count of the
+        Check the status of the summary. If all are current do
+        nothing. If at least one is not current then check the status
+        dict for each section. If it is not marked current then update
+        the section summary in a unique task. Return a count of the
         sections that will be updated.
         """
         try:
@@ -2617,7 +2621,22 @@ class StudentSchoolSummary(db.Model):
         """
         summary_keys = SchoolDB.summaries.StudentSchoolSectionDict.get_all_summaries(
             self.section_dict)
-        summaries_list = [db.get(key) for key in summary_keys]
+        summaries_list = []
+        for key in summary_keys:
+            try:
+                summary = db.get(key)
+                if summary:
+                    summaries_list.append(summary)
+                else:
+                    logging.warning(unicode(self.school) + \
+                        " summary needs cleanup because a section summary does not exist")
+                    self.needs_cleanup = True
+                    self.put()
+            except:
+                logging.warning(unicode(self.school) + \
+                        " summary needs cleanup because an exception was encountered.")
+                self.needs_cleanup = True
+                self.put()
         return summaries_list
     
     def get_sections_by_class_year(self, class_year, summaries_list, 
@@ -2932,6 +2951,7 @@ class Teacher(Person):
 
     def post_creation(self):
         Person.post_creation(self)
+        self.deped_employee = True
         self.organization = getActiveDatabaseUser().get_active_organization()
         self.put()
 
@@ -3495,7 +3515,10 @@ class ClassSession(StudentGrouping):
             query.filter("section =" ,section)
             query.filter("school_year = ", school_year)
             key = query.get()
-            class_session_entity = db.get(key)
+            if key:
+                class_session_entity = db.get(key)
+            else:
+                class_session_entity = None
         else:
             logging.error(logging_prefix + " failed: One or more bad keys.")
             return None
@@ -4167,7 +4190,7 @@ class AchievementTest(MultiLevelDefined):
             #no entities have yet been created so create one for each school
             schools = self.organization.get_schools()
             school_info_list = []
-            for school in db.get(schools):
+            for school in schools:
                 name = "%s-%s" %(unicode(self), unicode(school))
                 school_info_list.append(AchievementTestSchoolInfo.create(
                     name, self, school))
@@ -5715,8 +5738,14 @@ class Student(Person):
                                                   subject, start_date)
             if students_class:
                 self.update_active_classes_cache()
+            logging.info(
+                "**Assigned class session. Student: %s  Class: %s"\
+                        %(self.short_name(), unicode(class_session)))
         else:
             students_class = db.get(key)    
+            logging.info(
+                "--Class session already assigned. Student: %s  Class: %s"\
+                %(self.short_name(), class_session.name))
         return students_class
 
     def update_active_classes_cache(self):
@@ -6300,7 +6329,7 @@ class UserPermissionsVault():
     portion of the validation. Processing, loading, and unloading the
     object once inside the user type database entity is the
     responsibility of the data entity class. Action_names are:
-    "view", "edit", "delete"
+    "View", "Edit", "Delete"
     >>>This requires further work to handle special actions<<<
     """
     def __init__(self, url_default_permission, url_permissions, 
@@ -6412,6 +6441,9 @@ class DatabaseUser(db.Model):
         """
         """
         self.user = users.User(self.email)
+        self.first_name = self.person.first_name
+        self.middle_name = self.person.middle_name
+        self.last_name = self.person.last_name
         store = SchoolDB.assistant_classes.InformationStoreDict()        
         self.private_info = store.put_data()
         self.usage = 0

@@ -1830,7 +1830,6 @@ class QueryMaker:
             #query = self.model_class.all(keys_only=True)
         #else:
             #query = self.model_class.all()
-        message_text = False
         if (self.descriptor.get("filter_by_organization") and
             self.model_class.properties().has_key("organization")):
             organization = \
@@ -1871,7 +1870,7 @@ class QueryMaker:
             total_found = query.count()
             total_returned = total_found
             maximum_count = int(self.descriptor.get("maximum_count"))
-            message_text = ""
+            message_text = None
             if (total_found > maximum_count):
                 total_returned = maximum_count
                 if (total_found == 1000):
@@ -2021,7 +2020,7 @@ class AutoCompleteField():
     """
     def __init__(self, class_name, field_name, key_field_name,
                  ajax_root_path, response_command, custom_handler, use_key,
-                 names_only, extra_params={}, minlength=0, delay=600, max_choices=40, gate_function = "true"):
+                 names_only, minlength=0, delay=600, max_choices=40, gate_function = "true"):
         self.class_name = class_name
         self.field_name = field_name
         self.key_field_name = key_field_name
@@ -2040,11 +2039,10 @@ class AutoCompleteField():
         self.response_command = response_command
         self.custom_handler = custom_handler
         self.javascript_text = ""
-        self.extra_params = extra_params
-        self.extra_params["maximum_count"] = str(max_choices)
+        self.extra_ajax_params = {"maximum_count":str(max_choices)}
         self.gate_function = gate_function
         if self.names_only:
-            self.extra_params["names_only"] = "True"
+            self.extra_ajax_params["names_only"] = "True"
 
     def add_dependency(self, dependency_field, is_key = True):
         self.depends_upon.append({"field":dependency_field, 
@@ -2053,8 +2051,8 @@ class AutoCompleteField():
     def add_autocomplete_params(self, param_dict):
         self.autocomplete_params.update(param_dict)
 
-    def add_extra_params(self, param_dict):
-        self.extra_params.update(param_dict)
+    def add_extra_ajax_params(self, further_params_dict):
+        self.extra_ajax_params.update(further_params_dict)
 
     def set_local_choices_list(self, local_choices_list):
         self.local_choices_list = local_choices_list
@@ -2122,7 +2120,7 @@ class AutoCompleteField():
             source = "    source:  " + self.local_data_name + ","
         else:
             jq_name = '$("#%s")' %self.field_name
-            extra_params = ""
+            other_params = ""
             for dependent_field in self.depends_upon:
                 field_string = """,
 		'filter"""		
@@ -2134,12 +2132,12 @@ class AutoCompleteField():
 		    return (($('#%s').val())? $('#%s').val():'');
 		}""" %(dependent_field["field"].field_name,
                        dependent_field["field"].get_query_value_field())
-                extra_params = extra_params + field_string
+                other_params = other_params + field_string
                 
-            for dict_entry in self.extra_params.items():
+            for dict_entry in self.extra_ajax_params.items():
                 param_string = """,
 		'%s': '%s'""" %(dict_entry[0], dict_entry[1])
-                extra_params = extra_params + param_string
+                other_params = other_params + param_string
             source = """
     source: function(request, response) {
     if (%s) {
@@ -2167,7 +2165,7 @@ class AutoCompleteField():
             }
         },
 """ %(self.gate_function, jq_name, self.ajax_root_path, self.class_name, 
-      extra_params, jq_name, jq_name, self.response_command,
+      other_params, jq_name, jq_name, self.response_command,
       jq_name)	
         return source
 
@@ -2290,7 +2288,7 @@ $(function(){
                                custom_handler="",
                                use_key=False, names_only=True,
                                minlength=0, delay=600, max_choices=40,
-                               extra_params={}, gate_function="true"):
+                               gate_function="true"):
         if (not field_name):
             field_name = "id_" + class_name + "_name"
         if (not key_field_name):
@@ -2302,7 +2300,7 @@ $(function(){
                         custom_handler=custom_handler,
                         use_key=use_key, names_only=names_only,
                         minlength=minlength, delay=delay, 
-                        max_choices=max_choices, extra_params=extra_params,
+                        max_choices=max_choices,
                         gate_function=gate_function)
         self.autocomplete_fields.append(autocomplete_field)
         return autocomplete_field

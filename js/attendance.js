@@ -423,7 +423,7 @@ $(function() {
 	$("#date_select").datepicker({buttonText:'Choose a date to view', 
 		showWeek:true, gotoCurrent:true, buttonImageOnly:false,
 		showOtherMonths: true, selectOtherMonths: true, 
-		maxDate:"-1d", minDate:"-2m",
+		maxDate:"-1d", minDate:"-6m",
 		onClose: function(dateText, inst) {
 			var priorEndDate = endDate;
 			var startDate = Date.parse(dateText);

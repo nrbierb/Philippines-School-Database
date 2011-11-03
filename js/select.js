@@ -10,9 +10,9 @@ function createWidgetTable(ajaxResponse) {
 		selectionTable.setHeight(selectionTable.keysArray.length);
 		selectionTable.initializeTableParams();
 		selectionTable.finalizeTable();
-		var extraData = jQuery.parseJSON(ajaxResponse.extraData);
-		if (extraData !== null){
-			reportError(extraData, "Not All Choices Shown");
+		var messageText = jQuery.parseJSON(ajaxResponse.messageText);
+		if (messageText !== null){
+			reportError(messageText, "Not All Choices Shown");
 		}
 	}
 }
@@ -66,7 +66,7 @@ function modifyHelpBalloonText(balloonHelp){
 }
 
 $(function() {
-	$("#title_div").text(localParams.title);
+	//$("#title_div").text(localParams.title);
 	$('#no_table_fill').text(localParams.titleNamePlural);
 	$("#no_selection_fill").text(localParams.titleName);
 	$("#multiple_selection_fill").text(localParams.titleName);

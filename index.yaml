@@ -588,6 +588,19 @@ indexes:
   - name: class
   - name: student_major_history
 
+- kind: Person
+  properties:
+  - name: deped_employee
+  - name: last_name
+  - name: first_name
+
+- kind: Person
+  properties:
+  - name: deped_employee
+  - name: organization
+  - name: last_name
+  - name: first_name
+
 - kind: StudentAttendanceRecord
   properties:
   - name: __key__

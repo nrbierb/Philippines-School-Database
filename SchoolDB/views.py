@@ -29,7 +29,7 @@ from google.appengine.api import mail
 from google.appengine.api import app_identity
 from google.appengine.ext import db
 from google.appengine.api import memcache
-from google.appengine.ext.db import djangoforms
+#from google.appengine.ext.db import djangoforms
 from django import http
 from django import shortcuts
 from django.contrib.admin import widgets
@@ -146,7 +146,7 @@ def validate_action(target_action, error_report_function,
         ##the developer always has automatic permission
         #return (True,False)
     user_type = SchoolDB.models.getActiveDatabaseUser().get_active_user_type()
-    legal_action = user_type.action_ok(target_action, target_class)
+    legal_action = user_type.action_ok(target_action, target_class, target_object)
     view_only = False
     if (not legal_action and (target_action != "View")
         and target_class):
@@ -163,7 +163,7 @@ def validate_action(target_action, error_report_function,
     if (not legal_action and not view_only):
         raise InstanceActionProhibitedError ((target_action, 
                 error_report_function, target_class, target_object, 
-                "Not allowed for this user"))    
+                "this is not allowed for this user"))    
     return (legal_action, view_only)
 
 def prompt_for_login(minutes_since_last):
@@ -534,11 +534,10 @@ def showGradingPeriodResults(request):
                               GradingPeriodResultsForm, "Grading Period Grades",
                               "grading_period_results", use_template_name=True)
 
-#revert for moment
 def showMasterDatabaseUser(request):
     return standardShowAction(request, "master_database_user", 
                               MasterDatabaseUserForm, 
-                              "Database User", "generic",
+                              "Database User", "master_database_user",
                               perform_mapping = True)
 
 def showDatabaseUser(request):
@@ -995,12 +994,13 @@ def showSelectDialog(request):
             "template_requested_action":template_requested_action})
         javascript_code = javascript_generator.get_final_code()
         params, url_name = create_standard_params_dict(title, 
-            url_name = "/select/" + select_class_name, 
+            url_name = "select/" + select_class_name, 
             javascript_code = javascript_code,
             submit_action = return_url, 
             breadcrumb_title ="Select",
             full_title = full_title,
             help_page = "SelectHelp")
+        form.modify_params(params)
         params["template_requested_action"] = template_requested_action
     except ProhibitedError, e:
         return e.response
@@ -1514,7 +1514,7 @@ class PersonForm(BaseStudentDBForm):
                                         select_field):
         javascript_generator.add_javascript_params ({
             "fieldName":"Family Name"})
-        select_field.add_extra_params({
+        select_field.add_extra_ajax_params({
             "extra_fields":"first_name|middle_name",
             "format": "last_name_only",
             "leading_value_field":"last_name"})
@@ -1552,11 +1552,11 @@ class TeacherForm(PersonForm):
         prim_subject =  javascript_generator.add_autocomplete_field(
                     class_name="subject", field_name="id_primary_subject_name",
                     key_field_name="id_primary_subject")
-        prim_subject.add_extra_params({"use_class_query":"!true!"})
+        prim_subject.add_extra_ajax_params({"use_class_query":"!true!"})
         sec_subject = javascript_generator.add_autocomplete_field(          
                     class_name="subject", field_name="id_secondary_subject_name",
                     key_field_name="id_secondary_subject")
-        sec_subject.add_extra_params({"use_class_query":"!true!"})
+        sec_subject.add_extra_ajax_params({"use_class_query":"!true!"})
         pygd = javascript_generator.add_autocomplete_field(
             class_name = "paygrade", field_name = "id_paygrade", delay=10)
         pygd.set_local_choices_list(SchoolDB.choices.TeacherPaygrade)
@@ -1567,7 +1567,7 @@ class TeacherForm(PersonForm):
                                         select_field):
         javascript_generator.add_javascript_params ({
             "fieldName":"Teacher's Family Name"})
-        select_field.add_extra_params({
+        select_field.add_extra_ajax_params({
             "extra_fields":"first_name|middle_name",
             "format": "last_name_only",
             "leading_value_field":"last_name"})
@@ -1615,7 +1615,7 @@ class MyChoicesForm(BaseStudentDBForm):
             class_name = "section", delay=500)
         cls = javascript_generator.add_autocomplete_field(
             class_name = "class_session", delay=1000)
-        cls.add_extra_params({"extra_fields": "teacher|class_period"})
+        cls.add_extra_ajax_params({"extra_fields": "teacher|class_period"})
         javascript_generator.add_javascript_params ({
             "database_user":active_user_key, "teacher":active_person_key})
             
@@ -1667,14 +1667,14 @@ class AdministratorForm(PersonForm):
     def generate_javascript_code(self, javascript_generator):
         org = javascript_generator.add_autocomplete_field(
             class_name = "organization", delay=700)
-        org.add_extra_params({"filter-deped_org":"true"})
+        org.add_extra_ajax_params({"filter-deped_org":"true"})
     
     @staticmethod
     def generate_select_javascript_code(javascript_generator,
                                         select_field):
         javascript_generator.add_javascript_params ({
             "fieldName":"Administrator's Family Name"})
-        select_field.add_extra_params({
+        select_field.add_extra_ajax_params({
             "extra_fields":"first_name|middle_name|organization",
             "format": "last_name_only",
             "leading_value_field":"last_name"})
@@ -1929,7 +1929,6 @@ class StudentForm(PersonForm):
     def generate_class_javascript_code(javascript_generator):
         stat = javascript_generator.add_autocomplete_field(
             class_name = "student_status", delay=300)
-        stat.add_extra_params({"use_class_query":"!true!"})
         clsyr = javascript_generator.add_autocomplete_field(
             class_name = "class_year", field_name = "id_class_year", 
             delay=10)
@@ -1939,10 +1938,10 @@ class StudentForm(PersonForm):
         sect.add_dependency(clsyr, False)
         major = javascript_generator.add_autocomplete_field(
             class_name = "student_major", delay=300)
-        major.add_extra_params({"use_class_query":"!true!"})
+        major.add_extra_ajax_params({"use_class_query":"!true!"})
         sd = javascript_generator.add_autocomplete_field(
             class_name = "special_designation",delay=300)
-        sd.add_extra_params({"use_class_query":"!true!"})
+        sd.add_extra_ajax_params({"use_class_query":"!true!"})
         brthprov = javascript_generator.add_autocomplete_field(
             class_name = "province", 
             field_name = "id_birth_province_name",
@@ -1992,7 +1991,7 @@ class StudentForm(PersonForm):
         select_field.add_dependency(stat, True)
         select_field.add_dependency(clsyr, False)
         select_field.add_dependency(sect, True)
-        select_field.add_extra_params({
+        select_field.add_extra_ajax_params({
             "extra_fields":
             "first_name|middle_name|gender|section|class_year",
             "format": "last_name_only",
@@ -2121,7 +2120,7 @@ class SectionForm(StudentGroupingForm):
         clsrm = javascript_generator.add_autocomplete_field("classroom")
         sect_type = javascript_generator.add_autocomplete_field(
             class_name = "section_type", delay=100)
-        sect_type.add_extra_params({"use_class_query":"!true!"})
+        sect_type.add_extra_ajax_params({"use_class_query":"!true!"})
         return (clsyr, clsrm, sect_type)
 
     def generate_javascript_code(self, javascript_generator):
@@ -2140,7 +2139,7 @@ class SectionForm(StudentGroupingForm):
             javascript_generator)
         select_field.add_dependency(clsyr, is_key = False)
         select_field.add_dependency(clsrm, False)
-        select_field.add_extra_params({"filter_school":"false",
+        select_field.add_extra_ajax_params({"filter_school":"false",
                                     "extra_fields":"class_year|teacher"})
 
     @staticmethod
@@ -2229,7 +2228,7 @@ class SchoolForm(OrganizationForm):
                                 widget=forms.HiddenInput, initial="")
     school_creation_date = forms.DateField(required=False,
                     widget=forms.DateInput(format="%m/%d/%Y",
-                                attrs={"class":"date-mask entry-field"}))
+                                attrs={"class":"date-mask popup-calendar entry-field"}))
     municipality_choice_name = forms.CharField(required = False, 
                     label="Municipality", widget=forms.TextInput(attrs=
                                         {'class':'autofill entry-field'}))
@@ -2249,7 +2248,7 @@ class SchoolForm(OrganizationForm):
             class_name = "division")
         muni = javascript_generator.add_autocomplete_field(
             class_name = "municipality")
-        muni.add_dependency(div, True)
+        #muni.add_dependency(div, True)
         prin = javascript_generator.add_autocomplete_field(
             class_name = "administrator", field_name="id_principal_name",
             key_field_name = "id_principal")
@@ -2267,7 +2266,7 @@ class SchoolForm(OrganizationForm):
                 {"name":"division_name","label":"Division",
                  "fieldType":"view"},
                 {"name":"division","label":"Hidden", "fieldType":"hidden"}]})
-        select_field.add_extra_params({ "extra_fields":"division"})
+        select_field.add_extra_ajax_params({ "extra_fields":"division"})
         division = javascript_generator.add_autocomplete_field(
             class_name = "division")
         select_field.add_dependency(division, True)
@@ -2392,7 +2391,7 @@ class CommunityForm(OrganizationForm):
     @staticmethod
     def generate_select_javascript_code(javascript_generator, 
                                         select_field):
-        select_field.add_extra_params({
+        select_field.add_extra_ajax_params({
             "extra_fields":"municipality"})
         javascript_generator.add_javascript_params ({"auxFields":[
             {"name":"province_name","label":"Province",
@@ -2514,10 +2513,10 @@ class MultiLevelDefinedForm(BaseStudentDBForm):
 class DateBlockForm(MultiLevelDefinedForm):
     start_date = forms.DateField(required=True, label="Start Date*",
                                  widget=forms.DateInput(format="%m/%d/%Y",
-                                attrs={'class':'date-mask required entry-field'}))
+                                attrs={'class':'popup-calendar date-mask required entry-field'}))
     end_date = forms.DateField(required=True, label="End Date*",
                                widget=forms.DateInput(format="%m/%d/%Y",
-                                attrs={'class':'date-mask required entry-field'}))
+                                attrs={'class':'popup-calendar date-mask required entry-field'}))
     parent_form = MultiLevelDefinedForm
 
     element_names = ["start_date", "end_date"]
@@ -2525,16 +2524,18 @@ class DateBlockForm(MultiLevelDefinedForm):
     def generate_javascript_code(self, javascript_generator):
         javascript_generator.add_javascript_code(
             """
-            $('#id_start_date').datepicker({changeMonth: true,
-                minDate:'-4Y', maxDate:'+2Y'});
-            $('#id_end_date').datepicker({changeMonth: true, 
-            changeYear: true,  minDate:'-4Y', maxDate:'+2Y'});
+            $('#id_start_date').datepicker({
+            changeMonth: true, change_year: true,
+            minDate:'-4Y', maxDate:'+2Y'});
+            $('#id_end_date').datepicker({
+            changeMonth: true, changeYear: true,  
+            minDate:'-4Y', maxDate:'+2Y'});
             """)
 
     @staticmethod
     def generate_select_javascript_code(javascript_generator,
                                         select_field):
-        select_field.add_extra_params({
+        select_field.add_extra_ajax_params({
             "extra_fields":"organization|start_date|end_date",
             "use_class_query":"!true!"})
 
@@ -2590,7 +2591,7 @@ class SchoolDayForm(MultiLevelDefinedForm):
     @staticmethod
     def generate_select_javascript_code(javascript_generator,
                                         select_field):
-        select_field.add_extra_params({
+        select_field.add_extra_ajax_params({
             "extra_fields":"date|organization|day_type",
             "use_class_query":"!true!"})
         javascript_generator.add_javascript_params ({
@@ -2667,7 +2668,7 @@ class ClassPeriodForm(MultiLevelDefinedForm):
     @staticmethod
     def generate_select_javascript_code(javascript_generator,
                                         select_field):
-        select_field.add_extra_params({
+        select_field.add_extra_ajax_params({
             "extra_fields":"organization|start_time|end_time",
             "use_class_query":"True"})
         javascript_generator.add_javascript_params (
@@ -2690,7 +2691,7 @@ class SubjectForm(MultiLevelDefinedForm):
     @staticmethod
     def generate_select_javascript_code(javascript_generator,
                                         select_field):
-        select_field.add_extra_params({
+        select_field.add_extra_ajax_params({
             "extra_fields":"organization", "use_class_query":"True"})
         javascript_generator.add_javascript_params (
             {"titleName":"Curriculum Subject", 
@@ -2708,7 +2709,7 @@ class SectionTypeForm(MultiLevelDefinedForm):
     @staticmethod
     def generate_select_javascript_code(javascript_generator,
                                         select_field):
-        select_field.add_extra_params({
+        select_field.add_extra_ajax_params({
             "extra_fields":"organization", "use_class_query":"True"})
         javascript_generator.add_javascript_params (
             {"titleName":"Section Type", 
@@ -2729,7 +2730,7 @@ class StudentMajorForm(MultiLevelDefinedForm):
     @staticmethod
     def generate_select_javascript_code(javascript_generator,
                                         select_field):
-        select_field.add_extra_params({
+        select_field.add_extra_ajax_params({
             "extra_fields":"organization", "use_class_query":"True"})
         javascript_generator.add_javascript_params (
             {"titleName":"Student Major", 
@@ -2747,7 +2748,7 @@ class SpecialDesignationForm(MultiLevelDefinedForm):
     @staticmethod
     def generate_select_javascript_code(javascript_generator,
                                         select_field):
-        select_field.add_extra_params({
+        select_field.add_extra_ajax_params({
             "extra_fields":"organization", "use_class_query":"True"})
         javascript_generator.add_javascript_params (
             {"titleName":"Special Designation", 
@@ -2832,7 +2833,7 @@ class DivisionForm(OrganizationForm):
         region = javascript_generator.add_autocomplete_field(
             class_name = "region")
         select_field.add_dependency(region, True)
-        select_field.add_extra_params({
+        select_field.add_extra_ajax_params({
             "extra_fields":"region"})
 
 #---------------------------------------------------------------------- 
@@ -2934,10 +2935,10 @@ class ClassSessionForm(StudentGroupingForm):
     def generate_class_javascript_code(javascript_generator):
         subject = javascript_generator.add_autocomplete_field("subject",
                                                               delay=300)
-        subject.add_extra_params({"use_class_query":"!true!"})
+        subject.add_extra_ajax_params({"use_class_query":"!true!"})
         studentmjr = javascript_generator.add_autocomplete_field(
             "student_major", delay=300)
-        studentmjr.add_extra_params({"use_class_query":"!true!"})
+        studentmjr.add_extra_ajax_params({"use_class_query":"!true!"})
         level = javascript_generator.add_autocomplete_field(
             class_name = "level", field_name = "id_level", delay=10)
         level.set_local_choices_list(SchoolDB.choices.ClassLevel)
@@ -2951,12 +2952,13 @@ class ClassSessionForm(StudentGroupingForm):
         sect.add_dependency(clsyr, False)
         prd = javascript_generator.add_autocomplete_field(
             class_name = "class_period")
-        prd.add_extra_params({"use_class_query":"!true!"})
+        prd.add_extra_ajax_params({"use_class_query":"!true!"})
         clsrm = javascript_generator.add_autocomplete_field("classroom")
         tchr = javascript_generator.add_autocomplete_field(
             class_name = "teacher")
         schlyr = javascript_generator.add_autocomplete_field(
-            class_name = "school_year", extra_params={"ignore_organization":"!true!"})
+            class_name = "school_year")
+        schlyr.add_extra_ajax_params({"ignore_organization":"!true!"})
         return subject,studentmjr,clsyr,sect,prd,clsrm,tchr,schlyr
 
     def generate_javascript_code(self, javascript_generator):
@@ -2965,10 +2967,12 @@ class ClassSessionForm(StudentGroupingForm):
                    javascript_generator)
         javascript_generator.add_javascript_code(
             """
-            $('#id_start_date').datepicker({changeMonth: true,
-                changeYear: true,  minDate:'-4Y', maxDate:'+2Y'});
-            $('#id_end_date').datepicker({changeMonth: true, 
-            changeYear: true,  minDate:'-4Y', maxDate:'+2Y'});
+            $('#id_start_date').datepicker({ 
+            changeMonth: true, changeYear: true,  
+            minDate:'-6Y', maxDate:'+2Y'});
+            $('#id_end_date').datepicker({
+            changeMonth: true, changeYear: true,  
+            minDate:'-6Y', maxDate:'+2Y'});
             """ )
 
 
@@ -3006,7 +3010,7 @@ class ClassSessionForm(StudentGroupingForm):
                   "fieldType":"hidden", "value":year_data[
                       "school_year"]}]
              })
-        select_field.add_extra_params({
+        select_field.add_extra_ajax_params({
             "extra_fields":"section|student_major|class_year|class_period|classroom|teacher"})
         (subject, studentmjr, clsyr, sect, prd, clsrm, tchr, schlyr) = \
          ClassSessionForm.generate_class_javascript_code(
@@ -3349,7 +3353,7 @@ class GradeWorkForm(BaseStudentDBForm):
                 {"title":title,
                  "titleNamePlural":"Grading Instances",
                  "priorSelection":class_session})
-            select_field.add_extra_params({
+            select_field.add_extra_ajax_params({
                 "extra_fields":"grading_type", 
                 "filterkey-class_session":class_session})
 
@@ -3563,7 +3567,7 @@ class AchievementTestForm(BaseStudentDBForm):
         grading_type = AchievementTestForm.generate_javascript_code(
             javascript_generator)
         select_field.add_dependency(grading_type,False)
-        select_field.add_extra_params({"extra_fields":"grading_type|date",
+        select_field.add_extra_ajax_params({"extra_fields":"grading_type|date",
                                        "use_class_query":"True"})
 
     @staticmethod    
@@ -3681,8 +3685,8 @@ class SectionAchievementTestGradesForm(BaseStudentDBForm):
             class_name = "achievement_test", 
             field_name = "id_achievement_test_name",
             key_field_name = "id_achievement_test",
-            ajax_root_path = "/ajax/get_achievement_tests_for_section",
-            extra_params = {'filterkey-section': str(active_section_key)})
+            ajax_root_path = "/ajax/get_achievement_tests_for_section")
+        achtest.add_extra_ajax_params({'filterkey-section': str(active_section_key)})
         
     @staticmethod
     def process_request(data):
@@ -3931,7 +3935,7 @@ class UserTypeForm(BaseStudentDBForm):
                                         select_field):
         javascript_generator.add_javascript_params ({"titleName":"User Type",
                     "titleNamePlural":"User Types", "fieldName":"User Type"})
-        select_field.add_extra_params({"filter_school":"false"})
+        select_field.add_extra_ajax_params({"filter_school":"false"})
 
 #----------------------------------------------------------------------     
 
@@ -3942,18 +3946,6 @@ class MasterDatabaseUserForm(BaseStudentDBForm):
     Not easy to use but flexible. This can only be used by the master admin
     user.
     """
-    first_name = forms.CharField(required=True, max_length=60,
-                                 label="First Name*",
-            widget=forms.TextInput(attrs={'class':'required entry-field', 
-                                            'minlength':'2'}))
-    middle_name = forms.CharField(required=False, max_length=60,
-                                 label="Middle Name",
-            widget=forms.TextInput(attrs={'class':'entry-field', 
-                                            'minlength':'1'}))
-    last_name = forms.CharField(required=True, max_length=60, 
-                                label="Family Name*",
-            widget=forms.TextInput(attrs={'class':'required entry-field', 
-                                            'minlength':'2'}))
     email = forms.EmailField(required=True, max_length=60, 
                     label="Email Address*", widget=forms.TextInput(attrs=
                          {'class':'required email entry-field',
@@ -3972,10 +3964,6 @@ class MasterDatabaseUserForm(BaseStudentDBForm):
                         label="Organization:*", widget=forms.TextInput(attrs=
                                 {'class':'autofill entry-field required'}))
     organization = forms.CharField(required=False, widget=forms.HiddenInput)
-    person_type = forms.ChoiceField(required=False, 
-                                choices=(("teacher","Teacher"), 
-                                ("administrator", "Administrator")),
-                                label="Database Identity Type")
     person_name = forms.CharField(required=False, 
             label="Database Identity:", widget=forms.TextInput(attrs=
                                 {'class':'autofill entry-field'}))
@@ -3983,35 +3971,33 @@ class MasterDatabaseUserForm(BaseStudentDBForm):
     other_information = forms.CharField(required=False,
         max_length=1000, widget=forms.Textarea( 
                     attrs={'cols':50, 'rows':2, 'class':'entry-field'}))
-    element_names = ["first_name", "middle_name", "last_name", 
-                     "email", "contact_email", "organization", 
+    element_names = ["email", "organization", 
                      "user_type", "guidance_counselor",
                      "person", "other_information"]
     parent_form = BaseStudentDBForm
 
-    def create_new_instance(self):
-        org_key = SchoolDB.utility_functions.get_key_from_string(self.cleaned_data["organization"])
-        user_type_key = SchoolDB.utility_functions.get_key_from_string(self.cleaned_data["user_type"])
-        return SchoolDB.models.DatabaseUser(
-            first_name = self.cleaned_data["first_name"],
-            last_name = self.cleaned_data["last_name"],
-            organization = org_key,
-            user_type = user_type_key,
-            email = self.cleaned_data["email"])
+    #def create_new_instance(self):
+        #org_key = SchoolDB.utility_functions.get_key_from_string(self.cleaned_data["organization"])
+        #user_type_key = SchoolDB.utility_functions.get_key_from_string(self.cleaned_data["user_type"])
+        #return SchoolDB.models.DatabaseUser(
+            #first_name = self.cleaned_data["first_name"],
+            #last_name = self.cleaned_data["last_name"],
+            #organization = org_key,
+            #user_type = user_type_key,
+            #email = self.cleaned_data["email"])
 
     @staticmethod
     def generate_class_javascript_code(javascript_generator):
         usr_type = javascript_generator.add_autocomplete_field(
             class_name = "user_type")
         org = javascript_generator.add_autocomplete_field(
-            class_name = "organization", 
-            extra_params = {"filter-deped_org":"!true!"})
+            class_name = "organization")
+        org.add_extra_ajax_params({"filter-deped_org":"!true!"})
         per = javascript_generator.add_autocomplete_field(
-           class_name = "database_user", field_name = "last_name",
-           key_field_name = "id_last_name", 
-           extra_params = {"ignore_organization":"True"})
-        per.add_dependency(org, True)
-        per.add_dependency(usr_type, True)
+           class_name = "person")
+        per.add_dependency(org)
+        per.add_extra_ajax_params({"ignore_organization":"!true!",
+                                   "filter-deped_employee":"!true!"})
         return org,per,usr_type
     
     def generate_javascript_code(self, javascript_generator):
@@ -4036,7 +4022,7 @@ class MasterDatabaseUserForm(BaseStudentDBForm):
         org, per, usr_type = \
            MasterDatabaseUserForm.generate_class_javascript_code(
             javascript_generator)
-        select_field.add_extra_params({"filter_school":"false",
+        select_field.add_extra_ajax_params({"filter_school":"false",
             "extra_fields":"first_name|middle_name|organization|email|user_type",
             "format": "last_name_only",
             "leading_value_field":"last_name", "ignore_organization":"!true!"})
@@ -4048,6 +4034,37 @@ class MasterDatabaseUserForm(BaseStudentDBForm):
         initialize_fields([("user_type","user_type_name"), 
                             ("organization", "organization_name"),
                            ("person", "person_name")], data)
+        
+    def create_new_instance(self):
+        email = self.cleaned_data.get("email", None)
+        user_type = SchoolDB.utility_functions.get_key_from_string(
+            self.cleaned_data.get("user_type", None))
+        organization = SchoolDB.utility_functions.get_key_from_string(
+            self.cleaned_data.get("organization", None))
+        instance = DatabaseUser(organization=organization,
+                                user_type=user_type, email=email)
+        store = SchoolDB.assistant_classes.InformationStoreDict()        
+        instance.private_info = store.put_data()
+        return instance
+        
+        
+    def save(self, instance):
+        """
+        Create or update a database user. This is a special action
+        because the entity is not identified directly by the name field
+        in the object. That and most of the other data must be created
+        from implied information derived from the person of the user.
+        """
+        instance = self.parent_form.save(self, instance)
+        person = SchoolDB.utility_functions.get_instance_from_key_string(
+            self.cleaned_data.get("person",None),Person)
+        instance.first_name = person.first_name
+        instance.middle_name = person.middle_name
+        instance.last_name = person.last_name
+        email = self.cleaned_data.get("email", None)
+        user_type = self.cleaned_data.get("user_type", None)
+        organization = self.cleaned_data.get("organization", None)
+        instance.put()
 
 #----------------------------------------------------------------------  
 
@@ -4171,7 +4188,7 @@ class StandardDatabaseUserForm(BaseStudentDBForm):
             "titleName":"Database User",
             "titleNamePlural":"Database Users", 
             "fieldName":"Database User Family Name"})
-        select_field.add_extra_params({
+        select_field.add_extra_ajax_params({
             "extra_fields":"first_name|middle_name",
             "format": "last_name_only",
             "leading_value_field":"last_name"})
@@ -4196,8 +4213,6 @@ class SelectForm(BaseStudentDBForm):
             self.requested_action = "View"
         self.return_url = "/" + select_class_name
         self.submit_action = submit_action
-        #self.breadcrumbs, self.return_url, page_prior_url = \
-            #generate_breadcrumb_line(self.return_url)
         self.select_class.initialize_form_params(self)
 
     def set_submit_action(self, submit_action):
@@ -4219,7 +4234,10 @@ class SelectForm(BaseStudentDBForm):
         self.select_class = select_class
         self.select_class_name = select_class_name
         self.titlename = select_class_name.title()
-
+    
+    def modify_params(self, params):
+        params["top_title"] = self.title
+        
     def generate_javascript_code(self, javascript_generator):
         javascript_generator.add_javascript_code(
 """
@@ -4244,7 +4262,7 @@ class SelectForm(BaseStudentDBForm):
             response_command = "createWidgetTable(ajaxResponse);",
             delay=1000)
         select_field.ajax_root_path = "/ajax/select_table"
-        select_field.add_extra_params({"filter_school":"true",
+        select_field.add_extra_ajax_params({"filter_school":"true",
                                        "leading_value_field":"name",
                                        "maximum_count":100})
         self.select_class.generate_select_javascript_code(
@@ -4255,7 +4273,7 @@ class SelectForm(BaseStudentDBForm):
             self.title = "Work With " + \
                 javascript_generator.get_javascript_param("titleNamePlural")
         if (not javascript_generator.get_javascript_param("title")):
-            javascript_generator.add_javascript_params({"title":self.title})
+            javascript_generator.add_javascript_params({"title":self.title})        
         #return the select_field for further work by child classes
         return select_field   
 #----------------------------------------------------------------------  
@@ -4276,7 +4294,7 @@ class DatabrowserForm(SelectForm):
                                                 javascript_generator)
         #change the "extra_fields" parameter to use the selected fields
         #in the displayed results
-        select_field.add_extra_params({
+        select_field.add_extra_ajax_params({
             "extra_fields":"!updateDisplayFields()!",
             "maximum_count":900})
         field_choices_table, selected_fields_table = \
@@ -4599,8 +4617,9 @@ class SectionGradingPeriodGradesForm(BaseStudentDBForm):
             class_name = "section")
         gdprd = javascript_generator.add_autocomplete_field(
             class_name = "grading_period", 
-            ajax_root_path = "/ajax/select_via_function",
-            extra_params = {"function":"get_completed_grading_periods_selection_list"})
+            ajax_root_path = "/ajax/select_via_function")
+        gdprd.add_extra_ajax_params({
+            "function":"get_completed_grading_periods_selection_list"})
         return javascript_generator
     
     @staticmethod
@@ -4936,7 +4955,7 @@ class VersionedTextManagerForm(BaseStudentDBForm):
     @staticmethod
     def generate_select_javascript_code(javascript_generator,
                                         select_field):
-        select_field.add_extra_params({
+        select_field.add_extra_ajax_params({
             "extra_fields":"title|revision_number|dialog_template|page_template", "filter_school":"false" })
      
     def generate_custom_return(self, instance):
@@ -5017,7 +5036,7 @@ class GenerateGradesForm(BaseStudentDBForm):
             class_name = "achievement_test")
         gdprd = javascript_generator.add_autocomplete_field(
             class_name = "grading_period")
-        gdprd.add_extra_params({"use_class_query":"!true!"})
+        gdprd.add_extra_ajax_params({"use_class_query":"!true!"})
     
     def save(self, instance):
         """
@@ -5220,7 +5239,7 @@ def map_template_to_usertype(template, perform_mapping = True):
     upper_level_user = {StandardDatabaseUserForm:ProhibitedURLForm}
     upper_level_db_administrator = {
         "standard_database_user":"standard_database_user"}
-    master = {"standard_database_user":"generic"}
+    master = {"standard_database_user":"master_database_user"}
     dict_map = {"Master":master,"Teacher":teacher, 
               "SchoolDbAdministrator":school_db_administrator, 
               "UpperLevelUser":upper_level_user,
@@ -5882,16 +5901,16 @@ class BreadcrumbGenerator:
         self._build_final_url_list()
         for url in self.final_url_list:
             name = ""
-            if (url.startswith("/select/")):
+            if (url.startswith("select/")):
                 name = "Select "
-            if (url.startswith("/initialselect/")):
+            if (url.startswith("initialselect/")):
                 name = "Select "
-            if (url.startswith("/choose/")):
+            if (url.startswith("choose/")):
                 name = "Choose "
-            if (url.startswith("/reports/")):
-                name = ""
+            #if (url.startswith("reports/")):
+                #name = ""
             if name:
-                name += self.name_map.get(url.split("/")[2], "")
+                name += self.name_map.get(url.split("/")[1], "")
             else:
                 name = self.name_map.get(url, "Current Page")
             self.breadcrumb_list.append((url, name))
@@ -5956,7 +5975,7 @@ def generate_breadcrumb_and_cookie(request_url):
     return generator.generate_breadcrumb()
 
 def return_error_page(error_string_suffix):
-    error_string = "Sorry, you may not " + error_string_suffix
+    error_string = "<h2>Sorry, you may not: </h2><h3>%s</h3><h2>Click the back button in your browser to return to the previous page. </h2>"  %error_string_suffix
     return http.HttpResponseForbidden(error_string)
 
 class ResultLogger:
@@ -6047,10 +6066,10 @@ class InstanceActionProhibitedError(ProhibitedError):
             %(active_user.get_active_user_name(),
             active_user.get_active_organization_name(),
             target_action, unicode(target_object), 
-            target_class.classname)
+            target_class)
         if reason:
             log_string += " Reason: '%s'" %reason
-        #log(log_string)
+        logging.warning(log_string)
         response_string_suffix = "%s '%s'" %(target_action, 
                                     unicode(target_object))
         if reason:

@@ -518,5 +518,3 @@ if __name__ == '__main__':
                                        opt.students_per_section)
     logging.info("Tasks to create %d students have been queued." %student_count)
 
-        
-    

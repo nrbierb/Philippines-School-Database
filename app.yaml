@@ -1,4 +1,4 @@
-application: pi-schooldb-practice
+application: pi-schooldb-dev
 version: 1--0-17
 runtime: python
 api_version: 1
