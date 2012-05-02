@@ -14,9 +14,12 @@ $(function() {
 		setupPage();
 		getAchievementTestGrades();
 		});
-});	
-$(function() {
-	//$("#grades_div").hide();
+	$("#reset_table_button").click(function(){
+		resetAchievementTestTableValues();
+		});
+	$("#load_spreadsheet_button").click(function(){
+		loadAchievementTestTableFromSpreadsheet();
+		});
 	$("#save_grades_btn").click(function(){
 		returnResults("section", $("#id_section").val(),"achievement_test", 
 			$("#id_achievement_test").val());		

@@ -10,7 +10,9 @@ def create_schooldays(logger, start_date, end_date, school_break = ""):
     agruments, both inclusive: start_date, end_date. Both are in the
     format "mm/dd/yyyy". The defining organization is "national".
     Perform a query on the range first and do not create an instance
-    for any day that already has "national" defined for it.
+    for any day that already has "national" defined for it. If days
+    have already been defined for this period change them to the
+    defined type.
     """
     #get national org instance
     if ((not start_date) or (not end_date)):
@@ -28,23 +30,28 @@ def create_schooldays(logger, start_date, end_date, school_break = ""):
     logger.add_line("Number preexisting: %d" %(len(existing)))
     schoolday_instances = []
     created_count = 0
+    changed_count = 0
     while (the_date <= end):
-        if (len(existing) == 0) or (the_date != existing[0].date):
-            if (the_date.weekday() < 5):
-                if (school_break):
-                    dtype = "Not In Session"
-                else:
-                    dtype = "School Day"
+        if (the_date.weekday() < 5):
+            if (school_break):
+                dtype = "Not In Session"
             else:
-                dtype = "Weekend"
+                dtype = "School Day"
+        else:
+            dtype = "Weekend"
+        if (len(existing) > 0) and (the_date == existing[0].date):
+            existing[0].day_type = dtype
+            schoolday_instances.append(existing[0])
+            existing.pop(0)
+            changed_count += 1
+        else:
             new_record = SchoolDB.models.SchoolDay(
-                name=the_date.strftime("%m/%d/%Y") + "-National DepEd", date=the_date,
-                    organization=national, day_type=dtype)
+                name=the_date.strftime("%m/%d/%Y") + "-National DepEd", 
+                date=the_date, organization=national, day_type=dtype)
             schoolday_instances.append(new_record)
             created_count += 1
-        else:
-            existing.pop(0)
         the_date += one_day
     db.put(schoolday_instances)
-    logger.add_line("Number created: %d" %created_count)
+    logger.add_line("Number created: %d  Number changed = %d" 
+                    %(created_count, changed_count))
     

@@ -202,7 +202,7 @@ def build_school_db_administrator_permissions():
                 "classroom":standard_edit,
                 "contact":standard_broad_edit,
                 "standard_database_user":standard_edit,
-                #"database_user":standard_edit,
+                "achievement_test":standard_broad_edit,
                 "grading_period":standard_edit,
                 "municipality":standard_broad_edit,
                 "school":standard_edit,

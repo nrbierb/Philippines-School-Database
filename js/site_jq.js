@@ -716,8 +716,15 @@ function successfulAjaxOnlySave(returnData){
     //}
 }
 
+function addPlural(n) {
+	return (n == 1) ? "" :"s";
+}
+
+function choosePluralVerb(n) {
+	return (n == 1) ? "is" : "are";
+}
 function reportError(errorText, title){
-    var errorDialog = $('#<div></div)').html(errorText).dialog({
+    var errorDialog = $('#local_error_div').html(errorText).dialog({
         autoOpen: false,
         title: title,
         buttons: {
@@ -872,36 +879,3 @@ function requestTable(url, params, targetTable){
     });
 }
 
-// The following code is a copy from other freely available sources.
-// If the license on this code is different from the GPL then it is
-// the one that is effective.
-// parseUri 1.2.2
-// (c) Steven Levithan <stevenlevithan.com>
-// MIT License
-
-function parseUri(str){
-    var o = parseUri.options, m = o.parser[o.strictMode ? "strict" : "loose"].exec(str), uri = {}, i = 14;
-    while (i--) {
-        uri[o.key[i]] = m[i] || "";
-    }
-    uri[o.q.name] = {};
-    uri[o.key[12]].replace(o.q.parser, function($0, $1, $2){
-        if ($1) {
-            uri[o.q.name][$1] = $2;
-        }
-    });
-    return uri;
-}
-
-parseUri.options = {
-    strictMode: false,
-    key: ["source", "protocol", "authority", "userInfo", "user", "password", "host", "port", "relative", "path", "directory", "file", "query", "anchor"],
-    q: {
-        name: "queryKey",
-        parser: /(?:^|&)([^&=]*)=?([^&]*)/g
-    },
-    parser: {
-        strict: /^(?:([^:\/?#]+):)?(?:\/\/((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?))?((((?:[^?#\/]*\/)*)([^?#]*))(?:\?([^#]*))?(?:#(.*))?)/,
-        loose: /^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/)?((?:(([^:@]*)(?::([^:@]*))?)?@)?([^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/
-    }
-};

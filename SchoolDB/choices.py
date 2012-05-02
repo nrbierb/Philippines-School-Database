@@ -130,6 +130,7 @@ utility_function_choices = [
     "SchoolDB.local_utilities_functions.create_fake_at_grades",
     "SchoolDB.local_utilities_functions.create_fake_gp_grades",
     "SchoolDB.local_utilities_functions.dump_student_info_to_email",
+    "SchoolDB.local_utilities_functions.create_schooldays",
     "assign_student_majors_for_test_database",
     "create_students_for_school"]
 

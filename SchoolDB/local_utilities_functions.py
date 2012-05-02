@@ -137,7 +137,8 @@ def bulk_update_by_task(model_class, filter_parameters, change_parameters,
             #if these aren't defined do nothing...
             qmkr_desc = SchoolDB.assistant_classes.QueryDescriptor()
             qmkr_desc.set("filter_by_organization", filter_by_organization)
-            qmkr_desc.set("filters", filter_parameters)
+            for param, value in filter_parameters:
+                qmkr_desc.set_filter(param, value)
             qmkr_desc.set("return_iterator", True)
             qmkr_desc.set("keys_only", True)
             qmkr_query = SchoolDB.assistant_classes.QueryMaker(
@@ -413,7 +414,8 @@ def count_student_class_records_task():
             query = SchoolDB.models.Section.all(keys_only=True)
             query.filter("organization =", school)
             keys = query.fetch(500)
-            for section in db.get(keys):
+            sections = db.get(keys)
+            for section in sections:
                 q = SchoolDB.models.Student.all(keys_only=True)
                 SchoolDB.models.active_student_filter(q)
                 q.filter("section =", section)
@@ -501,7 +503,8 @@ def count_student_class_records_task_multitask():
         query = SchoolDB.models.Section.all(keys_only=True)
         query.filter("organization =", school)
         keys = query.fetch(500)
-        for section in db.get(keys):
+        sections = db.get(keys)
+        for section in sections:
             q = SchoolDB.models.Student.all(keys_only=True)
             SchoolDB.models.active_student_filter(q)
             q.filter("section =", section)
@@ -1008,7 +1011,8 @@ def section_name_letter_case_cleanup(logger, section_name):
     query = SchoolDB.models.Student.all(keys_only=True)
     query.filter("section =", section.key())
     keys = query.fetch(400)
-    for student in db.get(keys):
+    students = db.get(keys)
+    for student in students:
         original_name = unicode(student)
         student.first_name = \
             SchoolDB.utility_functions.clean_up_letter_casing(
@@ -1396,7 +1400,8 @@ def dump_student_info_to_email_task_ascii(class_year, email_address,
         query.filter("class_year =", class_year)
         SchoolDB.models.active_student_filter(query)
         keys = query.fetch(block_size, offset=last_count)
-        for student in db.get(keys):
+        students = db.get(keys)
+        for student in students:
             for s in csv_field_names:
                 val_dict[s] = ""
             val_dict["first_name"]=student.first_name
@@ -1573,7 +1578,8 @@ def dump_student_info_to_email_task(class_year, email_address, memcache_key,
         query.filter("class_year =", class_year)
         SchoolDB.models.active_student_filter(query)
         keys = query.fetch(block_size, offset=last_count)
-        for student in db.get(keys):
+        students = db.get(keys)
+        for student in students:
             for s in csv_field_names:
                 val_dict[s] = ""
             val_dict["first_name"]=student.first_name
@@ -1669,3 +1675,55 @@ def dump_student_info_to_email_task(class_year, email_address, memcache_key,
                       %(email_address, e))
         return False
 
+def create_schooldays(logger, start_date, end_date, school_break = ""):
+    """ 
+    Create a block of SchoolDay instances with either the type
+    schoolday for weekdays or weekend for weekend days. Takes two
+    agruments, both inclusive: start_date, end_date. Both are in the
+    format "mm/dd/yyyy". The defining organization is "national".
+    Perform a query on the range first and do not create an instance
+    for any day that already has "national" defined for it. If days
+    have already been defined for this period change them to the
+    defined type.
+    """
+    #get national org instance
+    if ((not start_date) or (not end_date)):
+        logger.add_line("Missing date(s) as parameters. Error: Quitting")
+    start = SchoolDB.views.convert_form_date(start_date)
+    end = SchoolDB.views.convert_form_date(end_date)
+    national = SchoolDB.models.National.get_national_org()
+    query = SchoolDB.models.SchoolDay.all()
+    query.filter("date >=", start)
+    query.filter("date <=", end)
+    query.filter("organization =", national.key())
+    existing = query.fetch(500)
+    the_date = start
+    one_day = datetime.timedelta(1)
+    logger.add_line("Number preexisting: %d" %(len(existing)))
+    schoolday_instances = []
+    created_count = 0
+    changed_count = 0
+    while (the_date <= end):
+        if (the_date.weekday() < 5):
+            if (school_break):
+                dtype = "Not In Session"
+            else:
+                dtype = "School Day"
+        else:
+            dtype = "Weekend"
+        if (len(existing) > 0) and (the_date == existing[0].date):
+            existing[0].day_type = dtype
+            schoolday_instances.append(existing[0])
+            existing.pop(0)
+            changed_count += 1
+        else:
+            new_record = SchoolDB.models.SchoolDay(
+                name=the_date.strftime("%m/%d/%Y") + "-National DepEd", 
+                date=the_date, organization=national, day_type=dtype)
+            schoolday_instances.append(new_record)
+            created_count += 1
+        the_date += one_day
+    db.put(schoolday_instances)
+    logger.add_line("Number created: %d  Number changed = %d" 
+                    %(created_count, changed_count))
+    return False

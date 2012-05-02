@@ -48,8 +48,8 @@ function atBuildYearsTable() {
 	for (yearIndex = 0; yearIndex < atYearNames.length; yearIndex++) {
 		yearName = atYearNames[yearIndex];
 		yearTr = '<tr class="at-year"><td>' + yearName +
-		'</td><td><input type="checkbox" class="year-checkbox active-checkbox" id="year-' + yearIndex +
-		 '"> </td><td >' +
+		'</td><td><input type="checkbox" class="year-checkbox active-checkbox" \
+		id="year-' + yearIndex +'"> </td><td >' +
 		atBuildSubjectsTable(yearIndex) + '</td></tr>';
 		$(yearTr).appendTo("#years_table");
 	}
@@ -116,6 +116,33 @@ function atParseTestingInfo(){
 		atTestingInfo = json_parse(localParams.json_testing_info);
 	}
 }
+{% if guidance_counselor or usertype == "Master" %}
+function requestSpreadsheets() {
+	var achievementTest = $("#id_object_instance").val();
+	if (achievementTest !== "") {
+		$.ajax({
+			url: "/ajax/email_achievement_test_spreadsheets/",
+			type: "POST",
+			dataType: "json",
+			data: {
+				"class": "achievement_test",
+				"key": achievementTest,
+				"email_address":$("#id_email_address").val(),
+			},
+		success: function(ajaxResponse){
+			result = ajaxResponse;
+			title = result[0] ? "Spreadsheet Request Successful" :
+				 "Spreadsheet Request Failed";
+			reportError(result[1], title);
+		},
+		error: function(ajaxResponse, textStatus){
+			popupText = json_parse(ajaxResponse);
+			reportError(popupText, "Spreadsheet Request Failed");
+		}
+	});
+	}
+}
+{% endif %}
 
 $(function() {
 	atParseTestingInfo();
@@ -131,7 +158,10 @@ $(function() {
 			saveAnnounce();		
 			$("#form1").submit();		
 		}
-	});	
+	});
+	$("#request_button").click(function(){
+		requestSpreadsheets();
+	})
 });
 {% endblock local_javascript_code %}
 {% block extended %}
@@ -143,7 +173,7 @@ $(function() {
 		<td><label for="id_name" id="id_name_label" class="required">Name*:</label></td><td>{{ form.name }}</td>
 	</tr>
 	<tr>
-		<td><label for="id_date" id="id_date_label"></label>Test Date:</td><td>{{ form.date }}</td>
+		<td><label for="id_date" id="id_date_label" class="required"></label>Test Date*:</td><td>{{ form.date }}</td>
 	</tr>
 	<tr>
 		<td><label for="id_date" id="id_date_label"></label>Testing Authority:</td><td>{{ form.organization }}</td>
@@ -170,6 +200,26 @@ $(function() {
 	</tr> 
 </table>	
 </fieldset>
+{% if guidance_counselor or usertype == "Master" %}
+<fieldset class="same-in-view">
+<legend>Request Grading Spreadsheets (School Guidance Counselor Only)</legend>
+<table class="unbordered"> 
+	<tr>
+	<td><label for="id_email_address_label" class="same-in-view">Email Address:</label></td>
+	<td><input id="id_email_address" class="phone_number entry-field same-in-view" name="email" 
+		size="25" type="text"></td>
+	</tr><tr>
+		<td></td>
+		<td>
+  		<input type="button" id="request_button" name="action" value="Request Spreadsheets" 
+			title="Click to request spreadsheets for recording grades." 
+			class="btn tb action same-in-view"/>
+		</input>
+	  	</td>
+	</tr>
+</table>
+</fieldset>
+{% endif %}
 {{form.json_subject_names}}
 {{form.json_classyear_names}}
 {{form.json_testing_info}}

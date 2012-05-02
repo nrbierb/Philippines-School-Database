@@ -23,9 +23,11 @@ import cPickle, zlib, datetime, base64, logging
 import SchoolDB.models 
 import SchoolDB.views
 import SchoolDB.utility_functions
+from lib import gviz_api
+from django import forms
 from django.utils import simplejson
 from google.appengine.ext import db
-from google.appengine.api import taskqueue
+from google.appengine.api import taskqueue, mail
 
 class InformationContainer():
     """
@@ -925,12 +927,12 @@ class AjaxGetGradeHandler:
         try:
             self.data = simplejson.loads(json_data)
             self.requested_action = self.data["requested_action"]
-            achievement_test_key_string = self.data.get(
+            self.achievement_test_key_string = self.data.get(
                 "achievement_test", None)
-            if (achievement_test_key_string):
+            if (self.achievement_test_key_string):
                 self.achievement_test = \
                     SchoolDB.utility_functions.get_instance_from_key_string(
-                        achievement_test_key_string, SchoolDB.models.AchievementTest)
+                        self.achievement_test_key_string, SchoolDB.models.AchievementTest)
             else:
                 self.achievement_test = None
             self.gender = self.data.get("gender", None)
@@ -1084,7 +1086,8 @@ class AjaxGetGradeHandler:
             header.append(column_hdr)
             grading_instances_list.append(grading_instance)
         return header, grading_instances_list
-
+            
+        
     def create_achievement_test_table_data(self):
         """
         Create a two level array in the form to be used by the google
@@ -1177,11 +1180,12 @@ class AjaxGetGradeHandler:
             table_header, grading_instances_list = self.create_table_header()
             table_data, student_record_data, raw_data = \
                       self.create_table_data()
-        data_table = SchoolDB.gviz_api.DataTable(table_header)
+        data_table = gviz_api.DataTable(table_header)
         data_table.LoadData(table_data)
         json_table = data_table.ToJSon()
         json_student_record_data = simplejson.dumps(student_record_data)
-        return json_table, json_student_record_data
+        json_raw_data = simplejson.dumps(raw_data)
+        return json_table, json_student_record_data, json_raw_data
     
     def create_raw_information(self):
         """
@@ -1197,6 +1201,16 @@ class AjaxGetGradeHandler:
         return table_header, grading_instances_list, student_keys,\
                student_record_data, raw_data
     
+    def create_achievement_test_empty_spreadsheet_data(self):
+        """
+        Create table headers and student lists to use when creating
+        spreadsheets for grade entry. Each subject in the header and
+        each student is paired in a tuple with its key.
+        """
+        header = self.create_achievement_test_table_header()
+        student_list, unused_json = self.create_class_roster_and_json()
+        return header, student_list
+        
     def create_full_package(self):
         """
         Create a complete json set of values for the normal grade page.
@@ -1206,7 +1220,7 @@ class AjaxGetGradeHandler:
         dictionary of details about each grading instance.
         """
         json_return_dict = {}
-        json_table, json_student_record_data = self.create_table()
+        json_table, json_student_record_data, json_raw_data = self.create_table()
         json_return_dict["tableDescriptor"] = json_table
         json_return_dict["studentRecordsArray"] = json_student_record_data
         unused, json_student_keylist = self.create_class_roster_and_json(True)
@@ -1215,6 +1229,9 @@ class AjaxGetGradeHandler:
                         simplejson.dumps(self.grading_instances_key_strings)
         json_return_dict["gradingInstDetails"] = \
                         simplejson.dumps(self.grading_instance_detail_dict)
+        json_return_dict["rawDataArray"] = json_raw_data
+        json_return_dict["achievementTest"] = \
+            simplejson.dumps(self.achievement_test_key_string)
         full_json_return = simplejson.dumps(json_return_dict)
         return full_json_return
 
@@ -1678,7 +1695,7 @@ class GradingPeriodGradesHandler:
         """
         table_header = self._create_get_table_header()
         table_data, student_keylist = self._create_get_table_data()
-        data_table = SchoolDB.gviz_api.DataTable(table_header)
+        data_table = gviz_api.DataTable(table_header)
         data_table.LoadData(table_data)
         json_table = data_table.ToJSon()
         json_student_keylist = simplejson.dumps(student_keylist)
@@ -1745,7 +1762,186 @@ class GradingPeriodGradesHandler:
         return simplejson.dumps("%d grades set." %sets_count)
 
 
-
+#----------------------------------------------------------------------
+class SpreadsheetService:
+    """
+    This class is used to create and send emails that in total contain
+    spreadsheets for use in test grade entry for all of the sections
+    at the school which will take the test. This is done to allow
+    grade recording by those who do not have permission to use the
+    database entry page directly. The spreadsheets will be used for
+    later database loading by the schoolDB administrator or the
+    guidance counselor. The tasks to create the emails are performed
+    in the background via runTask. Only one object is created at the
+    beginning of the action. It calls itself after processing the
+    first spreadsheets_per_email with truncated student group list
+    until spreadsheets are created and emailed for all sections. This
+    is a generic class that uses an arbitrary list of student groups
+    and a given spreadsheet header generation function.
+    """
+    
+    def __init__(self, activity, entity_groups_keylist,
+                 spreadsheet_generation_function, 
+                 email_header_text = "",
+                 email_extra_text = "",
+                 recipient_email_address = None, 
+                 spreadsheets_per_email = 8):
+        """
+        Initialize the single object that will create and email all
+        spreadsheets. The activity key is the achievment test, etc.
+        that the spreadsheets will be used for. The entity groups
+        keylist is a list of all entities for which individual
+        spreadsheets will be created. The header generation
+        function is an external function that will be used with one
+        student group and the activity key to generate a single
+        spreadsheet that is returned as a StringIO object. If the
+        recipient_email_address is given then it will be used in the
+        emails. If not, then the users contact email will be used.
+        """
+        self.activity = activity
+        self.entity_groups_keylist = entity_groups_keylist
+        self.spreadsheet_generation_function = \
+            spreadsheet_generation_function
+        self.email_message = mail.EmailMessage()
+        self.email_header_text = email_header_text
+        self.email_extra_text = email_extra_text 
+        self.recipient = \
+            SchoolDB.models.getActiveDatabaseUser().get_active_user()
+        self.recipient_name = unicode(self.recipient.person)
+        if not recipient_email_address:
+            if self.recipient.contact_email:
+                recipient_email_address = \
+                    self.recipient.contact_email
+            else:
+                recipient_email_address = self.recipient.email
+        self.email_message = mail.EmailMessage()
+        self.email_message.sender = "service@pi-schooldb-dev.appspotmail.com"
+        self.email_message.to = recipient_email_address
+        self.num_spreadsheets = len(self.entity_groups_keylist)
+        self.spreadsheets_per_email = spreadsheets_per_email
+        self.num_emails = self.num_spreadsheets // \
+            self.spreadsheets_per_email
+        if (len(self.entity_groups_keylist) % self.spreadsheets_per_email):
+            self.num_emails += 1
+        self.current_email_index = 1
+        
+    def start_spreadsheet_processing(self):
+        """
+        This is a simple function to make the first call to
+        create_process_spreadsheet_request_task and to return some
+        text for the ajax return message.
+        """
+        valid_email_address = SchoolDB.utility_functions.valid_email_address(
+            self.email_message.to)
+        if valid_email_address:
+            self.create_process_spreadsheet_request_task()
+            message_text = \
+                "%d spreadsheets will be sent in %d email(s) to %s"\
+                    %(self.num_spreadsheets, self.num_emails, 
+                      self.email_message.to)
+        else:
+            message_text = \
+            '"%s" is an invalid email address. Please correct.' \
+            %self.email_message.to
+        return (valid_email_address, message_text)
+    
+    def create_process_spreadsheet_request_task(self):
+        """
+        This is the initiator that creates a process_spreadsheet task.
+        It is the only function explicitly called by another process.
+        It is then repeatedly called by the task processor itself to
+        handle further parts.
+        """
+        pickled_self = cPickle.dumps(self)
+        packed = zlib.compress(cPickle.dumps(self))
+        encoded = base64.b64encode(packed)        
+        task_generator = TaskGenerator(
+            task_name = "Process Spreadsheet Request: " + 
+            unicode(self.recipient),
+            function = "SchoolDB.assistant_classes.SpreadsheetService.process_spreadsheet_request", 
+            function_args = "processor_object = '%s'" %encoded,
+            start_delay = 0.5)
+        logging.info("Creating spreadsheet request task %d of %d for %s on %s" 
+                     %(self.current_email_index, self.num_emails, 
+                       unicode(self.recipient), unicode(self.activity)))
+        task_generator.send_task()
+        
+    def process_spreadsheet_request_task(self):
+        """
+        This is the only function externally called in this class. It
+        is the backend for creating and mailing batches of
+        spreadsheets for achievement test grade entry. Each time it is
+        called it will create spreadsheets_per_email using the
+        spreadsheet_generation_function, create and email an email
+        message with the spreadsheets as an attachment, remove the
+        entities processed from the list and call itself again.
+        """
+        spreadsheets = [self.spreadsheet_generation_function(
+            self.activity, target_entity) for target_entity in
+                        self.entity_groups_keylist[0: 
+                                    self.spreadsheets_per_email]]
+        result = self.email_spreadsheets(spreadsheets)
+        self.entity_groups_keylist = self.entity_groups_keylist[
+            self.spreadsheets_per_email:]
+        if (len(self.entity_groups_keylist) > 0):
+            self.current_email_index += 1
+            #call self again as a background task
+            self.create_process_spreadsheet_request_task()
+        return result
+                                                             
+    def email_spreadsheets(self, spreadsheets):
+        """
+        Email a set of spreadsheets as attachments to a brief email. The
+        receiver is a tuple with email address and name of the recipient
+        including title. The description name is used in the subject line
+        and in the body of the message. Each spreadsheet is a tuple with
+        the attachment name and the string that is the spreadsheet.
+        """
+        if not self.email_header_text:
+            self.email_header_text =  "Your requested spreadsheets for %s." \
+                %unicode(self.activity)
+        subject_line = "%s Email %d of %d" %(self.email_header_text,
+                                    self.current_email_index,self.num_emails)
+        logging.info("Starting email: %s -- Send to: %s" %(subject_line, 
+                                            self.email_message.to))
+        if (self.num_emails > 1):     
+            extra_text = """
+    Here are some of the spreadsheets that you have requested.        
+You should receive a total %d spreadsheets in %d email(s).  You should get all emails within 10-15 minutes.""" %(self.num_spreadsheets, self.num_emails)
+        else:
+            extra_text = """
+Here are the spreadsheets that you have requested."""                  
+        message_text = """
+Good Day %s. 
+%s
+%s
+    We hope that these will help you work with others who cannot directly use the database.
+    
+    Sincerely, 
+    Your SIS Team""" %(self.recipient_name, extra_text, 
+                       self.email_extra_text)
+        logging.info("Ready to send email.")
+        self.email_message.body = message_text
+        self.email_message.subject = subject_line
+        self.email_message.attachments = spreadsheets
+        self.email_message.send()
+        logging.info("Sent email %d of %d to %s" 
+            %(self.current_email_index, self.num_emails, 
+              self.recipient_name))
+        return True
+    
+    @staticmethod
+    def process_spreadsheet_request(processor_object):
+        """
+        Task handler function that is called by views.runTask.
+        The compression and encoding hides the quotation marks in the
+        pickled object that cause problems with the "eval" command.
+        """
+        unencoded = base64.b64decode(processor_object)
+        uncompressed = zlib.decompress(unencoded)
+        processor_object = cPickle.loads(uncompressed)        
+        return processor_object.process_spreadsheet_request_task()
+    
 #----------------------------------------------------------------------
 class QueryDescriptor:
     """
@@ -1757,9 +1953,9 @@ class QueryDescriptor:
     """
     def __init__(self):
         self.dict = {"leading_value":None,
-                     "filters":(),
+                     "filters":{},
                      "ancestor_filter_value":None,
-                     "sort_order":(),
+                     "sort_order":[],
                      "use_class_query":False,
                      "filter_by_organization":True,
                      "maximum_count":400,
@@ -1777,7 +1973,20 @@ class QueryDescriptor:
         return None.
         """
         return self.dict.get(name, None)
-
+    
+    def set_filter(self, filter_param, filter_value):
+        """
+        Set the filter dict value
+        """
+        
+        self.dict["filters"][filter_param] = filter_value
+        
+    def get_filters(self):
+        """
+        Return a list of param, value pairs for query filters.
+        """
+        return self.dict["filters"].items()
+        
 #----------------------------------------------------------------------
 class QueryMaker:
     """
@@ -1835,9 +2044,8 @@ class QueryMaker:
             organization = \
                 SchoolDB.models.getActiveDatabaseUser().get_active_organization_key()
             query.filter("organization", organization)
-        for filter_def in self.descriptor.get("filters"):
-            if (filter_def[0]):
-                query.filter(filter_def[0], filter_def[1])
+        for param, value in self.descriptor.get_filters():
+            query.filter(param, value)
         if (self.descriptor.get("leading_value")):
             leading_field, leading_string = self.descriptor.get("leading_value")
             if (leading_string):               

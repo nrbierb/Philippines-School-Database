@@ -48,13 +48,13 @@
 <!--
 google.load("jquery","1.4");
 google.load("jqueryui","1.8");
--->
+
 <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4/jquery.min.js"></script>
 <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.2/jquery-ui.min.js"></script>
-<!--
+-->
 <script type="text/javascript" src="/js/jquery-1.6.4.min.js"></script>
 <script type="text/javascript" src="/js/jquery-ui-1.8.16.custom.min.js"></script>
-
+<!--
 <script type="text/javascript" src="/js/jquery.tools.min.js"></script>
 <script type="text/javascript" src="/js/jquery.cookie.js"></script>
 <script type="text/javascript" src="/js/jquery.maskedinput-1.2.2.js"></script>
@@ -78,5 +78,10 @@ var page_prior_url = "{{page_prior_url}}";
 {{ javascript_code|safe }}
 {% endblock generated_javascript_code %}
 {% block local_javascript_code %}{% endblock local_javascript_code %}
+{% if view_only %}
+$(function() { 
+	makePageReadOnly();
+})
+{% endif %}
 </script>
 </html>

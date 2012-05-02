@@ -408,12 +408,12 @@ class AttendanceResultsProcessor():
         This is the only function that will be called outside the class to
         perform all actions.
         """
-        num_records = len(self.attendance_data)
+        num_records = len(self.records_data)
         for i in range(len(self.keys)):
             student_key = self.keys[i]
             if (i < num_records):
                 self._load_student_record(student_key,
-                    self.attendance_data[i])
+                    self.records_data[i])
 
     @staticmethod
     def save_attendance(json_attendance_data):
@@ -892,9 +892,12 @@ class Form2Report:
             self.start_date = date(int(yr), int(mn), 1)
             self.end_date = date(int(yr), int(mn)+1, 1) - timedelta(1)
         except:
-            #if no success with getting month use the most recuent full month
+            #if no success with getting month use the most recent full month
             tm = date.today().timetuple()
-            self.start_date = date(tm.tm_year,tm.tm_mon-1, 1)
+            if (tm.tm_mon == 1):
+                self.start_date = date(tm.tm_year - 1, 12, 1)
+            else:
+                self.start_date = date(tm.tm_year,tm.tm_mon-1, 1)
             self.end_date = date(tm.tm_year, tm.tm_mon, 1) - timedelta(1)
         self.parameter_dict = parameter_dict
         self.total_days = (self.end_date - self.start_date).days + 1

@@ -15,7 +15,7 @@
 
 from django.conf.urls.defaults import *
 
-urlpatterns = patterns('SchoolDB/views',
+urlpatterns = patterns('SchoolDB.views',
         (r'^index', 'showIndex'),
         (r'^masterhome', 'showIndex'),
         (r'^schoolhome', 'showIndex'),
@@ -38,6 +38,7 @@ urlpatterns = patterns('SchoolDB/views',
            'showChooseCustomReport'),
         (r'^custom_report', 'showDataBrowser'),
         (r'^choose_error_report', 'showChooseErrorReport'),
+        (r'^choose_grading_type', 'showChooseGradingType'),
         (r'^choose','showChoose'),
         (r'^student_emergency', 'showStudentEmergency'),
         (r'^student_status', 'showStudentStatus'),

@@ -24,6 +24,7 @@ import cPickle, zlib, base64
 from datetime import date
 import logging
 import exceptions
+import threading
 from google.appengine.api import users
 from google.appengine.api import mail
 from google.appengine.api import app_identity
@@ -58,17 +59,15 @@ from SchoolDB.utilities.convert_histories import convert_histories
 from SchoolDB.utilities.add_student_major_history import \
      add_student_major_history, clear_student_major_histories, \
      assign_student_majors_for_test_database
-from SchoolDB.utilities.create_schooldays import create_schooldays
 from SchoolDB.utilities.createStudents import create_students_for_school
 import SchoolDB.utilities
-result_string = ""
-__http_request__ = None
-__processed_request__ = None
-__revision_id__ = "Version: 1--0-17  " 
+from lib import gviz_api
+__revision_id__ = "Version: 1--0-18  " 
+__current_request = threading.local()
    
 def validate_user(request, auto_task=False):
     """
-    The decorator used before all url actions to determine action based
+    The function used before all url actions to determine action based
     upon the user making the request. First it tests if a user has
     logged in and if not redirects to a login page. If the user has
     logged in then the account information is queried from the database
@@ -196,9 +195,10 @@ def get_revision_id():
     return revison_name, revision_time
 
 def create_standard_params_dict(title_suffix, url_name,
+                                full_url_name = "",
                                 javascript_code = "",
                                 submit_action = None,
-                                breadcrumb_title = None,
+                                breadcrumb_name = None,
                                 full_title = None,
                                 help_page = "DefaultHelp"):
     global __revision_id__
@@ -208,10 +208,12 @@ def create_standard_params_dict(title_suffix, url_name,
         title_prefix = getprocessed().requested_action
     else:
         title_prefix = ""
-    if (not breadcrumb_title):
-        breadcrumb_title = title_suffix
+    if (not full_url_name):
+        full_url_name = url_name
     breadcrumb_text, request_url, page_prior_url = \
-        generate_breadcrumb_and_cookie(url_name)
+        generate_breadcrumb_and_cookie(request_url = url_name, 
+                                       full_url = full_url_name,
+                                       breadcrumb_name = breadcrumb_name)
     if (full_title):
         # if a full title has already been built use that as the 
         # suffix and clear out the prefix and bridge
@@ -221,6 +223,7 @@ def create_standard_params_dict(title_suffix, url_name,
     revison_name, revision_time = get_revision_id()
     guidance_counselor = (users.is_current_user_admin() or 
             SchoolDB.models.getActiveDatabaseUser().get_active_user().guidance_counselor)
+    view_only = (getprocessed().requested_action == "View")
     param_dict = {"revision_name":revison_name, 
                   "revision_time":revision_time,
                   "school_name":
@@ -234,14 +237,15 @@ def create_standard_params_dict(title_suffix, url_name,
                   "breadcrumbs":breadcrumb_text,
                   "page_prior_url":page_prior_url,
                   "javascript_code":javascript_code,
-                  "help_page":help_page}    
+                  "help_page":help_page,
+                  "view_only":view_only}    
     active_db_user = SchoolDB.models.getActiveDatabaseUser()
     if (active_db_user.get_active_user()):
         param_dict["username"] = active_db_user.get_active_user_name()
-        param_dict["usertype"] = unicode(
-            active_db_user.get_active_user_type())
+        param_dict["usertype"] = active_db_user.get_active_user_type_name()
         param_dict["personname"] = unicode(
             active_db_user.get_active_person())
+    
     return param_dict, request_url
 
 def showStatic(request, page_name, title_suffix, 
@@ -272,9 +276,13 @@ def showStaticTop(request, page_name, title_suffix, extra_params = {}):
     return showStatic(request = request, page_name = page_name, 
                       title_suffix = title_suffix, 
                       extra_params = extra_params)
+
 def showIndex(request):
+    """
+    Show the base "home" page. This page varies depending upon the type of the user.
+    """
     try:
-        validate_user(request)
+        #validate_user(request)
         return showStaticTop(request, "index", "Main Page")
     except ProhibitedError, e:
         return e.response
@@ -331,6 +339,12 @@ def showCalendar(request):
 def showGradebookEntriesCalendar(request):
     return showStatic(request, "gradebook_entries_calendar",
                       "Gradebook Entries Calendar")
+
+def showChooseGradingType(request):
+    return showStatic(request, "choose_grading_type", 
+                      "Choose a Grading Type",
+                      perform_mapping = False,
+                      help_page = "ChooseGradingTypeHelp")
 
 def standardShowAction(request, classname, form_class, title_suffix,
         template = "generic", 
@@ -420,14 +434,14 @@ def showTeacher(request):
                 help_page = "TeacherHelp")
 
 def showMyChoices(request):
-    return standardShowAction(request, "my_choices", MyChoicesForm, "My Choices",
-                              "my_choices")
+    return standardShowAction(request, "my_choices", MyChoicesForm, 
+                              "My Choices", "my_choices")
 
 def showStudent(request):
     return standardShowAction(request, "student", StudentForm, "Student",
                 "student",  help_page = "StudentHelp", 
                 extra_params = {'show_title':False, 'show_gender':True,
-                                'show_community':True,'show_municipality':True})
+                            'show_community':True,'show_municipality':True})
 
 def showParentOrGuardian(request):
     """
@@ -520,14 +534,17 @@ def showGrades(request):
 def showAchievementTestGrades(request):
     return standardShowAction(request, "achievement_test_school_info",
                     AchievementTestGradesForm, "Achievement Test Grades",
-                    "achievement_test_grades", use_template_name=True)
+                    "achievement_test_grades", use_template_name = True,
+                    extra_params = {'show_spreadsheet_entry':True},
+                    help_page = "AchievementTestGradesHelp")
 
 def showSectionAchievementTestGrades(request):
     return standardShowAction(request, "achievement_test_school_info",
                     SectionAchievementTestGradesForm, 
                     "Achievement Test Grades",
                     "section_achievement_test_grades", 
-                    use_template_name=True)
+                    use_template_name=True,
+                    extra_params= {'show_spreadsheet_entry':True})
 
 def showGradingPeriodResults(request):
     return standardShowAction(request, "grading_period_results",
@@ -671,12 +688,13 @@ def showChoose(request):
             if (not section):
                 raise RequestError, "Unknown Section"
             getprocessed().selection_key = str(section.key())
-            if (section.user_is_section_head()):
+            if (section.user_is_section_head() or
+                getActiveDatabaseUser().get_active_user().is_guidance_counselor()):
                 choose_action = "Edit"
             else:
                 choose_action = "View"
             form_title = "Section " + section.name + " Students"
-            breadcrumb_title = "Section Students"
+            breadcrumb_name = "Section Students"
             chosen_object_class = "student"
             choose_object_class = "section"
         elif (choose_type == "class_session_students"):
@@ -689,7 +707,7 @@ def showChoose(request):
             getprocessed().selection_key = str(class_session.key())
             form_title = "Class " + class_session.name + " Students"
             choose_action = "View"
-            breadcrumb_title = "Class Students"
+            breadcrumb_name = "Class Students"
             chosen_object_class = "student"
             choose_object_class = "class_session"
         elif (choose_type == "section_classes"):
@@ -702,7 +720,7 @@ def showChoose(request):
                 raise RequestError, "Unknown Section"
             getprocessed().selection_key = str(section.key())
             form_title = "Section " + section.name + " Class Schedule"
-            breadcrumb_title = "Section Class Schedule"
+            breadcrumb_name = "Section Class Schedule"
             chosen_object_class = "class_session"
             choose_object_class = "section"
         else:
@@ -716,7 +734,7 @@ def showChoose(request):
         javascript_code = javascript_generator.get_final_code()
         params, url_name = create_standard_params_dict(title_suffix=form_title, 
             url_name=request.path, javascript_code=javascript_code,
-            breadcrumb_title=breadcrumb_title,
+            breadcrumb_name=breadcrumb_name,
             submit_action ='/' + chosen_object_class)
         form.modify_params(params)
     except ProhibitedError, e:
@@ -925,6 +943,7 @@ def showSelectDialog(request):
         length = len(splitpath)
         select_type = splitpath[1]
         title_prefix = None
+        full_url_name= "" 
         select_class_name = splitpath[2]
         if (select_type == "initialselect"):
             select_template = "select_short"
@@ -957,6 +976,7 @@ def showSelectDialog(request):
             #the the action is "Further Selection". If not then
             #the action will be performed upon the selected object
             #so the action will be "Edit".
+            full_url_name = request.path.strip('/')
             return_url = "/" + splitpath[3]
             template_requested_action = "Edit"
             if (return_url.count("-") > 0):
@@ -965,8 +985,11 @@ def showSelectDialog(request):
         if (length > 4):
             full_title = splitpath[4].replace("-"," ")
             title_prefix = ""
+            #Use the special help page for this unique selection page
+            help_page = splitpath[4].replace("-","") + "Help"
         else:
             full_title = ""
+            help_page = "SelectHelp"
         select_class_form = \
                           get_form_from_class_name(select_class_name)
         if (not select_class_form):
@@ -986,7 +1009,8 @@ def showSelectDialog(request):
                           title_prefix = title_prefix,
                           submit_action=return_url, 
                           view_only=view_only,
-                          title=full_title)
+                          title=full_title,
+                          help_page=help_page)
         javascript_generator = \
                     SchoolDB.assistant_classes.JavascriptGenerator()
         form.generate_javascript_code(javascript_generator)
@@ -995,9 +1019,10 @@ def showSelectDialog(request):
         javascript_code = javascript_generator.get_final_code()
         params, url_name = create_standard_params_dict(title, 
             url_name = "select/" + select_class_name, 
+            full_url_name = full_url_name,
             javascript_code = javascript_code,
             submit_action = return_url, 
-            breadcrumb_title ="Select",
+            breadcrumb_name ="Select",
             full_title = full_title,
             help_page = "SelectHelp")
         form.modify_params(params)
@@ -1049,10 +1074,11 @@ def showDataBrowser(request):
                     SchoolDB.assistant_classes.JavascriptGenerator()
         form.generate_javascript_code(javascript_generator)
         javascript_code = javascript_generator.get_final_code()
+        breadcrumb_name = "Custom Report of %ss"  %select_class_name.title()
         params, url_name = create_standard_params_dict(title_suffix=title, 
             url_name="/custom_report/" + select_class_name,
             javascript_code=javascript_code, submit_action=return_url, 
-            breadcrumb_title = "Custom Report")
+            breadcrumb_name = breadcrumb_name)
         params["template_requested_action"] = template_requested_action
     except ProhibitedError, e:
         return e.response
@@ -1068,11 +1094,11 @@ def createBrowserFieldsTables(browsed_class_name):
     """
     browsed_class = SchoolDB.models.get_model_class_from_name(browsed_class_name)
     field_names = browsed_class.get_field_names()
-    field_choices_table = SchoolDB.gviz_api.DataTable(
+    field_choices_table = gviz_api.DataTable(
         ("field","string","Field Choices"))
     field_choices_table.LoadData(field_names)
     field_choices_descriptor = "(%s)" %field_choices_table.ToJSon()
-    selected_fields_table = SchoolDB.gviz_api.DataTable(
+    selected_fields_table = gviz_api.DataTable(
         ("field","string","Selected Fields"))
     selected_fields_table.LoadData([])
     selected_fields_descriptor = "(%s)" %selected_fields_table.ToJSon()
@@ -1266,8 +1292,8 @@ def buildForm(class_form):
     javascript_generator = \
             SchoolDB.assistant_classes.JavascriptGenerator(instance_string)
     form.generate_javascript_code(javascript_generator)
-    if (req_action == "View"):
-        javascript_generator.add_read_only()
+    #if (req_action == "View"):
+        #javascript_generator.add_read_only()
     javascript_code = javascript_generator.get_final_code()
     form.generate_choices()
     return form, javascript_code
@@ -1466,13 +1492,13 @@ class PersonForm(BaseStudentDBForm):
                     attrs={'cols':50, 'rows':3, 'class':'entry-field'}))
     cell_phone = forms.CharField(required=False,max_length=15,
                     widget=forms.TextInput(attrs={"size":12,
-                                    "class":"phone_number entry-field"}))
+                                    "class":"entry-field"}))
     landline_phone = forms.CharField(required=False,max_length=15,
                     widget=forms.TextInput(attrs={"size":12,
                                                 "class":"entry-field"}))
     email = forms.EmailField(required=False,
                     widget=forms.TextInput(attrs={"size":25,
-                                    "class":"phone_number entry-field"}))
+                                    "class":"entry-field"}))
     other_contact_info = forms.CharField(required=False,
                         max_length=1000, widget=forms.Textarea( 
                         attrs={'cols':50, 'rows':2, 'class':'entry-field'}))
@@ -2505,7 +2531,7 @@ class MultiLevelDefinedForm(BaseStudentDBForm):
     def generate_choices(self):
         self.fields["organization"].choices = \
             SchoolDB.models.MultiLevelDefined.create_limited_org_choice_list(
-                SchoolDB.models.getActiveDatabaseUser().get_active_organization(),
+                SchoolDB.models.getActiveOrganization(),
                 getprocessed().requested_action)
 
 #----------------------------------------------------------------------   
@@ -2993,6 +3019,10 @@ class ClassSessionForm(StudentGroupingForm):
                   "fieldType":"hidden"},
                  {"name":"class_year","label":"Year Level",
                   "fieldType":"view"},
+                 {"name":"section_name","label":"Section",
+                  "fieldType":"view"},
+                 {"name":"section","label":"Hidden",
+                  "fieldType":"hidden"},
                  {"name":"class_period_name","label":"Period",
                   "fieldType":"view"},
                  {"name":"class_period","label":"Hidden",
@@ -3707,16 +3737,13 @@ class AchievementTestGradesForm(BaseStudentDBForm):
     This form is used to set or view grades for all subjects on an 
     achievement test by section.
     """
-    class_year = forms.CharField(required=True, label="Year Level:",
-                                 widget=forms.TextInput(attrs={
-                                     'class':'autofill required entry-field'}))
     section_name = forms.CharField(required=False, label="Section:",
-                widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
+                widget=forms.TextInput(attrs={'class':'autofill required entry-field'}))
     section = forms.CharField(required=False,
                               widget=forms.HiddenInput, initial = "")
     achievement_test_name = forms.CharField(required=False, 
                 label="Achievement Test:",
-                widget=forms.TextInput(attrs={'class':'autofill entry-field'}))
+                widget=forms.TextInput(attrs={'class':'autofill required entry-field'}))
     achievement_test = forms.CharField(required=False,
                               widget=forms.HiddenInput, initial = "")   
     parent_form = BaseStudentDBForm
@@ -3727,14 +3754,9 @@ class AchievementTestGradesForm(BaseStudentDBForm):
             "Set Achievement Test Grades"
         
     def generate_javascript_code(self, javascript_generator):
-        clsyr = javascript_generator.add_autocomplete_field(
-            class_name = "class_year", field_name = "id_class_year",
-            delay=10)
-        clsyr.set_local_choices_list(SchoolDB.choices.ClassYearNames)
         sect = javascript_generator.add_autocomplete_field(
             class_name = "section", field_name = "id_section_name",
             key_field_name = "id_section")
-        sect.add_dependency(clsyr, False)
         achtest = javascript_generator.add_autocomplete_field(
             class_name = "achievement_test", 
             field_name = "id_achievement_test_name",
@@ -3751,7 +3773,6 @@ class AchievementTestGradesForm(BaseStudentDBForm):
                 active_section = Section.get(active_section_key)
                 data["section"] = str(active_section_key)
                 data["section_name"] = unicode(active_section)
-                data["class_year"] = active_section.class_year
         except:
             pass
                             
@@ -3788,7 +3809,7 @@ class GradingPeriodResultsForm(BaseStudentDBForm):
     <tr><td>Grading Period</td><td class="centered-object">Dates</td>
     <td >View</td>
             """
-            if user_is_teacher:
+            if user_is_teacher or users.is_current_user_admin():
                 html_string += "<td>Edit</td>"
             html_string += "</tr>"
             period_keystrs = [str(p.key()) for p in valid_grading_periods]
@@ -3802,11 +3823,11 @@ class GradingPeriodResultsForm(BaseStudentDBForm):
         class="period-view centered-object" type="checkbox" value=%s></td>
         """ %(period_names[i], period_dates[i], id_string, 
                   period_keystrs[i])
-            if user_is_teacher :
-                html_string += """
-            <td><input name="period-checkbox" id="%s-edit" 
-            class="period-edit centered_object" type="checkbox" value=%s></td>
-                """  %(id_string, period_keystrs[i])
+                if user_is_teacher :
+                    html_string += """
+                <td><input name="period-checkbox" id="%s-edit" 
+                class="period-edit centered_object" type="checkbox" value=%s></td>
+                    """  %(id_string, period_keystrs[i])
             html_string += "</tr></table>"
         return html_string
                         
@@ -3827,11 +3848,11 @@ class GradingPeriodResultsForm(BaseStudentDBForm):
         class_session = \
             SchoolDB.utility_functions.get_instance_from_key_string(
                 keystring, ClassSession)
-        if (class_session.teacher):
-            self.user_is_teacher = (class_session.teacher.key() == 
-                               getActiveDatabaseUser().get_active_person().key())
-        else:
-            self.user_is_teacher = False
+        #only the assigned teacher or the guidance counselor can set
+        #grades        
+        self.user_is_teacher = \
+            (class_session.user_is_class_session_teacher() or 
+             getActiveDatabaseUser().get_active_user().is_guidance_counselor())
         self.name = unicode(class_session)
         javascript_generator.add_javascript_params (
             {"class_session_name":self.name, 
@@ -3966,7 +3987,7 @@ class MasterDatabaseUserForm(BaseStudentDBForm):
     organization = forms.CharField(required=False, widget=forms.HiddenInput)
     person_name = forms.CharField(required=False, 
             label="Database Identity:", widget=forms.TextInput(attrs=
-                                {'class':'autofill entry-field'}))
+                                {'class':'autofill entry-field required'}))
     person = forms.CharField(required=False, widget=forms.HiddenInput)
     other_information = forms.CharField(required=False,
         max_length=1000, widget=forms.Textarea( 
@@ -4045,6 +4066,7 @@ class MasterDatabaseUserForm(BaseStudentDBForm):
                                 user_type=user_type, email=email)
         store = SchoolDB.assistant_classes.InformationStoreDict()        
         instance.private_info = store.put_data()
+        instance.user = users.User(email)
         return instance
         
         
@@ -4062,9 +4084,11 @@ class MasterDatabaseUserForm(BaseStudentDBForm):
         instance.middle_name = person.middle_name
         instance.last_name = person.last_name
         email = self.cleaned_data.get("email", None)
+        instance.user = users.User(email)
         user_type = self.cleaned_data.get("user_type", None)
         organization = self.cleaned_data.get("organization", None)
         instance.put()
+        return instance
 
 #----------------------------------------------------------------------  
 
@@ -4197,7 +4221,7 @@ class SelectForm(BaseStudentDBForm):
 
     def __init__(self, select_class, select_class_name, 
                  title_prefix, submit_action, view_only,
-                 title):
+                 title, help_page):
         BaseStudentDBForm.__init__(self)
         self.selection_key = forms.CharField(required=False, 
                                              widget=forms.HiddenInput)
@@ -4213,6 +4237,7 @@ class SelectForm(BaseStudentDBForm):
             self.requested_action = "View"
         self.return_url = "/" + select_class_name
         self.submit_action = submit_action
+        self.help_page = help_page
         self.select_class.initialize_form_params(self)
 
     def set_submit_action(self, submit_action):
@@ -4237,6 +4262,7 @@ class SelectForm(BaseStudentDBForm):
     
     def modify_params(self, params):
         params["top_title"] = self.title
+        params["help_page"] = self.help_page
         
     def generate_javascript_code(self, javascript_generator):
         javascript_generator.add_javascript_code(
@@ -4818,17 +4844,17 @@ label="Single Line Per School")
         org = \
             SchoolDB.models.getActiveDatabaseUser().get_active_organization()
         org_choices = org.get_subordinate_organizations_choice_list()
-        selected_fields_table = SchoolDB.gviz_api.DataTable(
+        selected_fields_table = gviz_api.DataTable(
             ("field","string","Selected Fields"))
         selected_fields_table.LoadData([])
         selected_fields_descriptor = "(%s)" %selected_fields_table.ToJSon()
-        field_choices_table = SchoolDB.gviz_api.DataTable(
+        field_choices_table = gviz_api.DataTable(
             ("field","string","Field Choices"))
-        selected_orgs_table = SchoolDB.gviz_api.DataTable(
+        selected_orgs_table = gviz_api.DataTable(
             ("field","string","Selected Organizations"))
         selected_orgs_table.LoadData([])
         selected_orgs_descriptor = "(%s)" %selected_orgs_table.ToJSon()
-        org_choices_table = SchoolDB.gviz_api.DataTable(
+        org_choices_table = gviz_api.DataTable(
             ("field","string","Organization Choices"))
         org_choices_table.LoadData(org_choices)
         org_choices_descriptor = "(%s)" %org_choices_table.ToJSon()
@@ -5339,6 +5365,7 @@ def create_section_students_table(parameter_dict, primary_object,
     class_session = parameter_dict.get("class_session","")
     query = SchoolDB.models.Student.all(keys_only=True)
     SchoolDB.models.active_student_filter(query)
+    query.filter("organization =", primary_object.organization)
     query.filter("section = ", primary_object)
     query.order("last_name")
     query.order("first_name")
@@ -5353,8 +5380,9 @@ def create_section_students_table(parameter_dict, primary_object,
             ('record_complete', 'string', 'Record Complete'))
     elif (special_field == "assignment_status"):
         table_description.append(
-            ('record_complete', 'string', 'Assignment Status'))       
-    for student in db.get(keys):
+            ('record_complete', 'string', 'Assignment Status'))
+    students = db.get(keys)
+    for student in students:
         table_entry = [student.last_name, student.first_name, 
                 student.middle_name]
         if (special_field == "records_check"):
@@ -5714,21 +5742,20 @@ def getprocessed():
     """
     Always use this function to get the processed request info
     """
-    global __processed_request__
-    return __processed_request__
+    global __current_request
+    return __current_request.processed_request
 
 def getrequest():
     """
     Always use this function to get the direct request
     """
-    global __http_request__
-    return __http_request__
-
+    global __current_request
+    return __current_request.http_request
+    
 def initrequest(http_request):
-    global __http_request__
-    global __processed_request__
-    __http_request__ = http_request
-    __processed_request__ = ProcessedRequest(http_request)
+    global __current_request
+    __current_request.http_request = http_request
+    __current_request.processed_request = ProcessedRequest(http_request)
 
 def is_real_database():
     return (app_identity.get_application_id() == 
@@ -5747,8 +5774,12 @@ class BreadcrumbGenerator:
     More usefully, a completely formatted webpage entry for a page
     can be generated with command generate_breadcrumb.
     """
-    def __init__(self, request_url):
+    def __init__(self, request_url, full_url = "", breadcrumb_name = ""):
         self.request_url = request_url
+        if not full_url:
+            full_url = request_url
+        self.full_url = full_url
+        self.breadcrumb_name = breadcrumb_name
         self.final_url_list = ["/"]
         self.breadcrumb_list = []
         self.return_url = "/"
@@ -5775,6 +5806,7 @@ class BreadcrumbGenerator:
             "student":"Student",
             "section":"Section",
             "choose_report":"Choose a Report Type",
+            "choose_grading_type":"Choose Grading Type",
             "attendance":"Enter Attendance",
             "section_students":"Section Students",
             "class_session_students":"Class Students",
@@ -5899,6 +5931,7 @@ class BreadcrumbGenerator:
         """
         """
         self._build_final_url_list()
+        last_url = self.final_url_list[-1]
         for url in self.final_url_list:
             name = ""
             if (url.startswith("select/")):
@@ -5913,6 +5946,8 @@ class BreadcrumbGenerator:
                 name += self.name_map.get(url.split("/")[1], "")
             else:
                 name = self.name_map.get(url, "Current Page")
+            if (self.breadcrumb_name and (url == last_url)):
+                name = self.breadcrumb_name
             self.breadcrumb_list.append((url, name))
 
     def _set_cookie(self, cookie_name):
@@ -5963,7 +5998,8 @@ class BreadcrumbGenerator:
         self._set_cookie(self.cookie_name)
         return breadcrumb_text, self.request_url, page_prior_url
 
-def generate_breadcrumb_and_cookie(request_url):
+def generate_breadcrumb_and_cookie(request_url, full_url = "",
+                                   breadcrumb_name = ""):
     """
     Create a full html breadcrumb line for the current_page from the
     site_description and page_title and set the path list cookie.
@@ -5971,7 +6007,7 @@ def generate_breadcrumb_and_cookie(request_url):
     this resonse, and the page prior url to be added as the link in
     for the cancel or finished button.
     """
-    generator = BreadcrumbGenerator(request_url)
+    generator = BreadcrumbGenerator(request_url, full_url, breadcrumb_name)
     return generator.generate_breadcrumb()
 
 def return_error_page(error_string_suffix):
@@ -6046,7 +6082,7 @@ class ClassActionProhibitedError(ProhibitedError):
             active_user.get_active_organization_name(),
             target_action, target_class)
         #log(log_string)
-        response_string_suffix = "%s on a %s." %(target_action, 
+        response_string_suffix = "%s a %s." %(target_action, 
                                                  target_class)
         self.response = error_report_function(response_string_suffix)
         

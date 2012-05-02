@@ -87,11 +87,13 @@
 	<legend class="major">My Info</legend>		
 	<table class="lg-btn" >
 	  <tbody>
+{% if show_my_choices %}
 	  <tr>
 			<td class="width200" ><input type="button" id="my_choices_button"  
 			class="btn blue tb menu-button" value="My Choices">
 			</input></td>
 	  </tr>
+{% endif %}
 	  <tr>
 			<td class="width200" ><input type="button" id="my_info_button"  
 			class="btn blue tb menu-button" value="Edit My Info"">
@@ -101,8 +103,8 @@
 			<td class="width200" ><input type="button" id="my_school_button"  
 			class="btn blue tb menu-button" value="View My School"></input></td>
 	  </tr>
-		</tbody>
-</table>
+	  </tbody>
+	</table>
 </fieldset></td>
 </tr>
 </tbody>

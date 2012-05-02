@@ -18,7 +18,30 @@
 </div>
 <div id="grades_div" style="display: none;">
 <div id="grades_title"></div>
-<div id="id_grades_table"></div>
+<fieldset>
+<legend>Grades</legend>
+<div id="id_grades_table" ></div>
+</fieldset>
+{% if show_spreadsheet_entry %}
+<fieldset>
+<legend>Copy from Spreadsheet</legend>
+<table class="unbordered"> 
+	<tr>
+	<td><label for="id_spreadsheet_text" id="id_spreadsheet_text_label">Spreadsheet Paste Area:</label></td>
+	<td><textarea id="id_spreadsheet_text" rows="2" cols="50" name="spreadsheet_text" 
+		class="entry-field"></textarea></td>
+	</tr><tr>
+		<td></td>
+		<td><table class="unbordered centered-object"> 
+			<tr><td><input type="button" id="reset_table_button" name="action" value="Reset Table"  
+			class="btn tb action"/></td>
+		<td><input type="button" id="load_spreadsheet_button" name="action" value="Load Table" 
+			class="btn tb action"/>
+		</input></td></tr></table>
+	</tr>
+</table>
+</fieldset>
+{% endif %}
 {% include 'bottom_buttons.html' %}
 </div>
 {% block hidden_fields %}

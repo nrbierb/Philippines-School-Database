@@ -18,18 +18,22 @@
 This file contains miscellaneous functions that are used in several files.
 """
 from datetime import date, timedelta, time
-import logging, re, operator
+import logging, re, operator, StringIO
 from google.appengine.ext import db
 from google.appengine.api import memcache
 from django.utils import simplejson
-import SchoolDB.gviz_api
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
+
+from lib import gviz_api, xlwt
+import SchoolDB
 
 def make_table(table_description, table_data):
     """
     Create the ajax return value for a full table representation
     with the Google table.
     """
-    data_table = SchoolDB.gviz_api.DataTable(table_description)
+    data_table = gviz_api.DataTable(table_description)
     data_table.LoadData(table_data)
     json_table = data_table.ToJSon()
     return json_table
@@ -519,7 +523,8 @@ def simple_remove(entity, perform_remove):
     
 def cleanup_django_escaped_characters(s):
     """
-    Django replaces some key characters in strings for safety. They must be reconverted befor the string can be used.
+    Django replaces some key characters in strings for safety. They
+    must be reconverted before the string can be used.
     """
     s = s.replace("%5B", "[")
     s = s.replace("%5D", "]")
@@ -527,3 +532,136 @@ def cleanup_django_escaped_characters(s):
     s = s.replace("%2F", "/")
     s = s.replace("%2C", ",")
     return s
+
+def valid_email_address(email_address):
+    """
+    This uses the django core validator validate_email to test if the
+    email_address is correct in form.
+    """
+    try:
+        validate_email(email_address)
+        return True
+    except ValidationError:
+        return False
+
+def create_empty_spreadsheet(spreadsheet_id, info, header, 
+                             row_entities, title_lines):
+    """
+    Create an empty spreadsheet with a title, a header_line, and the
+    first column. The spreadsheets are normally of the form of both
+    columns and rows associated with unique entities so each header
+    and row_entity element is a tuple of key and name. The header has
+    a hidden line to contain the header keys, the rows have a hidden
+    column to contain the row_entity keys.
+    This returns a StringIO object that contains the file image.
+    """
+    title_style = xlwt.easyxf ("""
+        font: color gold, bold True;
+        align: vertical center, horizontal center;
+        """)
+    
+    header_style = xlwt.easyxf("""
+        font: color dark_blue, bold True;
+        align: vertical center, horizontal center;
+        border: bottom medium_dashed;
+        """)
+    
+    name_style = xlwt.easyxf("""
+        font: color dark_green; 
+        align: wrap True, vertical center;
+        border: right medium;
+        """)
+    
+    entry_style = xlwt.easyxf("""
+        protection: cell_locked False;
+        align: vertical center;
+        """)
+    
+    wb = xlwt.Workbook(encoding='utf-8')
+    ws = wb.add_sheet('Primary')
+    ws.protect = True
+    ws.wnd_protect = True
+    ws.obj_protect = True
+    ws.scen_protect = True
+    num_columns = len(header) + 1
+    ws.col(1).hidden = True
+    ws.col(0).width = 10000   
+    for i in range(2, num_columns):
+        ws.col(i).width = 4000
+    #Set an ID 
+    row_index = 0
+    for title_line in title_lines:
+        ws.write_merge(row_index, row_index, 0, num_columns, 
+                       title_line, title_style)
+        row_index += 1
+    row_index += 1
+    ws.row(row_index+1).hidden = True
+    column_index = 0
+    for column_header in header:
+        key, text = column_header
+        ws.write(row_index, column_index, text, header_style)
+        ws.write(row_index + 1, column_index, key)
+        column_index += 1
+    row_index += 2
+    ws.row(row_index).hidden = True
+    for i in range(len(info)):
+        ws.write(row_index, i, info[i])
+    row_index += 1
+    top_row = row_index
+    for entity in row_entities:
+        key, name = entity
+        ws.write(row_index, 0, key)
+        ws.write(row_index, 1, name, name_style)
+        for column_index in range(2, len(header) + 1):
+            ws.write(row_index, column_index, None, entry_style)
+        row_index += 1
+    spreadsheet = StringIO.StringIO()
+    wb.save(spreadsheet)
+    #return as long string rather than StringIO object
+    return spreadsheet.getvalue()
+
+def create_achievement_test_spreadsheet(achievement_test, section_key):
+    """
+    This is a spreadsheet generation function that is used by the
+    spreadsheet service class for achievement test grade entry. It
+    creates a spreadsheet with the column headers of subject name and
+    number of questions and the rows with the keys and names of all
+    students in the section.
+    """
+    section_name = "Unknown"
+    try:
+        section = SchoolDB.models.Section.get(section_key)
+        section_name = unicode(section)
+        test_name = unicode(achievement_test)
+        title_lines = [test_name, 
+                achievement_test.date.strftime("%x"), section_name]
+        header = [("Subject Keys", "Student Name"),
+                  ("","")]
+        grading_instances = achievement_test.get_grading_instances(
+                    section)
+        header.extend((str(grading_instance.key()),
+                       "%s %d" %(unicode(grading_instance.subject), 
+                                  grading_instance.number_questions))
+                      for grading_instance in grading_instances)
+        students = [(SchoolDB.models.Person.format_full_name_lastname_first(
+                        student), str(student.key())) for student in 
+                    section.get_students()]
+        info = ["Spreadsheet Start", str(achievement_test.key()),
+                str(section_key), len(grading_instances), 
+                len(students)]        
+        spreadsheet = create_empty_spreadsheet(
+            spreadsheet_id = section_name,
+            info = info, header = header, row_entities = students,
+            title_lines = title_lines)
+        spreadsheet_name = "%s-%s.xls" %(section_name, test_name) 
+        logging.info("created spreadsheet %s len %d" %(spreadsheet_name,
+                                                       len(spreadsheet)))
+        return (spreadsheet_name, spreadsheet)
+    except StandardError, e:
+        if section:
+            section_name = unicode(section)
+        else:
+            section_name = "Unknown section"
+        return ("Failed-Creation-%s.txt" %section_name,
+                StringIO.StringIO("Failed to create spreadsheet for %s: %s" 
+                         %(section_name, e)))

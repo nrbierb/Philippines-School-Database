@@ -22,11 +22,13 @@ from google.appengine.ext import db
 from google.appengine.ext.db import polymodel
 from google.appengine.api import users
 from google.appengine.api import datastore_errors
+from django.utils import simplejson
 from datetime import date, timedelta, datetime, time
-import re 
+import re, threading
 import array, pickle, bz2, logging, zlib
 import types, operator
 import exceptions
+
 import django.template
 import SchoolDB.choices 
 import SchoolDB.assistant_classes
@@ -37,9 +39,7 @@ import SchoolDB.utility_functions
 
 # The global object that represents the database user active for this 
 # session
-
-__activeDatabaseUser = None
-__activeOrganization = None
+__active_user_info = threading.local()
 
 class DateNotInStudentAttendanceRecord(exceptions.Exception):
     def __init__(self, args=None):
@@ -1270,7 +1270,7 @@ class StudentStatus(db.Model):
     name = db.StringProperty(required=True)
     active_student = db.BooleanProperty(default=False)
     default_choice = db.BooleanProperty(default=False)
-    other_information = db.StringProperty(multiline=True)
+    other_information = db.StringProperty(multiline=True, indexed=False)
     custom_query_function = False
     classname = "Student Status"
 
@@ -1313,7 +1313,7 @@ class SchoolDayType(db.Model):
     active_morning = db.BooleanProperty(default=False)
     active_afternoon = db.BooleanProperty(default=False)
     default_choice = db.BooleanProperty(default=False)
-    other_information = db.StringProperty(multiline=True)
+    other_information = db.StringProperty(multiline=True, indexed=False)
     custom_query_function = False
     classname = "School Day Type"
 
@@ -1363,7 +1363,7 @@ class MultiLevelDefined(polymodel.PolyModel):
     name = db.StringProperty(required=True)
     organization = db.ReferenceProperty(Organization, 
                                         collection_name="multilevel_orgs")
-    other_information = db.StringProperty(multiline=True)
+    other_information = db.StringProperty(multiline=True, indexed=False)
     custom_query_function = True
     classname = "MultiLevel"
 
@@ -1501,7 +1501,7 @@ class MultiLevelDefined(polymodel.PolyModel):
         query_descriptor.set("filter_by_organization", False)
         keylist = MultiLevelDefined.build_hierarchy_keylist(organization)
         for authority in (keylist):
-            query_descriptor.set("filters", [("organization", authority)])
+            query_descriptor.set_filter("organization", authority)
             query = SchoolDB.assistant_classes.QueryMaker(target_class, 
                                                           query_descriptor)
             object_list, extra_data, message_text =  query.get_objects()
@@ -1512,6 +1512,9 @@ class MultiLevelDefined(polymodel.PolyModel):
                     all_extra_data += extra_data
                 else:
                     all_extra_data = extra_data
+        for obj in merge_list:
+            logging.info("Name: %s Organization: %s" %(obj.name,
+                                            unicode(obj.organization)))
         if (sort_function):
             merge_list = sort_function(merge_list)
         if return_only_keys:
@@ -1619,7 +1622,9 @@ class DateBlock(MultiLevelDefined):
         return field_names
 
     @staticmethod
-    def filter_results_for_inrange(query_results, target_date):
+    def filter_results_for_inrange(query_results, target_date, 
+                                   start_date_extension = 0,
+                                   end_date_extension = 0):
         """
         A query can only filter on a single inequality. This function
         is performs the scond half of the filtering. The initial query
@@ -1629,9 +1634,13 @@ class DateBlock(MultiLevelDefined):
         """
         inrange = []
         sorted_inrange = []
+        target_date_value = target_date.toordinal()
         if (len(query_results)):
             for result in query_results:
-                if (result.start_date <= date):
+                if (((result.start_date.toordinal() - start_date_extension) <=
+                     target_date_value) and (
+                         (result.end_date.toordinal() + end_date_extension) >= 
+                         target_date_value)):
                     inrange.append(result)
             if (len(inrange)):
                 sorted_inrange = MultiLevelDefined.sort_by_org_level(inrange)
@@ -1663,18 +1672,21 @@ class SchoolYear(DateBlock):
     def school_year_for_date(date = date.today()):
         """
         Return the school year object for the specified date at the
-        most local
+        most local. If a school year can be found that scontains the
+        start date that will be returned. If the date is not during
+        school year then the acceptable period will be extended to 30
+        days prior or 60 days after the year.
         """
         query = SchoolYear.all(keys_only=True)
-        query.filter("end_date >=",date)
         keys = query.fetch(100)
         years = db.get(keys)
-        #can only do inequality query filter on one property so must
-        #do other filter here. Not too bad, most of the time there will 
-        #probably be only one or two SchoolYears
         year = None
-        year_list = SchoolYear.filter_results_for_inrange(years, date)
-        if (len(year_list)):
+        year_list = SchoolYear.filter_results_for_inrange(years, date,
+                                start_date_extension = 0, end_date_extension = 0)
+        if (not year_list):
+            year_list = SchoolYear.filter_results_for_inrange(years, date,
+                                start_date_extension = 30, end_date_extension = 60)
+        if year_list:
             year = year_list[0]
         return year        
     
@@ -1768,19 +1780,17 @@ class GradingPeriod(DateBlock):
         """
         school_year = SchoolYear.school_year_for_date()
         query = GradingPeriod.all(keys_only=True)
-        #query.filter("start_date >=", school_year.start_date)
-        query.filter("end_date <=", date.today())
-        query.order("-end_date")
+        query.filter("start_date >= ", school_year.start_date)
+        query.order("start_date")
         #with inverse sort order only the most recent will be included
         #this assumes that no more than four years of grading periods
         #have been defined for the future
-        keys = query.fetch(12)
+        keys = query.fetch(100)
         periods = db.get(keys)
         #now work backwards to get sorted in the correct way
         in_range_periods = []
-        for i in range(len(periods) ,0,-1):
-            period = periods[i - 1]
-            if (period.start_date >= school_year.start_date):
+        for period in periods:
+            if (period.end_date <= date.today()):
                 in_range_periods.append(period)
         #If only one or none then skip all of the following -- unneeded
         if (len(in_range_periods) < 2):
@@ -2073,29 +2083,31 @@ class Person(polymodel.PolyModel):
     last_edit_time = db.DateTimeProperty(auto_now=True)
     last_editor = db.ReferenceProperty()
     first_name = db.StringProperty(required=True)
-    middle_name = db.StringProperty()
+    middle_name = db.StringProperty(indexed=False)
     last_name = db.StringProperty(required=True)
     gender = db.StringProperty(choices = SchoolDB.choices.Gender, default =
                                "Female")
     title = db.StringProperty()
-    address = db.StringProperty(multiline=True)
-    province = db.ReferenceProperty(Province, collection_name = "person_province")
+    address = db.StringProperty(multiline=True, indexed=False)
+    province = db.ReferenceProperty(Province, 
+                                    collection_name = "person_province")
     municipality = db.ReferenceProperty(Municipality, collection_name=
                                         "person_municipality")
     community = db.ReferenceProperty(Community, collection_name =
                                      "person_community")
-    cell_phone = db.StringProperty(required=False)
-    landline_phone = db.StringProperty(required=False)
-    email = db.StringProperty(required=False)
-    other_contact_info = db.StringProperty(multiline=True)
+    cell_phone = db.StringProperty(required=False, indexed=False)
+    landline_phone = db.StringProperty(required=False, indexed=False)
+    email = db.StringProperty(required=False, indexed=False)
+    other_contact_info = db.StringProperty(multiline=True, indexed=False)
     position = db.StringProperty(required=False)
     deped_employee = db.BooleanProperty(default=False)
     organization = db.ReferenceProperty(Organization, 
-                                        collection_name="person_organization")
+                                    collection_name="person_organization")
     organization_change_date = db.DateProperty()
     organization_history = db.ReferenceProperty(History,
-                            collection_name="person_organization_history")
-    other_information = db.StringProperty(multiline=True)
+                            collection_name="person_organization_history",
+                            indexed=False)
+    other_information = db.StringProperty(multiline=True, indexed=False)
     custom_query_function = False
     classname = "Person"
 
@@ -2717,7 +2729,8 @@ class StudentSectionSummary(db.Model):
     """
     is_current = db.BooleanProperty(default = False)
     section = db.ReferenceProperty()
-    student_school_summary = db.ReferenceProperty(StudentSchoolSummary)
+    student_school_summary = db.ReferenceProperty(StudentSchoolSummary,
+                                                  indexed=False)
     data_store = db.BlobProperty()
     
     @staticmethod
@@ -2941,11 +2954,14 @@ class Teacher(Person):
     employment = db.StringProperty()
     employment_start_date = db.DateProperty()
     employment_history = db.ReferenceProperty(History, 
-                                    collection_name="employment_history")
+                                    collection_name="employment_history",
+                                    indexed=False)
     section_advisor_history = db.ReferenceProperty(History, 
-                                collection_name="section_advisor_history")
+                                collection_name="section_advisor_history",
+                                indexed=False)
     class_session_teacher_history = db.ReferenceProperty(History, 
-                        collection_name="class_session_teacher_history")
+                        collection_name="class_session_teacher_history",
+                        indexed=False)
     custom_query_function = False
     classname = "Teacher"
 
@@ -3040,7 +3056,8 @@ class Classroom(db.Model):
     organization = db.ReferenceProperty(Organization,required=True)
     active = db.BooleanProperty(required=False,default=True)
     location = db.StringProperty(required=False, multiline=True)
-    other_information = db.StringProperty(required=False, multiline=True)
+    other_information = db.StringProperty(required=False, multiline=True,
+                                          indexed=False)
     custom_query_function = False
     classname = "Classroom"
 
@@ -3101,9 +3118,10 @@ class StudentGrouping(polymodel.PolyModel):
     classroom = db.ReferenceProperty(Classroom)
     teacher = db.ReferenceProperty(Teacher, collection_name=
                                    "student_grouping_teachers")
-    teacher_change_date = db.DateProperty()
-    teacher_history = db.ReferenceProperty(History, collection_name=
-                                           "student_grouping_teacher_histories")
+    teacher_change_date = db.DateProperty(indexed=False)
+    teacher_history = db.ReferenceProperty(History, 
+                collection_name= "student_grouping_teacher_histories",
+                indexed=False)
     students_have_been_assigned = db.BooleanProperty(default = False)
     custom_query_function = False
     classname = "Student Group"
@@ -3191,14 +3209,14 @@ class KeysList(db.Model):
     This is an absolutely trivial class that keeps two lists of entity
     keys. This will normally be used with a history. There are two
     lists so that entities such as male and female students can be kept
-    individiually for such things as a cache of students in a student
+    individually for such things as a cache of students in a student
     grouping at a particular time. Normally this will not be used in
     lieu of database queries unless such queries might be extremely
     expensive such as repeatedly generating lists from a large group at
     an earlier time.
     """
-    keylist1 = db.ListProperty(db.Key)
-    keylist2 = db.ListProperty(db.Key)
+    keylist1 = db.ListProperty(db.Key,indexed=False)
+    keylist2 = db.ListProperty(db.Key,indexed=False)
     
     def set_lists(self, keylist1, keylist2):
         self.keylist1 = keylist1
@@ -3213,9 +3231,9 @@ class Section(StudentGrouping):
     section_type = db.ReferenceProperty(SectionType)
     creation_date = db.DateProperty()
     termination_date = db.DateProperty()
-    number_male_students = db.IntegerProperty()
-    number_female_students = db.IntegerProperty()
-    students_count_date = db.DateProperty()
+    number_male_students = db.IntegerProperty(indexed=False)
+    number_female_students = db.IntegerProperty(indexed=False)
+    students_count_date = db.DateProperty(indexed=False)
     section_roster_changes_blob = db.BlobProperty()
     classname = "Section"
 
@@ -3240,6 +3258,8 @@ class Section(StudentGrouping):
         name. This only yields the students currently in section,
         """
         query = Student.all(keys_only=True)
+        #next filter is redundant but allows the use of an index already built
+        query.filter("organization =", self.organization)
         query.filter("section =", self)
         active_student_filter(query) 
         if (gender):
@@ -3278,7 +3298,7 @@ class Section(StudentGrouping):
         query.order('first_name')
         keys = query.fetch(300)
         for key in keys:
-            student = db.get(key)
+            student = Student.get(key)
             names.append(student.full_name_lastname_first())
             genders.append(student.gender)
             keystrings.append(str(key))
@@ -3467,12 +3487,14 @@ class ClassSession(StudentGrouping):
     class_period = db.ReferenceProperty(ClassPeriod)
     students_assigned_by_section = db.BooleanProperty(default=True)
     section = db.ReferenceProperty(Section)
-    class_year = db.StringProperty(choices = SchoolDB.choices.ClassYearNames)
+    class_year = db.StringProperty(choices = 
+                                   SchoolDB.choices.ClassYearNames)
     start_date = db.DateProperty()
     end_date = db.DateProperty()
     school_year = db.ReferenceProperty(SchoolYear)
     credit_units = db.FloatProperty()
-    grade_instance_ordered_list = db.ListProperty(db.Key)
+    grade_instance_ordered_list = db.ListProperty(db.Key,
+                                                  indexed=False)
     classname = "Class Session"    
 
     def detailed_name(self):
@@ -3891,10 +3913,11 @@ class GradingInstance(db.Model):
     percent_grade = db.FloatProperty()
     extra_credit = db.BooleanProperty()
     multiple = db.BooleanProperty()
-    number_questions = db.IntegerProperty()
-    other_information = db.StringProperty(multiline=True)
+    number_questions = db.IntegerProperty(indexed=False)
+    other_information = db.StringProperty(multiline=True, indexed=False)
     events = db.BlobProperty()
-    class_year = db.StringProperty() #this is only used for achievement tests
+    #this is only used for achievement tests
+    class_year = db.StringProperty() 
     classname = "Gradebook Entry"
 
     @staticmethod
@@ -4075,18 +4098,22 @@ class AchievementTest(MultiLevelDefined):
         if (len(keys) == 0):
             return None
         if (name and (len(keys) > 1)):
-            for test in db.get(keys):
+            tests = db.get(keys)
+            for test in tests:
                 if (test.name.find(name)):
                     return test
         else:
             return db.get(keys[0])
 
     @staticmethod
-    def findAchievementTestsForSchool(school, min_date=None, max_date=None):
+    def findAchievementTestsForSchool(school, min_date=None, max_date=None,
+                                      first_letters=""):
         """
         Return a list of Achievement tests that are available for the
-        school for the school year to date and a bit in the future or a
-        specified date range sorted in reverse chronological order.
+        school for the school year to date and a bit in the future or
+        a specified date range sorted in reverse chronological order.
+        If the first_letter argument is not empty filter on the
+        starting letters of the test name for use in choice lists.
         """
         division = school.division
         region = division.region
@@ -4106,10 +4133,18 @@ class AchievementTest(MultiLevelDefined):
             keys = query.fetch(100)
             if keys:
                 tests.extend(db.get(keys))
+        if first_letters:
+            filtered_tests = []
+            first_letters = first_letters.lower()
+            for test in tests:
+                if unicode(test).lower().startswith(first_letters):
+                    filtered_tests.append(test)
+            tests = filtered_tests
         return tests
 
     @staticmethod
-    def findAchievementTestsForSection(section, min_date=None, max_date=None):
+    def findAchievementTestsForSection(section, min_date=None, max_date=None,
+                                       first_letters=""):
         """
         Return a list of Achievement tests that are available for the section
         for the school year to date and a bit in the future sorted in reverse
@@ -4118,7 +4153,7 @@ class AchievementTest(MultiLevelDefined):
         school = section.organization
         class_year = section.class_year
         org_tests = AchievementTest.findAchievementTestsForSchool(school,
-                                        min_date, max_date)
+                                        min_date, max_date, first_letters)
         tests = []
         for test in org_tests:
             if (test.class_year_took_test(class_year)):
@@ -4138,7 +4173,8 @@ class AchievementTest(MultiLevelDefined):
                      get_possible_subjects("used_in_achievement_tests =")
         class_years = get_class_years_only()
         view_info = [ ]
-        at_instance = SchoolDB.utility_functions.get_instance_from_key_string(instance_string)
+        at_instance = \
+            SchoolDB.utility_functions.get_instance_from_key_string(instance_string)
         if (at_instance):
             for year in class_years:
                 grading_instances = at_instance.get_grading_instances(
@@ -4173,6 +4209,21 @@ class AchievementTest(MultiLevelDefined):
         gi_list.sort(key = lambda gi: unicode(gi.subject))
         return gi_list
 
+    def get_sections_for_school(self):
+        """
+        Use the test's class years to get a list of sections that will
+        take the test.
+        """
+        sections = []
+        for class_year in SchoolDB.choices.ClassYearNames:
+            if self.class_year_took_test(class_year):
+                query = Section.all(keys_only=True)
+                query.filter("organization =", 
+                             SchoolDB.models.getActiveOrganization())
+                query.filter("class_year = ", class_year)
+                sections.extend(query.fetch(100))
+        return sections
+        
     def get_all_school_infos(self):
         """
         Get the AchievementTestSchoolInfo entities for all schools
@@ -4278,9 +4329,9 @@ class AchievementTest(MultiLevelDefined):
 
     def change_percent_grade(self, percent_grade):
         """
-        Change the percentage that the test represents in the overall student
-        grade. This should be done only if the subject has not had a unique
-        percentage set.
+        Change the percentage that the test represents in the overall
+        student grade. This should be done only if the subject has not
+        had a unique percentage set.
         """
         if (percent_grade != self.percent_grade):
             for instance in self.get_grading_instances():
@@ -4315,10 +4366,13 @@ class AchievementTest(MultiLevelDefined):
     
     def class_year_took_test(self, class_year):
         """
-        Return True if there is at least one subject in the test for the class year.
+        Return True if there is at least one subject in the test for
+        the class year.
         """
-        return (len (self.get_grading_instances(class_year = class_year)) > 0)
-       
+        return (len (self.get_grading_instances(class_year =
+                                                class_year)) > 0)
+    
+                
     def __unicode__(self):
         return self.name
 
@@ -4615,8 +4669,8 @@ class StudentAttendanceRecord(db.Model):
 
     start_date_ordinal = db.IntegerProperty()
     attendance = db.BlobProperty()
-    prior_days_present = db.IntegerProperty()
-    prior_days_absent = db.IntegerProperty()
+    prior_days_present = db.IntegerProperty(indexed=False)
+    prior_days_absent = db.IntegerProperty(indexed=False)
     student_is_active = db.BooleanProperty()
     attendance_array = None
     custom_query_function = False
@@ -4723,7 +4777,7 @@ class StudentAttendanceRecord(db.Model):
     def _put_array(self):
         """
         Attendance is stored in the database as a "blob", a string of
-        data. Convert the attencace_array back into this form,
+        data. Convert the attendance_array back into this form,
         compress then store.
         """
         self.attendance = \
@@ -4781,6 +4835,7 @@ class StudentAttendanceRecord(db.Model):
             if (self.student_is_active != active_student):
                 self.student_status_changed(
                     status.startDate, active_student)
+        self._put_array()
 
     def get_start_date(self):
         """
@@ -5398,7 +5453,8 @@ class StudentsClass(db.Model):
         query = GradingPeriodResult.all(keys_only=True)
         query.filter("student_class_record", self)
         keys = query.fetch(100)
-        for gp_result in db.get(keys):
+        gp_results = db.get(keys)
+        for gp_result in gp_results:
             grades[gp_result.grading_period] = gp_result.assigned_grade
         return grades
 
@@ -5489,44 +5545,44 @@ class Student(Person):
     student_status = db.ReferenceProperty(StudentStatus)
     student_status_change_date = db.DateProperty()
     student_status_history = db.ReferenceProperty(History,
-                                        collection_name="status_history")
+                    collection_name="status_history", indexed=False)
     class_year = db.StringProperty()
     class_year_change_date = db.DateProperty()
     class_year_history = db.ReferenceProperty(History,
-                                        collection_name="class_year_history")
+                collection_name="class_year_history", indexed=False)
     section = db.ReferenceProperty(Section, collection_name="section")
     section_change_date = db.DateProperty()
     section_history = db.ReferenceProperty(History,
-                                           collection_name="section_history")
+                collection_name="section_history", indexed=False)
     student_major = db.ReferenceProperty(StudentMajor)
     student_major_change_date = db.DateProperty()
     student_major_history = db.ReferenceProperty(History,
-                                            collection_name="major_history")
+                collection_name="major_history", indexed=False)
     ranking = db.StringProperty()
     ranking_change_date = db.DateProperty()
     ranking_history = db.ReferenceProperty(History,
-                                           collection_name="ranking_history")
+                collection_name="ranking_history", indexed=False)
     special_designation = db.ReferenceProperty(SpecialDesignation)
     special_designation_change_date = db.DateProperty()
     special_designation_history = db.ReferenceProperty(History,
-                                collection_name="special_designation_history")
+            collection_name="special_designation_history", indexed=False)
     other_activities = db.StringProperty()
     other_activities_history = db.ReferenceProperty(History,
-                                collection_name="other_activities_history")
+            collection_name="other_activities_history", indexed=False)
     awards = db.StringProperty()
     awards_history = db.ReferenceProperty(History,
-                                          collection_name="awards_history")
+            collection_name="awards_history", indexed=False)
     post_graduation = db.StringProperty()
     post_graduation_history = db.ReferenceProperty(History,
-                                                   collection_name="post_graduation_history")
+            collection_name="post_graduation_history", indexed=False)
     transfer_history = db.ReferenceProperty(History,
-                                            collection_name="transfer_history")
+            collection_name="transfer_history", indexed=False)
     transfer_school_name = db.StringProperty()
     transfer_direction = db.StringProperty()
     transfer_other_info = db.StringProperty()
     transfer_date = db.DateProperty()
-    active_class_session_cache = db.ListProperty(db.Key)
-    active_class_record_cache = db.ListProperty(db.Key)
+    active_class_session_cache = db.ListProperty(db.Key, indexed=False)
+    active_class_record_cache = db.ListProperty(db.Key, indexed=False)
     achievement_test_blob = db.BlobProperty()
     custom_query_function = True
     classname = "Student"
@@ -6030,20 +6086,22 @@ class Student(Person):
     @staticmethod
     def custom_query(organization, leading_value, value_dict):
         """
-        Get a list of students from a school selected by school_key with
-        optional class_year, section, and leading_values. A list of 
-        tuples (name, section, class_year, gender)
+        Get a list of students from a school selected by school_key
+        with optional class_year, section, and leading_values. It
+        returns a list of tuples (name, section, class_year, gender),
+        a string in a special form with all student names and keys,
+        and a message from the query.
         """
         descriptor = SchoolDB.assistant_classes.QueryDescriptor()
-        filters = []
         if value_dict.has_key("filter-class_year"):
-            filters.append("class_year", value_dict["filter-class_year"])
+            descriptor.set_filter("class_year",
+                                  value_dict["filter-class_year"])
         if value_dict.has_key("filter-student_status"):
-            filters.append("student_status",
-                           value_dict["filter-student_status"])
+            descriptor.set_filter("student_status",
+                                  value_dict["filter-student_status"])
         if value_dict.has_key("filterkey-section"):
-            filters.append("section", value_dict["filterkey-section"])
-        descriptor.set("filters", filters)
+            descriptor.set_filter("section",
+                                  value_dict["filterkey-section"])
         sort_params = ["last_name", "first_name"]
         if value_dict.has_key("sort_by_gender"):
             sort_params.append("-gender")
@@ -6406,22 +6464,22 @@ class DatabaseUser(db.Model):
     """
     person = db.Reference(Person)
     first_name = db.StringProperty()
-    middle_name = db.StringProperty()
+    middle_name = db.StringProperty(indexed=False)
     last_name = db.StringProperty()
     name = db.StringProperty()
-    email = db.StringProperty(required=True)
-    contact_email = db.StringProperty()
+    email = db.StringProperty(required=True, indexed=False)
+    contact_email = db.StringProperty(indexed=False)
     user = db.UserProperty()
-    phdb_password = db.StringProperty()
+    phdb_password = db.StringProperty(indexed=False)
     organization = db.ReferenceProperty(Organization, required=True)
     user_type = db.ReferenceProperty(UserType)
     guidance_counselor = db.BooleanProperty(default=False)
     last_access_time = db.DateTimeProperty(auto_now=True)
-    usage_time = db.IntegerProperty(default=0)
+    usage_time = db.IntegerProperty(default=0, indexed=False)
     preferences = db.BlobProperty() #obsolete
     private_info = db.BlobProperty()
-    interesting_instances = db.ListProperty(db.Key)
-    other_information = db.StringProperty(multiline=True)
+    interesting_instances = db.ListProperty(db.Key, indexed=False)
+    other_information = db.StringProperty(multiline=True, indexed=False)
     custom_query_function = False
     classname = "Database User"
 
@@ -6484,7 +6542,8 @@ class DatabaseUser(db.Model):
         #list now includes all teachers and administrators in the organization
         # now choose only those that have no current reference
         candidates = []
-        for person in db.get(keys):
+        persons = db.get(keys)
+        for person in persons:
             try:
                 if not person.databaseuser_set.get():
                     candidates.append(person)
@@ -6499,7 +6558,20 @@ class DatabaseUser(db.Model):
 
     def in_organization(self, organization_key, requested_action):
         return (self.organization.key() == organization_key)
-
+    
+    def is_guidance_counselor(self):
+        return self.guidance_counselor
+    
+    def user_type_name(self):
+        """
+        Return the unicode name of the user type. Append "G.C." if the
+        user is a guidance counselor.
+        """
+        type_name = unicode(self.user_type)
+        if self.is_guidance_counselor():
+            type_name += ", G.C."
+        return type_name
+    
     def check_time_since_last_access(self):
         """
         Get the time difference between now and the last access.
@@ -6756,15 +6828,15 @@ class GradingPeriodResult(db.Model):
     is meant to be kept in long term records so that the students class
     record may be deleted.
     """
-    computed_grade = db.FloatProperty()
-    assigned_grade = db.FloatProperty()
+    computed_grade = db.FloatProperty(indexed=False)
+    assigned_grade = db.FloatProperty(indexed=False)
     grading_period = db.ReferenceProperty(GradingPeriod, required=True)
     class_session = db.ReferenceProperty(ClassSession, required=True)
     #the following values are for the assigned grade edit tracking
-    initial_assigned_date = db.DateProperty()
-    initial_assigned_grade = db.FloatProperty()
+    initial_assigned_date = db.DateProperty(indexed=False)
+    initial_assigned_grade = db.FloatProperty(indexed=False)
     initial_editor = db.ReferenceProperty(DatabaseUser, 
-                                          collection_name="initial_editor")
+                                    collection_name="initial_editor")
     change_date = db.DateProperty()
     last_editor = db.ReferenceProperty(DatabaseUser,
                                        collection_name="last_editor")
@@ -6883,12 +6955,12 @@ class VersionedTextManager(History):
     page will be created.
     """
     name = db.StringProperty(required = True)
-    title = db.StringProperty(multiline=True)
-    help_formatted = db.BooleanProperty(default = True)
+    title = db.StringProperty(multiline=True, indexed=False)
+    help_formatted = db.BooleanProperty(default = True, indexed=False)
     dialog_template = db.StringProperty()
     page_template = db.StringProperty()
     revision_number = db.StringProperty(required=True, default = "0.1")
-    general_info = db.StringProperty(multiline=True)
+    general_info = db.StringProperty(multiline=True, indexed=False)
     classname = "Text Page Manager"
 
     @staticmethod
@@ -7053,8 +7125,8 @@ class VersionedText(db.Model):
     author = db.ReferenceProperty(DatabaseUser, required=True)
     revision_number = db.StringProperty(required=True)
     last_edit_date = db.DateProperty(date.today())
-    comment = db.StringProperty(multiline = True)
-    content = db.TextProperty(required=True)
+    comment = db.StringProperty(multiline = True, indexed=False)
+    content = db.TextProperty(required=True, indexed=False)
 
     def form_data_post_processing(self):
         pass
@@ -7172,8 +7244,8 @@ class ActiveDatabaseUser:
         return self._active_user.user_type
 
     def get_active_user_type_name(self):
-        return unicode(self._active_user.user_type)
-
+        return self._active_user.user_type_name()
+    
     def set_active_organization(self, new_organization):
         """
         Check the permissions of the active user to determine if this is
@@ -7499,22 +7571,23 @@ def get_model_class_from_name(name_string):
 
     
 def setActiveDatabaseUser(databaseUser):
-    global __activeDatabaseUser, __activeOrganization
-    __activeDatabaseUser = ActiveDatabaseUser(databaseUser)
-    __activeOrganization = __activeDatabaseUser.get_active_organization()
+    global __active_user_info
+    __active_user_info.activeDatabaseUser = ActiveDatabaseUser(databaseUser)
+    __active_user_info.activeOrganization = \
+        __active_user_info.activeDatabaseUser.get_active_organization()
 
 def setActiveOrganization(organization):
-    global __activeOrganization
-    __activeOrganization = organization
-
-def getActiveOrganization():
     """
     Only for use under special circumstances such as tasking that requires
     an active organization to be set
     """
-    global __activeOrganization
-    return __activeOrganization
+    global __active_user_info
+    __active_user_info.activeOrganization = organization
+
+def getActiveOrganization():
+    global __active_user_info
+    return __active_user_info.activeOrganization
 
 def getActiveDatabaseUser():
-    global __activeDatabaseUser
-    return __activeDatabaseUser
+    global __active_user_info
+    return __active_user_info.activeDatabaseUser

@@ -53,6 +53,21 @@
 </fieldset>
 <br/>
 
+{% if guidance_counselor %}
+<fieldset id="organization-fieldset" class="major">
+<legend class="major">Other</legend>
+<table class="lg-btn" >
+  <tbody>
+    <tr>
+      <td class="width200"><a id="encoding_check"  class="btn blue tb" href="/reports/encoding_check">Check Encoding</a></td>
+      <td class="width200"><a id="user_type" class="btn blue tb not-ready" >Not Used</a></td>
+   </tr>
+  </tbody>
+</table>
+</fieldset>
+<br/>
+{% endif %}
+
 <fieldset class="major one-col-buttons" >
 <legend class="major">Action</legend>
 <table class="action-btn"  width="100%">

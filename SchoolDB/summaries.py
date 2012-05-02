@@ -479,7 +479,8 @@ class StudentSectionSummaryData(
         SchoolDB.models.active_student_filter(query)
         query.filter("section = ", section)
         keys = query.fetch(1000)
-        for student in db.get(keys):
+        students = db.get(keys)
+        for student in students:
             #Add individual student to the set of information.
             #Each record will only increment appropriate summary values.
             #No information is kept by student

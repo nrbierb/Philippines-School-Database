@@ -29,6 +29,7 @@ from google.appengine.ext import db
 import django
 from django import http
 from django.utils import simplejson
+from lib import gviz_api
 import settings
 import SchoolDB
 import SchoolDB.utility_functions
@@ -91,12 +92,14 @@ class AjaxServer():
             "set_schoolday_date":self._set_schoolday_date,
             "get_grades":self._get_grades,
             "set_grades":self._set_grades,
-            "get_achievement_test_grading_instances":\
+            "get_achievement_test_grading_instances": \
               self._get_achievement_test_grading_instances,
-            "get_achievement_tests_for_section":\
+            "get_achievement_tests_for_section": \
               self._get_achievement_tests_for_section,
-            "get_subjects_for_achievement_test":\
+            "get_subjects_for_achievement_test": \
               self._get_subjects_for_achievement_test,
+            "email_achievement_test_spreadsheets": \
+              self._email_achievement_test_spreadsheets,
             "edit_grading_period_grades":self._edit_grading_period_grades,
             "get_gradebook_entries":self._get_gradebook_entries,
             "change_date":self._change_date,
@@ -131,10 +134,6 @@ class AjaxServer():
             error_string = repr(e)  
             logging.error(self.error_string)
             return http.HttpResponseServerError(self.error_string)
-        #except StandardError, e:
-            #error_string = "Serious error: " + str(e)
-            #logging.error(error_string)
-            #return http.HttpResponseServerError(error_string)
     
     def _validate_argsDict(self):
         """
@@ -161,8 +160,7 @@ class AjaxServer():
             self.argsDict.get('key', None))
         self.target_object = self._get_object(self.target_class,
                                               key_string)
-        if (self.target_class):
-            
+        if (self.target_class):            
             SchoolDB.views.validate_action("View", 
                 self._return_ajax_permissions_error, 
                 self.target_class_name, self.target_object)
@@ -461,7 +459,7 @@ class AjaxServer():
         of keys and name of the siblings in the family or similarly for
         "parents".
         """
-        relationship = self.argsDict["relationship"]
+        relationship = self.argsDict.get("relationship", None)
         family = self.target_object
         if (family):
             if (relationship == "family"):
@@ -567,7 +565,9 @@ class AjaxServer():
                     json_attendance_data = json_attendance_data,
                     section_name = attendance_data["section_name"]
                 )
-            data_processor.process_data_by_task()
+            #use this when threading available
+            #data_processor.process_data_by_task()
+            data_processor.process_data()
             
     def _get_calendar(self):
         """
@@ -657,7 +657,7 @@ class AjaxServer():
         if section:
             tests = \
             SchoolDB.models.AchievementTest.findAchievementTestsForSection(
-                    section)
+                    section = section, first_letters = self.argsDict.get("q", ""))
         else:
             tests = []
         result_list, key_list, combined_list = \
@@ -686,7 +686,29 @@ class AjaxServer():
         self.return_string = simplejson.dumps(combined_list)
         return result_list
         
+    def _email_achievement_test_spreadsheets(self):
+        """
+        Email empty spreadsheets for each section to be used for
+        grading the achievement_test.
+        """
+        achievement_test = self.target_object
+        email_address = self.argsDict.get("email_address",None)
+        if (achievement_test):
+            section_keys = achievement_test.get_sections_for_school()
+            spreadsheet_server = SchoolDB.assistant_classes.SpreadsheetService(
+                activity = achievement_test, 
+                entity_groups_keylist = section_keys,
+                spreadsheet_generation_function = 
+                SchoolDB.utility_functions.create_achievement_test_spreadsheet,
+                recipient_email_address = email_address)
+            running, message_text = \
+                spreadsheet_server.start_spreadsheet_processing()
+            self.return_string = simplejson.dumps((running, message_text))
             
+        else:
+            self.return_string = simplejson.dumps((False,
+            "If you are just creating this achievement test please save and then reload before requesting the spreadsheets."))            
+
     def _edit_grading_period_grades(self):
         """
         Return the table of grades for one or more grading periods.
@@ -980,7 +1002,7 @@ class AjaxServer():
         Create the ajax return value for a full table representation
         with the Google table.
         """
-        data_table = SchoolDB.gviz_api.DataTable(table_description)
+        data_table = gviz_api.DataTable(table_description)
         data_table.LoadData(table_data)
         json_table = data_table.ToJSon()
         return json_table
@@ -1005,7 +1027,8 @@ class AjaxServer():
                 lv_field = "name"
             descriptor.set("leading_value",(lv_field, 
                                              self.argsDict["q"]))
-        descriptor.set("filters",self._get_additional_filters())
+        for param, value in self._get_additional_filters():
+            descriptor.set_filter(param,value)
         descriptor.set("ancestor_filter_value",
                     self.argsDict.get("parent", None))
         sort_order = self.argsDict.get("sort",[])

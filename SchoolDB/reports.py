@@ -80,7 +80,8 @@ class StudentAgeReport():
             self.error ="No class year or section requested for report"
             return
         keys = query.fetch(1000)
-        for student in db.get(keys):
+        students = db.get(keys)
+        for student in students:
             self.summary[4][3] += 1
             student_age = student.age(self.reference_date, self.age_calc_type)
             bucket = None
@@ -221,6 +222,7 @@ class SchoolRegisterReport():
         if (self.class_year):
             query.filter('class_year = ', self.class_year)
         if (self.section):
+            query.filter('organization =', self.section.organization)
             query.filter('section = ', self.section)
         query.filter('gender = ', self.gender)
         query.order('last_name')
@@ -318,6 +320,7 @@ class SectionListReport:
         query = SchoolDB.models.Student.all(keys_only=True)
         SchoolDB.models.active_student_filter(query)
         query.filter('section = ', self.section)
+        query.filter('organization = ', self.section.organization)
         query.filter('gender = ', gender)
         query.order('last_name')
         query.order('first_name')
@@ -533,7 +536,8 @@ class EncodingCheck:
         query.filter("termination_date = ", None)
         query.ancestor(self.school)
         keys = query.fetch(500)
-        for section in db.get(keys):
+        sections = db.get(keys)
+        for section in sections:
             name = section.name
             class_year = section.class_year
             if (section.teacher):

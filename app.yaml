@@ -1,7 +1,7 @@
 application: pi-schooldb-dev
-version: 1--0-17
-runtime: python
+version: 1--0-18
 api_version: 1
+runtime: python
 
 #Check DEBUG in settings.py
 
@@ -26,6 +26,7 @@ handlers:
 - url: /utilrequest
   script: main.py
   login: admin
+  secure: always
   
 - url: /runtest
   script: main.py
@@ -38,7 +39,7 @@ handlers:
   secure: always
  
 - url: /task
-  script: /main.py
+  script: main.py
   login: admin
   secure: always
 
@@ -46,10 +47,12 @@ handlers:
   script: main.py
   login: required
 
+
 builtins:
+- django_wsgi: on
 - remote_api: on
-- datastore_admin: on
 - appstats: on
+#- datastore_admin: on
 
 #inbound_services:
 #- warmup
